@@ -52,7 +52,6 @@ class ShortcutManager @Inject constructor(
         log(TAG, INFO) { "updateShortcuts(): $state" }
 
         val shortcuts = buildList {
-            add(AppShortcut.AppControl.toShortcutInfo(context))
             if (state.oneTapShortCutEnabled) {
                 add(AppShortcut.MainAction.OneTap.toShortcutInfo(context))
             }

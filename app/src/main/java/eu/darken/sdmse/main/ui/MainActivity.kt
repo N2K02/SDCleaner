@@ -166,7 +166,7 @@ class MainActivity : ComponentActivity() {
                     // overlay don't intercept touches, so the app underneath stays interactive.
                     Box(modifier = Modifier.fillMaxSize()) {
                         Navigation()
-                        FloatingLogPanelHost()
+
                     }
 
                     val showWidgetConsent by vm.showWidgetConsent.collectAsStateWithLifecycle()
@@ -331,9 +331,9 @@ class MainActivity : ComponentActivity() {
     // onNewIntent deliveries).
     private fun shortcutRoute(intent: Intent?): NavigationDestination? =
         when (intent?.getStringExtra(ShortcutActivity.EXTRA_SHORTCUT_ACTION)) {
-            ShortcutActivity.ACTION_OPEN_APPCONTROL -> AppControlListRoute
-            ShortcutActivity.ACTION_OPEN_ANALYZER -> DeviceStorageRoute
-            ShortcutActivity.ACTION_UPGRADE -> UpgradeRoute()
+            ShortcutActivity.ACTION_OPEN_APPCONTROL -> DashboardRoute
+            ShortcutActivity.ACTION_OPEN_ANALYZER -> DashboardRoute
+            ShortcutActivity.ACTION_UPGRADE -> DashboardRoute
             else -> null
         }
 

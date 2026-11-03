@@ -26,7 +26,7 @@ import eu.darken.sdmse.common.theming.ThemeMode
 import eu.darken.sdmse.setup.SetupRoute
 import eu.darken.sdmse.setup.SetupScreenOptions
 import eu.darken.sdmse.exclusion.ui.ExclusionsListRoute
-import eu.darken.sdmse.scheduler.ui.SchedulerSettingsRoute
+import eu.darken.sdmse.scheduler.ui.SchedulerManagerRoute
 import eu.darken.sdmse.corpsefinder.ui.CorpseFinderSettingsRoute
 import eu.darken.sdmse.systemcleaner.ui.SystemCleanerSettingsRoute
 import eu.darken.sdmse.appcleaner.ui.AppCleanerSettingsRoute
@@ -43,7 +43,7 @@ fun SettingsScreenHost() {
         SettingsPreferenceItem(title = "Cleaning tools", subtitle = "App caches, leftover files, system files, and duplicates", icon = Icons.Rounded.CleaningServices,
             onClick = { nav.goTo(CleanerSettingsRoute("tools")) })
         SettingsPreferenceItem(title = "Cleaning schedules", subtitle = "Choose when automatic cleaning runs", icon = Icons.Rounded.Schedule,
-            onClick = { nav.goTo(SchedulerSettingsRoute) })
+            onClick = { nav.goTo(SchedulerManagerRoute) })
         SettingsPreferenceItem(title = "Exclusions", subtitle = "Files and apps to keep", icon = Icons.Rounded.Shield,
             onClick = { nav.goTo(ExclusionsListRoute) })
         SettingsPreferenceItem(title = "Permissions & setup", subtitle = "Review access needed by cleaning tools", icon = Icons.Rounded.Security,
@@ -53,8 +53,6 @@ fun SettingsScreenHost() {
         HorizontalDivider(Modifier.padding(horizontal = 24.dp, vertical = 16.dp))
         SettingsPreferenceItem(title = "Diagnostics", subtitle = "App and device information", icon = Icons.Rounded.BugReport,
             onClick = { nav.goTo(CleanerSettingsRoute("diagnostics")) })
-        SettingsPreferenceItem(title = "Logs", subtitle = "View and export recorded diagnostic sessions", icon = Icons.Rounded.Description,
-            onClick = { nav.goTo(CleanerSettingsRoute("logs")) })
         ListItem(
             headlineContent = { Text("About & updates") },
             supportingContent = { Text(if (status.hasPendingUpdate()) "A new update is available" else BuildConfigWrap.VERSION_DESCRIPTION) },
@@ -72,15 +70,8 @@ fun CleanerSettingsScreenHost(section: String) {
     val title = when (section) {
         "appearance" -> "Appearance"
         "tools" -> "Cleaning tools"
-        "logs" -> "Logs"
         "updates" -> "About & updates"
         else -> "Diagnostics"
-    }
-    if (section == "logs") {
-        Scaffold(topBar = { SettingsHeader(title) }) { padding ->
-            Box(Modifier.padding(padding)) { eu.darken.sdmse.main.ui.settings.support.sessions.DebugLogSessionsScreenHost() }
-        }
-        return
     }
     SettingsPage(title) {
         when (section) {

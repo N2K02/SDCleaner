@@ -297,7 +297,7 @@ class SqueezerListScreenTest : BaseComposeRobolectricTest() {
         composeRule.onAllNodesWithText("Downscaled").fetchSemanticsNodes().isNotEmpty() shouldBe true
 
         composeRule.onNodeWithText(
-            "SD Maid already compressed this file. Compressing it again costs quality and saves little.",
+            "SDCleaner already compressed this file. Compressing it again costs quality and saves little.",
         ).assertExists()
         composeRule.onNodeWithText(
             "This photo has HDR or depth data that compression can't keep. An HDR photo comes back as a " +

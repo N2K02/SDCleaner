@@ -17,11 +17,6 @@ import androidx.core.view.WindowCompat
 
 @Composable
 fun SdmSeTheme(state: ThemeState = ThemeState(), content: @Composable () -> Unit) {
-    val dynamicColors = when (state.style) {
-        ThemeStyle.MATERIAL_YOU -> Build.VERSION.SDK_INT >= 31
-        else -> false
-    }
-
     val darkTheme = when (state.mode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
         ThemeMode.DARK -> true
@@ -36,19 +31,7 @@ fun SdmSeTheme(state: ThemeState = ThemeState(), content: @Composable () -> Unit
         insetsController.isAppearanceLightNavigationBars = !darkTheme
     }
 
-    val context = LocalContext.current
-
-    @SuppressLint("NewApi")
-    val colors = remember(state, darkTheme, dynamicColors) {
-        when {
-            dynamicColors && darkTheme -> dynamicDarkColorScheme(context)
-            dynamicColors && !darkTheme -> dynamicLightColorScheme(context)
-            darkTheme -> ThemeColorProvider.getDarkColorScheme(state.color, state.style)
-            else -> ThemeColorProvider.getLightColorScheme(state.color, state.style)
-        }
-    }
-
-    MaterialTheme(colorScheme = colors, typography = SdmSeTypography) {
+    dev.n2k02.theme.N2K02Theme(darkTheme = darkTheme, dynamicColor = true) {
         // Theme-level so every screen (activities, fragment ComposeViews, dialogs) gets the
         // D-pad/keyboard focus ring without per-screen wiring. An Indication override wouldn't
         // work here: M3 components pass ripple() explicitly and ignore LocalIndication.

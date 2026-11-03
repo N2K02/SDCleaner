@@ -13,7 +13,7 @@ import javax.inject.Singleton
 abstract class UpgradeModule {
     @Binds
     @Singleton
-    abstract fun control(foss: UpgradeRepoFoss): UpgradeRepo
+    abstract fun control(foss: eu.darken.sdmse.cleaner.CleanerFeatures): UpgradeRepo
 
     @Binds
     @Singleton

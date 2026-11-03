@@ -55,7 +55,7 @@
     <string name="deduplicator_matches_similar_label">Similar files</string>
     <string name="deduplicator_arbiter_title">Deletion strategy</string>
     <string name="deduplicator_arbiter_summary">Configure which files are kept and which are deleted.</string>
-    <string name="deduplicator_arbiter_explanation">When deleting duplicates, SD Maid decides which file to keep by checking each criterion in order. The first criterion that produces a clear winner determines the result. Drag to reorder, tap to change mode.</string>
+    <string name="deduplicator_arbiter_explanation">When deleting duplicates, SDCleaner decides which file to keep by checking each criterion in order. The first criterion that produces a clear winner determines the result. Drag to reorder, tap to change mode.</string>
     <string name="deduplicator_arbiter_select_mode_title">Select mode</string>
     <string name="deduplicator_arbiter_configure_paths_action">Configure paths…</string>
     <string name="deduplicator_arbiter_criterium_duplicate_type_title">Duplicate type</string>
@@ -87,5 +87,5 @@
     <string name="deduplicator_view_mode_groups_label">Groups</string>
     <string name="deduplicator_view_mode_directories_label">Folders</string>
     <string name="tour_deduplicator_details_cluster_body">These files all appear to be the same item or media content, a cluster of duplicates.</string>
-    <string name="tour_deduplicator_details_delete_mark_body">Files with this icon will be deleted; the remaining file in the group is the one SD Maid keeps. You can change how the keeper is chosen in the deletion strategy settings.</string>
+    <string name="tour_deduplicator_details_delete_mark_body">Files with this icon will be deleted; the remaining file in the group is the one SDCleaner keeps. You can change how the keeper is chosen in the deletion strategy settings.</string>
 </resources>

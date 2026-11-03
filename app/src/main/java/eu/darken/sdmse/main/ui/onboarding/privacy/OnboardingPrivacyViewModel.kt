@@ -43,7 +43,9 @@ class OnboardingPrivacyViewModel @Inject constructor(
         onError = { State() },
     )
 
-    fun onContinue() {
+    fun onContinue() = launch {
+        motdSettings.isMotdEnabled.value(false)
+        generalSettings.isUpdateCheckEnabled.value(false)
         navTo(OnboardingSetupRoute)
     }
 

@@ -4,7 +4,7 @@ SDCleaner is an Android cleanup app derived from SD Maid SE. This fork is being 
 
 ## Build
 
-Build a local FOSS debug APK:
+Build with JDK 17, the Android SDK, and `N2K02_PACKAGES_TOKEN` set to a token with read access to the shared theme and updater packages:
 
 ```sh
 ./gradlew assembleFossDebug

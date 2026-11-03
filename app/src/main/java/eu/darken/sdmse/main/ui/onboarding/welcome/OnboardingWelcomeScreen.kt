@@ -48,15 +48,7 @@ fun OnboardingWelcomeScreenHost(
     ErrorEventHandler(vm)
     NavigationEventHandler(vm)
 
-    val context = LocalContext.current
-
-    OnboardingWelcomeScreen(
-        isBeta = BuildConfigWrap.BUILD_TYPE != BuildConfigWrap.BuildType.RELEASE,
-        onContinue = {
-            val legacySdm = context.packageManager.getPackageInfo2("eu.thedarken.sdm".toPkgId(), 0)
-            vm.onContinue(isLegacySdmInstalled = legacySdm != null)
-        },
-    )
+    eu.darken.sdmse.cleaner.CleanerIntro(onContinue = { vm.onContinue(isLegacySdmInstalled = false) })
 }
 
 @Composable

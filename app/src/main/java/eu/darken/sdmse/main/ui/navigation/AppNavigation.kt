@@ -46,6 +46,7 @@ class AppNavigation @Inject constructor() : NavigationEntry {
         entry<UpgradeRoute> { route -> UpgradeScreenHost(route = route) }
         entry<SetupRoute> { route -> SetupScreenHost(route = route) }
 
+        entry<CleanerSettingsRoute> { route -> eu.darken.sdmse.main.ui.settings.CleanerSettingsScreenHost(route.section) }
         entry<SettingsRoute> { SettingsScreenHost() }
         entry<BackupRestoreRoute> { BackupRestoreScreenHost() }
         entry<GeneralSettingsRoute> { GeneralSettingsScreenHost() }

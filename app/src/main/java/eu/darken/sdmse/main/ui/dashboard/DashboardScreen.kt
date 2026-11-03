@@ -167,30 +167,16 @@ fun DashboardScreenHost(
         onConfirmMainAction = vm::mainAction,
     )
 
-    DashboardScreen(
+    eu.darken.sdmse.cleaner.CleanerHome(
         listState = listState,
         bottomBarState = bottomBarState,
-        isTv = vm.isTvDevice,
-        isHeroExpanded = isHeroExpanded,
-        isEasterEgg = isEasterEgg,
         snackbarHostState = snackbarHostState,
-        onDismissHero = vm::dismissHero,
         onMainAction = {
-            when (val actionState = bottomBarState?.actionState ?: return@DashboardScreen) {
-                BottomBarState.Action.DELETE -> {
-                    dialogState = DashboardDialogState.MainActionDelete(actionState)
-                }
-
+            when (val actionState = bottomBarState?.actionState ?: return@CleanerHome) {
+                BottomBarState.Action.DELETE -> dialogState = DashboardDialogState.MainActionDelete(actionState)
                 else -> vm.mainAction(actionState)
             }
         },
-        onToolClick = vm::onHeroToolClick,
-        // A non-Pro user may browse a Pro tool's findings list; only deletion is gated.
-        onLockedToolClick = vm::showTool,
-        onExpandHero = vm::expandHero,
-        onDiscardResults = vm::discardResults,
-        onSettings = { vm.navTo(SettingsRoute) },
-        onUpgrade = { vm.navTo(UpgradeRoute()) },
     )
 }
 

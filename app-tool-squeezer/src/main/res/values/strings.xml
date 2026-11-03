@@ -67,7 +67,7 @@
     <string name="squeezer_type_video_title">MP4 Video</string>
     <string name="squeezer_type_video_description">Include MP4 video files (.mp4). The video track is re-encoded at a lower bitrate by the device\'s own video encoder, the audio track is copied over unchanged, and the file stays an MP4.</string>
     <string name="squeezer_skip_compressed_title">Skip previously compressed</string>
-    <string name="squeezer_skip_compressed_description">Skip files that have already been compressed by SD Maid.</string>
+    <string name="squeezer_skip_compressed_description">Skip files that have already been compressed by SDCleaner.</string>
     <string name="squeezer_exif_marker_title">Write EXIF marker</string>
     <string name="squeezer_exif_marker_description">Append a marker to the image\'s EXIF user comment field to prevent re-compression even if the compression history is cleared.</string>
     <string name="squeezer_include_lossy_aux_title">Compress HDR &amp; depth photos</string>
@@ -84,7 +84,7 @@
     <string name="squeezer_chip_motion_photo">Motion Photo</string>
     <string name="squeezer_chip_downscaled">Downscaled</string>
     <string name="squeezer_markers_dialog_title">About these markers</string>
-    <string name="squeezer_markers_compressed_before_description">SD Maid already compressed this file. Compressing it again costs quality and saves little.</string>
+    <string name="squeezer_markers_compressed_before_description">SDCleaner already compressed this file. Compressing it again costs quality and saves little.</string>
     <string name="squeezer_markers_hdr_depth_description">This photo has HDR or depth data that compression can\'t keep. An HDR photo comes back as a normal one, and a portrait photo loses the depth data used for background blur.</string>
     <string name="squeezer_markers_motion_photo_description">This is a Motion Photo. Compression keeps the still image and removes the video clip.</string>
     <string name="squeezer_markers_downscaled_description">This photo is 8192 pixels or more wide or tall. Compression halves its width and height, and halves them again if needed, until both are below 8192 pixels.</string>

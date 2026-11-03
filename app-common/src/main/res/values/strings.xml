@@ -50,7 +50,7 @@
     <string name="general_progress_loading">Loading</string>
     <string name="general_progress_loading_app_data">Loading app data</string>
     <string name="general_progress_loading_data_areas">Loading data areas</string>
-    <string name="general_data_areas_unavailable_message">Couldn\'t load the data areas, the storage locations SD Maid can work with.</string>
+    <string name="general_data_areas_unavailable_message">Couldn\'t load the data areas, the storage locations SDCleaner can work with.</string>
     <string name="general_progress_loading_egg_0">Still faster than an iPhone</string>
     <string name="general_progress_loading_egg_1">Downloading more RAM</string>
     <string name="general_progress_loading_egg_2">Soon™</string>
@@ -195,7 +195,7 @@
     <string name="general_error_ipc_deadobject_title">Service Connection Lost</string>
     <string name="general_error_ipc_deadobject_description">The connection to a critical service (e.g. Magisk, Porter, Shizuku, or other system-level services) was unexpectedly lost. Please reboot your device. If the issue persists, check for updates or reach out to me so I can fix it.</string>
     <string name="general_error_upgrade_required_title">Upgrade required</string>
-    <string name="general_error_upgrade_required_description">This feature requires an upgrade. Please upgrade SD Maid SE to use it.</string>
+    <string name="general_error_upgrade_required_description">This feature requires an upgrade. Please upgrade SDCleaner to use it.</string>
 
     <string name="general_user_label_owner">Owner</string>
     <string name="general_user_label_system">System</string>
@@ -228,20 +228,20 @@
     <string name="ui_theme_color_amoled_label">AMOLED</string>
 
     <!-- Shown when a feature can only run with privileged access that turned out to be unavailable. -->
-    <string name="access_blocked_root_unavailable">This feature needs root access, but SD Maid couldn\'t get it on this device.</string>
+    <string name="access_blocked_root_unavailable">This feature needs root access, but SDCleaner couldn\'t get it on this device.</string>
     <string name="access_blocked_root_declined">This feature needs root access. You can enable it via the setup screen.</string>
     <string name="access_blocked_root_or_shizuku">This feature needs root or ADB access, which isn\'t available on this device.</string>
 
     <!-- Config backup/restore errors -->
     <string name="backup_restore_error_invalid_title">Invalid backup file</string>
-    <string name="backup_restore_error_invalid_body">This file is not a valid SD Maid backup or is corrupt.</string>
-    <string name="backup_restore_error_version_body">This backup was created with a newer version of SD Maid. Please update the app and try again.</string>
+    <string name="backup_restore_error_invalid_body">This file is not a valid SDCleaner backup or is corrupt.</string>
+    <string name="backup_restore_error_version_body">This backup was created with a newer version of SDCleaner. Please update the app and try again.</string>
     <string name="backup_restore_error_restore_failed_title">Restore failed</string>
     <string name="backup_restore_error_restore_failed_body">These parts could not be restored: %1$s. Your previous configuration was saved and can be brought back.</string>
     <string name="backup_restore_error_safety_title">Restore not started</string>
-    <string name="backup_restore_error_safety_body">SD Maid couldn\'t save a safety snapshot of your current configuration, so nothing was changed.</string>
+    <string name="backup_restore_error_safety_body">SDCleaner couldn\'t save a safety snapshot of your current configuration, so nothing was changed.</string>
     <string name="backup_restore_error_busy_title">Please wait</string>
     <string name="backup_restore_error_busy_body">A cleaning task or another backup operation is currently running. Try again when it has finished.</string>
     <string name="backup_restore_error_schema_title">Incompatible backup</string>
-    <string name="backup_restore_error_schema_body">The backup\'s database format doesn\'t match this version of SD Maid. Restoring history data is only supported between identical app versions.</string>
+    <string name="backup_restore_error_schema_body">The backup\'s database format doesn\'t match this version of SDCleaner. Restoring history data is only supported between identical app versions.</string>
 </resources>

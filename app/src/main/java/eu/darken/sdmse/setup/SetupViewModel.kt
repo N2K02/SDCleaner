@@ -354,20 +354,11 @@ class SetupViewModel @Inject constructor(
     fun onRuntimePermissionsGranted(permission: Permission?, granted: Boolean) = launch {
         log(TAG) { "onRuntimePermissionGranted(result=$permission,granted=$granted)" }
         if (granted) {
-            when (permission) {
-                Permission.MANAGE_EXTERNAL_STORAGE,
-                Permission.READ_EXTERNAL_STORAGE,
-                Permission.WRITE_EXTERNAL_STORAGE -> {
-                    storageSetupModule.onPermissionChanged(permission, granted)
-                }
-
-                Permission.PACKAGE_USAGE_STATS -> {}
-                Permission.POST_NOTIFICATIONS -> {}
-                Permission.WRITE_SECURE_SETTINGS -> {}
-                Permission.QUERY_ALL_PACKAGES -> {}
-                Permission.INTERACT_ACROSS_USERS -> {}
-                Permission.GET_INSTALLED_APPS -> {}
-                null -> {}
+            val isStoragePermission = permission == Permission.READ_EXTERNAL_STORAGE ||
+                permission == Permission.WRITE_EXTERNAL_STORAGE ||
+                (android.os.Build.VERSION.SDK_INT >= 30 && permission == Permission.MANAGE_EXTERNAL_STORAGE)
+            if (permission != null && isStoragePermission) {
+                storageSetupModule.onPermissionChanged(permission, granted)
             }
             setupManager.refresh()
         } else if (permission == Permission.GET_INSTALLED_APPS) {

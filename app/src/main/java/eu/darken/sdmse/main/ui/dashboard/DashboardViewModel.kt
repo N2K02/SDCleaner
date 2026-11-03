@@ -213,7 +213,7 @@ class DashboardViewModel @Inject constructor(
         .onEach { log(TAG, VERBOSE) { "listState.$name upstream emit: ${descLite(it)}" } }
         .onStart { log(TAG, VERBOSE) { "listState.$name upstream start" } }
 
-    private val updateInfo: Flow<UpdateDashboardCardItem?> = buildUpdateInfo()
+    private val updateInfo: Flow<UpdateDashboardCardItem?> = kotlinx.coroutines.flow.flowOf(null)
 
     internal val upgradeInfo: Flow<UpgradeRepo.Info?> = upgradeRepo.upgradeInfo
         .map {
@@ -265,7 +265,7 @@ class DashboardViewModel @Inject constructor(
     private val dataAreaItem: Flow<ErrorDataAreaDashboardCardItem?> = areaManager.latestResult
         .map { result -> dataAreaCardFor(result) { launch { areaManager.reload() } } }
 
-    private val motdItem: Flow<MotdDashboardCardItem?> = buildMotdItem()
+    private val motdItem: Flow<MotdDashboardCardItem?> = kotlinx.coroutines.flow.flowOf(null)
 
     private val setupCardItem: Flow<SetupDashboardCardItem?> = buildSetupCardItem()
 

@@ -26,6 +26,16 @@ allprojects {
         google()
         mavenCentral()
         maven { setUrl("https://jitpack.io") }
+        listOf("n2k02theme", "n2k02updater").forEach { library ->
+            maven {
+                url = uri("https://maven.pkg.github.com/N2K02/$library")
+                credentials {
+                    username = "N2K02"
+                    password = providers.environmentVariable("N2K02_PACKAGES_TOKEN").orNull
+                }
+                content { includeGroup("dev.n2k02") }
+            }
+        }
     }
 }
 

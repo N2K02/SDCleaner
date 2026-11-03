@@ -56,15 +56,7 @@ fun OnboardingPrivacyScreenHost(
 ) {
     ErrorEventHandler(vm)
     NavigationEventHandler(vm)
-    val state by vm.state.collectAsStateWithLifecycle()
-
-    OnboardingPrivacyScreen(
-        state = state,
-        onContinue = vm::onContinue,
-        onPrivacyPolicy = vm::goPrivacyPolicy,
-        onToggleMotd = vm::toggleMotd,
-        onToggleUpdateCheck = vm::toggleUpdateCheck,
-    )
+    eu.darken.sdmse.cleaner.CleanerIntro(privacy = true, onContinue = vm::onContinue)
 }
 
 @Composable

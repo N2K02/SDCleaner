@@ -6,7 +6,7 @@ pluginManagement {
     }
 }
 
-rootProject.name = "SD Maid SE"
+rootProject.name = "SDCleaner"
 include ':app'
 include ':app-common-root'
 include ':app-common'

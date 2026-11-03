@@ -11,6 +11,9 @@ apply(plugin = "org.jetbrains.kotlin.plugin.serialization")
 
 val commitHashProvider = providers.of(CommitHashValueSource::class) {}
 val signingBasePath = File(System.getProperty("user.home"), ".config/projects/${projectConfig.packageName}")
+val ciVersionName = providers.gradleProperty("appVersion").orNull
+val ciVersionCode = providers.gradleProperty("appVersionCode").orNull?.toIntOrNull()
+val ciVersionSuffix = providers.gradleProperty("appVersionSuffix").orNull.orEmpty()
 
 android {
     if (projectConfig.compileSdkPreview != null) {
@@ -21,6 +24,7 @@ android {
 
     defaultConfig {
         namespace = projectConfig.packageName
+        applicationId = "dev.n2k02.sdcleaner"
 
         minSdk = projectConfig.minSdk
         if (projectConfig.targetSdkPreview != null) {
@@ -29,13 +33,13 @@ android {
             targetSdk = projectConfig.targetSdk
         }
 
-        versionCode = projectConfig.version.code.toInt()
-        versionName = projectConfig.version.name
+        versionCode = ciVersionCode ?: projectConfig.version.code.toInt()
+        versionName = (ciVersionName ?: projectConfig.version.name) + ciVersionSuffix
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments["clearPackageData"] = "true"
 
-        buildConfigField("String", "PACKAGENAME", "\"${projectConfig.packageName}\"")
+        buildConfigField("String", "PACKAGENAME", "\"dev.n2k02.sdcleaner\"")
         buildConfigField("String", "GITSHA", "\"${commitHashProvider.get()}\"")
         buildConfigField("String", "VERSION_CODE", "\"${projectConfig.version.code}\"")
         buildConfigField("String", "VERSION_NAME", "\"${projectConfig.version.name}\"")

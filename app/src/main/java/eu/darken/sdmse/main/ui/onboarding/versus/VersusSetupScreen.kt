@@ -91,7 +91,7 @@ internal fun VersusSetupScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Image(
-                            painter = painterResource(R.drawable.graphic_mascot_legacy),
+                            painter = painterResource(R.drawable.sdcleaner_icon_fg),
                             contentDescription = null,
                             modifier = Modifier.size(104.dp),
                         )

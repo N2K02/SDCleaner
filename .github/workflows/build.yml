@@ -85,33 +85,22 @@ jobs:
       - name: Prepare signing key
         env:
           SIGNING_PASSPHRASE: ${{ secrets.SIGNING_PASSPHRASE }}
-          SIGNING_KEYSTORE_ENC_BASE64: ${{ secrets.SIGNING_KEYSTORE_ENC_BASE64 }}
-          ANDROID_SIGNING_KEYSTORE_B64: ${{ secrets.ANDROID_SIGNING_KEYSTORE_B64 }}
-          ANDROID_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_SIGNING_STORE_PASSWORD }}
-          ANDROID_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
-          ANDROID_SIGNING_ALIAS: ${{ secrets.ANDROID_SIGNING_ALIAS }}
         shell: bash
         run: |
           set -euo pipefail
+          : "${SIGNING_PASSPHRASE:?SIGNING_PASSPHRASE required}"
           K="$RUNNER_TEMP/sdcleaner-signing"
           umask 077
           mkdir -p "$K"
-          echo "$K" >> "$GITHUB_ENV"
-          if [[ -n "$SIGNING_KEYSTORE_ENC_BASE64" ]]; then
-            : "${SIGNING_PASSPHRASE:?SIGNING_PASSPHRASE required}"
-            printf '%s' "$SIGNING_KEYSTORE_ENC_BASE64" | base64 --decode | openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -pass env:SIGNING_PASSPHRASE -out "$K/release.keystore"
-          elif [[ -n "$ANDROID_SIGNING_KEYSTORE_B64" ]]; then
-            printf '%s' "$ANDROID_SIGNING_KEYSTORE_B64" | base64 --decode > "$K/release.keystore"
-          else
-            echo "::error::Configure SIGNING_KEYSTORE_ENC_BASE64 or ANDROID_SIGNING_KEYSTORE_B64 for release signing"
-            exit 1
-          fi
-          test -s "$K/release.keystore"
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -in signing/keys.tar.enc -pass env:SIGNING_PASSPHRASE | tar -xf - -C "$K"
+          test -s "$K/release.p12"
+          password=$(cat "$K/release.pass")
+          echo "::add-mask::$password"
           {
-            echo "STORE_PATH=$K/release.keystore"
-            echo "STORE_PASSWORD=${ANDROID_SIGNING_STORE_PASSWORD:?ANDROID_SIGNING_STORE_PASSWORD required}" 
-            echo "KEY_PASSWORD=${ANDROID_SIGNING_KEY_PASSWORD:-$ANDROID_SIGNING_STORE_PASSWORD}"
-            echo "KEY_ALIAS=${ANDROID_SIGNING_ALIAS:?ANDROID_SIGNING_ALIAS required}"
+            echo "STORE_PATH=$K/release.p12"
+            echo "STORE_PASSWORD=$password"
+            echo "KEY_PASSWORD=$password"
+            echo "KEY_ALIAS=release"
           } >> "$GITHUB_ENV"
       - name: Build signed release APK
         env:
@@ -136,3 +125,7 @@ jobs:
           GH_TOKEN: ${{ secrets.ANDROID_DISTRIBUTION_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: bash .github/scripts/publish-distribution.sh
+      - name: Remove decrypted signing material
+        if: always()
+        shell: bash
+        run: rm -rf "$RUNNER_TEMP/sdcleaner-signing"

@@ -8,6 +8,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.viewinterop.AndroidView
 import eu.darken.sdmse.common.ui.R
 
 /** One header row on every destination, including settings subpages. */
@@ -23,15 +25,22 @@ fun SdmBrandTopAppBar(
 ) {
     TopAppBar(
         modifier = modifier,
-        title = { ProvideTextStyle(MaterialTheme.typography.titleMedium) { title() } },
+        title = { ProvideTextStyle(MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold)) { title() } },
         navigationIcon = navigationIcon,
         colors = colors,
         scrollBehavior = scrollBehavior,
         actions = {
             actions()
             Row(Modifier.padding(start = 8.dp, end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(painterResource(R.drawable.sdcleaner_brand), null, Modifier.size(28.dp), tint = MaterialTheme.colorScheme.primary)
-                Text("SDCleaner", Modifier.padding(start = 4.dp), style = MaterialTheme.typography.labelLarge,
+                AndroidView(
+                    factory = { context -> android.widget.ImageView(context).apply {
+                        runCatching { setImageDrawable(context.packageManager.getApplicationIcon(context.packageName)) }
+                            .onFailure { setImageResource(R.drawable.sdcleaner_brand) }
+                        scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+                    } },
+                    modifier = Modifier.size(28.dp),
+                )
+                Text("SDCleaner", Modifier.padding(start = 4.dp), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         },

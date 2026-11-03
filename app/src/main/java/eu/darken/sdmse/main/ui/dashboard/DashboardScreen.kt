@@ -81,10 +81,8 @@ fun DashboardScreenHost(
     val activity = LocalActivity.current ?: return
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val listState by vm.listState.collectAsStateWithLifecycle()
+    val listState by vm.cleanerListState.collectAsStateWithLifecycle()
     val bottomBarState by vm.bottomBarState.collectAsStateWithLifecycle()
-    val isHeroExpanded by vm.isHeroExpanded.collectAsStateWithLifecycle()
-    val isEasterEgg by vm.easterEggTriggered.collectAsStateWithLifecycle()
 
     var dialogState by remember { mutableStateOf<DashboardDialogState?>(null) }
 
@@ -589,11 +587,14 @@ internal fun DashboardScreen(
                         // The per-item requester targets the card's focusable for dock→grid
                         // returns; onFocusEvent keeps the focus memory current (it fires for any
                         // focus gained within the item, including via plain spatial navigation).
+                        val cardFocusRequester = remember(item.stableId) {
+                            cardFocusRequesters.getOrPut(item.stableId) { FocusRequester() }
+                        }
                         Box(
                             modifier = Modifier
                                 .animateItem()
                                 .then(tourModifier)
-                                .focusRequester(cardFocusRequesters.getOrPut(item.stableId) { FocusRequester() })
+                                .focusRequester(cardFocusRequester)
                                 .onFocusEvent { if (it.hasFocus) lastFocusedCardId = item.stableId },
                         ) {
                             DashboardListCard(

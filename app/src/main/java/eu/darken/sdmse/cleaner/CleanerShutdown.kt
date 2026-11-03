@@ -8,7 +8,7 @@ internal suspend fun stopCleaner(
     cancelTasks: () -> Unit,
     awaitIdle: suspend () -> Unit,
     stopRecording: suspend () -> Unit,
-    stopHost: () -> Unit,
+    stopHost: suspend () -> Unit,
 ) {
     cancelBackground()
     cancelTasks()

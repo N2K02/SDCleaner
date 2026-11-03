@@ -69,6 +69,7 @@ fun AppCleanerListScreenHost(
     NavigationEventHandler(vm)
 
     val context = LocalContext.current
+    val currentState by vm.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     var pendingDeletion by remember { mutableStateOf<AppCleanerListViewModel.Event.ConfirmDeletion?>(null) }
@@ -96,7 +97,7 @@ fun AppCleanerListScreenHost(
     pendingDeletion?.let { pending ->
         val singleId = pending.ids.singleOrNull()
         val message = if (singleId != null) {
-            val row = vm.state.value.rows?.firstOrNull { it.identifier == singleId }
+            val row = currentState.rows?.firstOrNull { it.identifier == singleId }
             val name = row?.junk?.label?.get(context) ?: singleId.pkgId.name
             stringResource(R.string.appcleaner_delete_confirmation_message_x, name)
         } else {

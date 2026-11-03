@@ -672,7 +672,7 @@ class TaggedInputFieldTest : BaseComposeRobolectricTest() {
         val added = mutableListOf<SieveCriterium>()
         restorationTester.setContent {
             PreviewWrapper {
-                FieldUnderTest(tags = mutableStateListOf(downloads), onAdd = { added += it })
+                FieldUnderTest(tags = androidx.compose.runtime.remember { mutableStateListOf(downloads) }, onAdd = { added += it })
             }
         }
 
@@ -691,7 +691,7 @@ class TaggedInputFieldTest : BaseComposeRobolectricTest() {
         val restorationTester = StateRestorationTester(composeRule)
         restorationTester.setContent {
             PreviewWrapper {
-                FieldUnderTest(tags = mutableStateListOf(downloads))
+                FieldUnderTest(tags = androidx.compose.runtime.remember { mutableStateListOf(downloads) })
             }
         }
 

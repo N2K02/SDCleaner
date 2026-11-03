@@ -100,7 +100,7 @@ fun CleanerSettingsScreenHost(section: String) {
 @Composable
 private fun AppearanceSettings(vm: GeneralSettingsViewModel = hiltViewModel()) {
     val state by vm.state.collectAsStateWithLifecycle()
-    Text("Color follows your device wallpaper. Choose when to use the dark appearance.", Modifier.padding(24.dp))
+    Text("Use device colors when supported. Choose when to use the dark appearance.", Modifier.padding(24.dp))
     ThemeMode.entries.forEach { mode ->
         ListItem(headlineContent = { Text(mode.name.lowercase().replaceFirstChar { it.uppercase() }) },
             leadingContent = { RadioButton(selected = state.themeMode == mode, onClick = { vm.setThemeMode(mode) }) })
@@ -110,9 +110,16 @@ private fun AppearanceSettings(vm: GeneralSettingsViewModel = hiltViewModel()) {
 @Composable
 private fun SettingsHeader(title: String, root: Boolean = false) {
     val nav = requireNotNull(LocalNavigationController.current)
-    SdmBrandTopAppBar(title = { Text(title) }, navigationIcon = {
+    SdmBrandTopAppBar(title = { Text(title, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) }, navigationIcon = {
         if (root) Icon(Icons.Rounded.Settings, null, Modifier.padding(start = 16.dp))
-        else IconButton(onClick = { nav.up() }) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
+        else IconButton(onClick = { nav.up() }) {
+            Icon(when (title) {
+                "Appearance" -> Icons.Rounded.Palette
+                "Cleaning tools" -> Icons.Rounded.CleaningServices
+                "About & updates" -> Icons.Rounded.SystemUpdate
+                else -> Icons.Rounded.BugReport
+            }, "Back")
+        }
     })
 }
 

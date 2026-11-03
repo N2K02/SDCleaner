@@ -115,6 +115,7 @@ fun AppControlListScreenHost(
     }
 
     val context = LocalContext.current
+    val currentState by vm.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     val pendingExportIds = rememberSelectionState<InstallId>()
@@ -224,7 +225,7 @@ fun AppControlListScreenHost(
                     )
                 } else {
                     val singleId = ev.ids.first()
-                    val row = vm.state.value.rows?.firstOrNull { it.installId == singleId }
+                    val row = currentState.rows?.firstOrNull { it.installId == singleId }
                     val name = row?.appInfo?.label?.get(context) ?: singleId.pkgId.name
                     stringResource(CommonR.string.general_delete_confirmation_message_x, name)
                 },

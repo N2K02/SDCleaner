@@ -57,10 +57,9 @@ class MainViewModel @Inject constructor(
     val tasksIdle = taskManager.state.map { it.isIdle }
         .stateIn(vmScope, SharingStarted.Eagerly, false)
 
-    private var quitting = false
+    private val quitting = MutableStateFlow(false)
     fun stopForQuit(context: android.content.Context, onStopped: () -> Unit) {
-        if (quitting) return
-        quitting = true
+        if (!quitting.compareAndSet(false, true)) return
         launch {
             try {
                 eu.darken.sdmse.cleaner.CleanerUpdater.cancel()
@@ -70,11 +69,15 @@ class MainViewModel @Inject constructor(
                     awaitIdle = { taskManager.state.first { it.isIdle }; Unit },
                     stopRecording = { sessions.forceStopRecording(); Unit },
                     stopHost = {
-                        eu.darken.sdmse.automation.core.AutomationService.instance?.disableSelf()
-                        onStopped()
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
+                            eu.darken.sdmse.automation.core.AutomationService.instance?.disableSelf()
+                            onStopped()
+                        }
                     },
                 )
-            } finally { quitting = false }
+            } catch (error: kotlinx.coroutines.TimeoutCancellationException) {
+                errorEvents.emit(IllegalStateException("Cleaning is still stopping. Try Quit again once the active task finishes.", error))
+            } finally { quitting.value = false }
         }
     }
 

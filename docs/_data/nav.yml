@@ -1,6 +1,0 @@
-- section: guide
-  pages: [index, tutorial, setup, faq, bugs]
-- section: tools
-  pages: [appcleaner, corpsefinder, systemcleaner, storageanalyzer, deduplicator, mediasqueeze, swiper, appcontrol, scheduler]
-- section: more
-  pages: [exclusions, stats, translation, changelog]

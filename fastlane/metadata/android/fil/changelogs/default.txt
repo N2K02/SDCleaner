@@ -1,5 +1,0 @@
-Mga pag-aayos ng bug at maliliit na pagpapahusay, para mas mabawi mo ang espasyo nang walang gulo.
-
-Ano ang nabago sa bersyong ito: sdmse.darken.eu/changelog
-
-May sumira o kakaiba ba ang gawi pagkatapos mag-update? Sabihin mo sa akin sa Mga setting > Suporta. Solong tao lang ang gumagawa nito, kaya minsan matagal ang sagot, pero binabasa ang bawat report.

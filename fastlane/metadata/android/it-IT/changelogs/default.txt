@@ -1,5 +1,0 @@
-Correzioni di bug e piccoli miglioramenti, per liberare più spazio con meno sforzo.
-
-Cosa è cambiato in questa versione: sdmse.darken.eu/changelog
-
-Qualcosa si è rotto o si comporta in modo strano dopo l’aggiornamento? Segnalamelo tramite Impostazioni > Supporto. È un progetto di una sola persona, quindi le risposte potrebbero richiedere un po’ di tempo, ma ogni segnalazione viene letta.

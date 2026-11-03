@@ -1,5 +1,0 @@
-Xatoliklar tuzatildi va kichik yaxshilanishlar kiritildi, shunday qilib kamroq muammo bilan ko'proq joy bo'shatasiz.
-
-Bu versiyada nima o'zgardi: sdmse.darken.eu/changelog
-
-Yangilashdan keyin biror narsa buzildimi yoki g'alati ishlayaptimi? Menga Sozlamalar > Qo'llab-quvvatlash orqali xabar bering. Bu bir kishilik loyiha, shuning uchun javob berish biroz vaqt olishi mumkin, lekin har bir xabar o'qiladi.

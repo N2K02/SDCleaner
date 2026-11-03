@@ -1,5 +1,0 @@
-Hibajavítások és apró javítások, hogy kevesebb vesződséggel juss több szabad helyhez.
-
-Mi változott ebben a verzióban: sdmse.darken.eu/changelog
-
-Valami elromlott vagy furán viselkedik a frissítés után? Jelezd a Beállítások > Támogatás menüben. Ez egyszemélyes projekt, ezért a válasz eltarthat egy ideig, de minden visszajelzést elolvasok.

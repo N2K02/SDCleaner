@@ -1,5 +1,0 @@
-Klaidų taisymai ir smulkūs patobulinimai, kad atgautum daugiau vietos su mažiau vargo.
-
-Kas pasikeitė šioje versijoje: sdmse.darken.eu/changelog
-
-Kažkas sugedo ar veikia keistai po atnaujinimo? Pranešk man per Nustatymai > Pagalba. Tai vieno žmogaus projektas, todėl atsakymai gali šiek tiek užtrukti, bet kiekvienas pranešimas perskaitomas.

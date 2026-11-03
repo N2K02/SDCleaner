@@ -1,5 +1,0 @@
-Fejlrettelser og små forbedringer, så du får mere plads tilbage med mindre besvær.
-
-Hvad der er ændret i denne version: sdmse.darken.eu/changelog
-
-Er noget gået i stykker, eller opfører appen sig underligt efter opdateringen? Sig til via Indstillinger > Support. Det er et enmandsprojekt, så svar kan tage lidt tid, men alle rapporter bliver læst.

@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">SD Maid SE</string>
+    <string name="app_name">SDCleaner</string>
     <!-- Upgraded app title. %1$s is the app name, %2$s the tier qualifier ("Pro" / "FOSS"). Reorder or repunctuate for your language; both placeholders must appear exactly once. -->
     <string name="app_name_upgraded_template">%1$s %2$s</string>
 

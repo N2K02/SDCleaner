@@ -1,5 +1,0 @@
-Opravy chýb a drobné vylepšenia, vďaka ktorým získaš viac miesta s menšou námahou.
-
-Čo sa zmenilo v tejto verzii: sdmse.darken.eu/changelog
-
-Niečo sa po aktualizácii pokazilo alebo sa správa čudne? Daj mi vedieť cez Nastavenia > Podpora. Je to projekt jedného človeka, takže odpovede môžu chvíľu trvať, ale každé hlásenie si prečítam.

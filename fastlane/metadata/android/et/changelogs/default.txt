@@ -1,5 +1,0 @@
-Vigade parandused ja väiksed täiustused, et saaksid vähema vaevaga rohkem ruumi tagasi.
-
-Mis selles versioonis muutus: sdmse.darken.eu/changelog
-
-Kas midagi läks pärast uuendamist katki või käitub imelikult? Anna mulle teada Seaded > Klienditugi kaudu. See on ühe inimese projekt, seega vastamine võib veidi aega võtta, kuid iga teade saab loetud.

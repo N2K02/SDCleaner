@@ -1,5 +1,0 @@
-Akats-konponketak eta hobekuntza txikiak, buruhauste gutxiagorekin leku gehiago berreskuratzeko.
-
-Bertsio honetan zer aldatu den: sdmse.darken.eu/changelog
-
-Zerbait hondatu bada edo arraro portatzen bada eguneratu ondoren, esan iezadazu Ezarpenak > Laguntza bidez. Pertsona bakarreko proiektua da, beraz erantzunek denbora har dezakete, baina txosten guztiak irakurtzen dira.

@@ -1,5 +1,0 @@
-Correções de bugs e pequenas melhorias, para recuperares mais espaço com menos complicações.
-
-O que mudou nesta versão: sdmse.darken.eu/changelog
-
-Algo avariou ou está a comportar-se de forma estranha depois da atualização? Diz-me através de Definições > Assistência. É um projeto de uma só pessoa, por isso as respostas podem demorar um pouco, mas todos os relatos são lidos.

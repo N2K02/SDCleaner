@@ -1,5 +1,0 @@
-Corrección de erros e pequenas melloras, para que recuperes máis espazo con menos complicacións.
-
-Que cambiou nesta versión: sdmse.darken.eu/changelog
-
-Algo fallou ou compórtase de forma estraña despois de actualizar? Dime a través de Configuración > Soporte. É un proxecto dunha soa persoa, así que as respostas poden tardar un pouco, pero todos os informes se len.

@@ -1,5 +1,0 @@
-Virhekorjauksia ja pieniä parannuksia, jotta saat lisää tilaa vähemmällä vaivalla.
-
-Mitä tässä versiossa muuttui: sdmse.darken.eu/changelog
-
-Hajosiko jokin tai käyttäytyykö sovellus oudosti päivityksen jälkeen? Kerro minulle kohdasta Asetukset > Tuki. Tämä on yhden hengen projekti, joten vastaukset voivat kestää hetken, mutta jokainen ilmoitus luetaan.

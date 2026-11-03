@@ -1,5 +1,0 @@
-Bug fixes and small improvements, so you get more space back with less hassle.
-
-What changed in this version: sdmse.darken.eu/changelog
-
-Something broke or behaves oddly after updating? Tell me via Settings > Support. It's a one-person project, so replies can take a little while, but every report gets read.

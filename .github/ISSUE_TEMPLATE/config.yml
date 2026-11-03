@@ -1,8 +1,0 @@
-blank_issues_enabled: true
-contact_links:
-  - name: SD Maid Docs
-    url: https://sdmse.darken.eu/bugs
-    about: Read this before opening a bug report.
-  - name: FAQ
-    url: https://sdmse.darken.eu/faq
-    about: Check if your question is already answered here.

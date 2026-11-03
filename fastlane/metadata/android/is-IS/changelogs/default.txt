@@ -1,5 +1,0 @@
-Villuleiðréttingar og smávægilegar úrbætur, svo þú fáir meira pláss til baka með minni fyrirhöfn.
-
-Hvað breyttist í þessari útgáfu: sdmse.darken.eu/changelog
-
-Er eitthvað bilað eða skrýtið eftir uppfærslu? Láttu mig vita í gegnum Stillingar > Stuðningur. Þetta er einyrkjaverkefni, svo svör geta tekið smá tíma, en öll skilaboð eru lesin.

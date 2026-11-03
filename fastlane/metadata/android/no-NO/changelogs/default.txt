@@ -1,5 +1,0 @@
-Feilrettelser og små forbedringer, slik at du får tilbake mer plass med mindre bry.
-
-Hva som er endret i denne versjonen: sdmse.darken.eu/changelog
-
-Har noe sluttet å fungere eller oppfører seg rart etter oppdateringen? Fortell meg det via Innstillinger > Støtte. Dette er et enmannsprosjekt, så svar kan ta litt tid, men alle rapporter blir lest.

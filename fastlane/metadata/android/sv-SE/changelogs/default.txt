@@ -1,5 +1,0 @@
-Buggfixar och mindre förbättringar, så att du får tillbaka mer utrymme med mindre krångel.
-
-Vad som ändrats i den här versionen: sdmse.darken.eu/changelog
-
-Har något gått sönder eller beter sig konstigt efter uppdateringen? Säg till mig via Inställningar > Support. Det här är ett enmansprojekt, så svar kan ta ett tag, men alla rapporter blir lästa.

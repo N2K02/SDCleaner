@@ -1,5 +1,0 @@
-Ispravke grešaka i manja poboljšanja donose više oslobođenog prostora uz manje muke.
-
-Što se promijenilo u ovoj verziji: sdmse.darken.eu/changelog
-
-Nešto ne radi ili se čudno ponaša nakon ažuriranja? Javi mi putem izbornika Postavke > Podrška. Ovo je projekt jedne osobe, pa odgovori mogu malo potrajati, ali svaka prijava se pročita.

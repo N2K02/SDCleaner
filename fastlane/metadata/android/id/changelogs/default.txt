@@ -1,5 +1,0 @@
-Perbaikan bug dan berbagai peningkatan kecil, agar kamu bisa mendapatkan kembali lebih banyak ruang penyimpanan dengan lebih mudah.
-
-Apa yang berubah di versi ini: sdmse.darken.eu/changelog
-
-Ada yang rusak atau berjalan aneh setelah pembaruan? Beri tahu saya lewat Pengaturan > Bantuan. Ini proyek satu orang, jadi balasan bisa agak lama, tapi setiap laporan pasti dibaca.

@@ -103,9 +103,9 @@ fun ScheduleItemSheetHost(
                 onInitialDelayChanged = vm::setInitialDelayMinutes,
                 onSave = vm::saveSchedule,
             )
-        
         }
-    }}
+    }
+}
 
 @Composable
 internal fun ScheduleItemSheet(

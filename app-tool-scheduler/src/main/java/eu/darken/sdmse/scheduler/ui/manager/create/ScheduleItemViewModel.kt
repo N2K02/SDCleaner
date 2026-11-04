@@ -64,8 +64,8 @@ class ScheduleItemViewModel @Inject constructor(
         .map { d ->
             State(
                 label = d.label,
-                hour = d.hour ?: toEdit.hour,
-                minute = d.minute ?: toEdit.minute,
+                hour = d.hour,
+                minute = d.minute,
                 repeatInterval = d.repeatInterval,
                 intervalMinutes = d.intervalMinutes,
                 runOnce = d.runOnce,
@@ -152,10 +152,11 @@ class ScheduleItemViewModel @Inject constructor(
         schedulerManager.saveSchedule(
             toEdit.copy(
                 label = d.label,
-                hour = d.hour,
-                minute = d.minute,
+                hour = d.hour ?: toEdit.hour,
+                minute = d.minute ?: toEdit.minute,
                 repeatInterval = d.repeatInterval,
                 intervalMinutes = d.intervalMinutes,
+                runOnce = d.runOnce,
                 initialDelayMinutes = d.initialDelayMinutes,
             ),
         )

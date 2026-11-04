@@ -27,6 +27,12 @@ class ScheduleMinuteIntervalTest : BaseTest() {
         schedule.calcExecutionEta(anchor, reschedule = false) shouldBe Duration.ofMinutes(15)
     }
 
+    @Test fun `one-time cleanup runs after requested delay`() {
+        val schedule = Schedule(id = "once", scheduledAt = anchor, intervalMinutes = 1, initialDelayMinutes = 5, runOnce = true)
+        schedule.calcExecutionEta(anchor, reschedule = false) shouldBe Duration.ofMinutes(5)
+        schedule.calcExecutionEta(anchor.plusSeconds(6 * 60), reschedule = false) shouldBe Duration.ZERO
+    }
+
     @Test fun `disabled schedule does not run`() {
         val schedule = Schedule(id = "minute", intervalMinutes = 30, initialDelayMinutes = 5)
         schedule.calcExecutionEta(anchor, reschedule = false) shouldBe null

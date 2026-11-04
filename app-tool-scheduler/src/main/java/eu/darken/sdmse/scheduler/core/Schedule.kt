@@ -90,13 +90,16 @@ data class Schedule(
             val anchor = scheduledAt.plus(Duration.ofMinutes(initialDelayMinutes.coerceAtLeast(0)))
             val first = if (anchor.isAfter(now)) anchor else {
                 val elapsed = Duration.between(anchor, now).toMillis()
-                anchor.plus(step.multipliedBy(elapsed / step.toMillis() + 1))
+                // A just-enabled schedule with no initial delay must start immediately,
+                // not silently wait an entire interval because of scheduling overhead.
+                if (!reschedule && elapsed < 30_000L) anchor
+                else anchor.plus(step.multipliedBy(elapsed / step.toMillis() + 1))
             }
             // If a worker has just completed, don't trigger a catch-up run immediately.
             val next = if (reschedule && Duration.between(now, first) < Duration.ofMinutes(3)) {
                 first.plus(step)
             } else first
-            return Duration.between(now, next)
+            return Duration.between(now, next).coerceAtLeast(Duration.ZERO)
         }
 
         val intervalDays = intervalDaysSafe

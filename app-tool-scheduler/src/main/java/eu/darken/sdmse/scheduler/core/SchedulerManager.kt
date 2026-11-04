@@ -68,7 +68,7 @@ class SchedulerManager @Inject constructor(
 
                 for ((id, newItem) in newMap) {
                     val oldItem = oldMap[id] ?: return@filter true
-                    if (oldItem.scheduledAt != newItem.scheduledAt) return@filter true
+                    if (oldItem.copy(executedAt = null) != newItem.copy(executedAt = null)) return@filter true
                 }
                 return@filter false
             }

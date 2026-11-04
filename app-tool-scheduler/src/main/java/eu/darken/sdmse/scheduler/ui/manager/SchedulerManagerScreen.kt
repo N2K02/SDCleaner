@@ -2,6 +2,7 @@ package eu.darken.sdmse.scheduler.ui.manager
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,6 +14,9 @@ import androidx.compose.material.icons.automirrored.twotone.ArrowBack
 import androidx.compose.material.icons.automirrored.twotone.HelpOutline
 import androidx.compose.material.icons.twotone.Add
 import androidx.compose.material.icons.twotone.BugReport
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import eu.darken.sdmse.common.compose.layout.SdmScaffold
@@ -249,6 +253,27 @@ private fun ScheduleListContent(
         contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        item("scheduler-intro") {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                ),
+            ) {
+                androidx.compose.foundation.layout.Column(Modifier.padding(20.dp)) {
+                    Text("Cleaning Scheduler", style = MaterialTheme.typography.headlineSmall)
+                    Text(
+                        "Automate cleanup at a set time, after a delay, or every X minutes.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        "${state.schedules.count { it.isEnabled }} active · ${state.schedules.size} total schedules",
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+            }
+        }
         if (state.showBatteryHint) {
             item("battery") {
                 BatteryHintRow(

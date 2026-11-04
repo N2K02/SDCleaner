@@ -30,7 +30,7 @@ import testhelpers.coroutine.TestDispatcherProvider
 @Config(sdk = [33], application = TestApplication::class)
 class RootDisabledTest : BaseTest() {
     @Test
-    fun `restored root opt-in is ignored and refresh never probes for root`() = runBlocking {
+    fun `restored root opt-in is ignored and refresh never probes for root`(): Unit = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val settings = RootSettings(context)
         settings.useRoot.value(true)
@@ -51,7 +51,7 @@ class RootDisabledTest : BaseTest() {
     }
 
     @Test
-    fun `direct root service requests fail instead of launching su`() = runBlocking {
+    fun `direct root service requests fail instead of launching su`(): Unit = runBlocking {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
         try {
             val client = RootServiceClient(scope, TestDispatcherProvider(Dispatchers.Unconfined))

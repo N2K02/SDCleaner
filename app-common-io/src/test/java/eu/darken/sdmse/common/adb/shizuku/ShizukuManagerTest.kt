@@ -428,7 +428,7 @@ class ShizukuManagerTest : BaseTest() {
         coEvery { shizukuWrapper.permission() } returns AdbPermission.GRANTED
         val connection: AdbServiceClient.Connection = mockk()
         val lease: SharedResource<*>.Lease = mockk(relaxed = true)
-        every { connection.ipc.checkBase() } throws DeadObjectException()
+        every { connection.ipc.checkBase() } throws mockk<DeadObjectException>(relaxed = true)
         coEvery { serviceClient.get() } returns Resource(connection, lease)
 
         runBlocking { manager().getServiceState() } shouldBe ShizukuServiceState.Failed

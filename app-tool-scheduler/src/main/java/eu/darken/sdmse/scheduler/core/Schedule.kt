@@ -22,6 +22,8 @@ data class Schedule(
     @SerialName("minute") val minute: Int = 0,
     @SerialName("label") val label: String = "",
     @SerialName("repeatInterval") val repeatInterval: Duration = Duration.ofDays(3),
+    @SerialName("intervalMinutes") val intervalMinutes: Long? = null,
+    @SerialName("initialDelayMinutes") val initialDelayMinutes: Long = 0,
     @SerialName("userZone") val userZone: String? = null,
     @SerialName("corpsefinderEnabled") val useCorpseFinder: Boolean = false,
     @SerialName("systemcleanerEnabled") val useSystemCleaner: Boolean = false,
@@ -58,6 +60,7 @@ data class Schedule(
     internal fun calcFirstExecutionAt(
         zone: ZoneId = resolveZone()
     ): Instant? {
+        if (intervalMinutes != null) return scheduledAt?.plus(Duration.ofMinutes(initialDelayMinutes.coerceAtLeast(0)))
         val targetToday = calcTargetTime(zone) ?: return null
         val scheduledAtZoned = scheduledAt!!.atZone(zone)
         val intervalDays = intervalDaysSafe
@@ -78,6 +81,20 @@ data class Schedule(
         zone: ZoneId = resolveZone(),
     ): Duration? {
         if (scheduledAt == null) return null
+
+        if (intervalMinutes != null) {
+            val step = Duration.ofMinutes(intervalMinutes.coerceAtLeast(15))
+            val anchor = scheduledAt.plus(Duration.ofMinutes(initialDelayMinutes.coerceAtLeast(0)))
+            val first = if (anchor.isAfter(now)) anchor else {
+                val elapsed = Duration.between(anchor, now).toMillis()
+                anchor.plus(step.multipliedBy(elapsed / step.toMillis() + 1))
+            }
+            // If a worker has just completed, don't trigger a catch-up run immediately.
+            val next = if (reschedule && Duration.between(now, first) < Duration.ofMinutes(3)) {
+                first.plus(step)
+            } else first
+            return Duration.between(now, next)
+        }
 
         val intervalDays = intervalDaysSafe
 

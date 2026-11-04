@@ -9,8 +9,6 @@ import androidx.test.core.app.ApplicationProvider
 import eu.darken.sdmse.R
 import eu.darken.sdmse.setup.inventory.InventorySetupCardItem
 import eu.darken.sdmse.setup.inventory.InventorySetupModule
-import eu.darken.sdmse.setup.root.RootSetupCardItem
-import eu.darken.sdmse.setup.root.RootSetupModule
 import eu.darken.sdmse.common.adb.shizuku.AdbBackend
 import eu.darken.sdmse.common.adb.shizuku.ShizukuServiceState
 import eu.darken.sdmse.common.pkgs.toPkgId
@@ -50,7 +48,6 @@ class SetupViewModelTest : BaseTest() {
 
     private val testDispatcher = StandardTestDispatcher()
     private val setupManager: SetupManager = mockk(relaxed = true)
-    private val rootSetupModule: RootSetupModule = mockk(relaxed = true)
     private val inventorySetupModule: InventorySetupModule = mockk(relaxed = true)
     private val shizukuSetupModule: ShizukuSetupModule = mockk(relaxed = true)
 
@@ -90,12 +87,23 @@ class SetupViewModelTest : BaseTest() {
         safSetupModule = mockk(relaxed = true),
         automationSetupModule = mockk(relaxed = true),
         webpageTool = mockk(relaxed = true),
-        rootSetupModule = rootSetupModule,
         shizukuSetupModule = shizukuSetupModule,
         inventorySetupModule = inventorySetupModule,
         deviceDetective = mockk(relaxed = true),
         adbManagerInstallGuide = installGuide,
     )
+
+    @Test
+    fun `legacy root setup states cannot show a root card or block completion`() = runTest2(context = testDispatcher) {
+        setupState(object : SetupModule.State.Current {
+            override val type = SetupModule.Type.ROOT
+            override val isComplete = false
+        })
+        val vm = buildVm()
+        backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) { vm.uiState.collect() }
+        advanceUntilIdle()
+        vm.uiState.value shouldBe SetupUiState.Complete
+    }
 
     @Test
     fun `shizuku card open falls back to the app info page without a launcher entry`() =
@@ -127,30 +135,6 @@ class SetupViewModelTest : BaseTest() {
             started.action shouldBe Settings.ACTION_APPLICATION_DETAILS_SETTINGS
             started.data?.schemeSpecificPart shouldBe "moe.shizuku.privileged.api"
         }
-
-    @Test
-    fun `root card retry refreshes the root setup module`() = runTest2(context = testDispatcher) {
-        setupState(
-            RootSetupModule.Result(
-                useRoot = true,
-                isInstalled = true,
-                ourService = false,
-            ),
-        )
-        val vm = buildVm()
-
-        // Keep the render state subscribed, otherwise WhileSubscribed never runs the upstream.
-        backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) { vm.uiState.collect() }
-        advanceUntilIdle()
-
-        val cards = vm.uiState.value.shouldBeInstanceOf<SetupUiState.Cards>()
-        val rootCard = cards.items.filterIsInstance<RootSetupCardItem>().single()
-
-        rootCard.onRetry()
-        advanceUntilIdle()
-
-        coVerify(exactly = 1) { rootSetupModule.refresh() }
-    }
 
     @Test
     fun `inventory card retry refreshes the inventory setup module`() = runTest2(context = testDispatcher) {

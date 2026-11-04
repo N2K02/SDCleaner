@@ -2,6 +2,8 @@
 
 SDCleaner is an Android cleanup app derived from SD Maid SE. It focuses on app caches, leftover files, unwanted system files, duplicate-file review, and scheduled cleaning.
 
+Root access and root-only cleaning options are not supported. Cleaning uses granted Android permissions, accessibility, or optional ADB/Shizuku access.
+
 Home shows cleaning tools and schedule status. Settings contains cleaning preferences, exclusions, permissions, appearance, diagnostics, and About & updates. The app uses the shared N2K02 Material 3 Expressive theme and updater.
 
 ## Build

@@ -125,6 +125,22 @@ class SchedulerManager @Inject constructor(
         if (isScheduled()) log(TAG, WARN) { "Failed to cancel $this" }
     }
 
+    /**
+     * A user-requested cleanup runs in its own unique work chain, without replacing the
+     * next automatic occurrence. KEEP prevents duplicate taps from starting extra cleanups.
+     */
+    suspend fun runNow(id: ScheduleId) {
+        val schedule = getSchedule(id) ?: return
+        val request = OneTimeWorkRequestBuilder<SchedulerWorker>()
+            .setInputData(workDataOf(SchedulerWorker.INPUT_SCHEDULE_ID to schedule.id))
+            .build()
+        workManager.enqueueUniqueWork(
+            "worker-schedule-manual-$id",
+            ExistingWorkPolicy.KEEP,
+            request,
+        ).await()
+    }
+
     suspend fun reschedule(id: ScheduleId) {
         log(TAG, INFO) { "Rescheduling $id" }
         val schedule = getSchedule(id) ?: return

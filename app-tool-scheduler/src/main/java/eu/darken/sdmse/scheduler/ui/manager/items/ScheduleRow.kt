@@ -62,7 +62,7 @@ internal fun ScheduleRow(
     val now = Instant.now()
     val formatter = remember { DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT) }
     val days = schedule.repeatInterval.toDays().toInt()
-    val daysText = pluralStringResource(R.plurals.scheduler_schedule_repeat_x_days, days, days)
+    val daysText = if (schedule.intervalMinutes != null) "Every ${schedule.intervalMinutes} minutes" else pluralStringResource(R.plurals.scheduler_schedule_repeat_x_days, days, days)
     val timeText = "%02d:%02d".format(schedule.hour, schedule.minute)
 
     val nextEtaText: String? = remember(
@@ -101,7 +101,9 @@ internal fun ScheduleRow(
                         style = MaterialTheme.typography.titleMedium,
                     )
                     Text(
-                        text = stringResource(R.string.scheduler_current_schedule_x_at_x, daysText, timeText),
+                        text = if (schedule.intervalMinutes != null) {
+                            "$daysText · First run after ${schedule.initialDelayMinutes} min"
+                        } else stringResource(R.string.scheduler_current_schedule_x_at_x, daysText, timeText),
                         style = MaterialTheme.typography.titleSmall,
                     )
                 }

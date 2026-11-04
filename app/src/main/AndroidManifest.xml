@@ -63,6 +63,8 @@
     -->
     <uses-sdk tools:overrideLibrary="androidx.heifwriter" />
 
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
     <application
         android:name="eu.darken.sdmse.App"
         android:allowBackup="true"
@@ -156,7 +158,7 @@
         </service>
 
         <provider
-            android:name="androidx.core.content.FileProvider"
+            android:name="eu.darken.sdmse.cleaner.CleanerFileProvider"
             android:authorities="${applicationId}.provider"
             android:exported="false"
             android:grantUriPermissions="true">

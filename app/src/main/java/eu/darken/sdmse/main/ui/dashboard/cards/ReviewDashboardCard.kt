@@ -66,7 +66,7 @@ internal fun ReviewDashboardCard(item: ReviewDashboardCardItem) {
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                painter = painterResource(R.drawable.sdm_happy),
+                painter = painterResource(R.drawable.sdcleaner_icon_fg),
                 contentDescription = null,
                 modifier = Modifier.size(56.dp),
                 tint = Color.Unspecified,

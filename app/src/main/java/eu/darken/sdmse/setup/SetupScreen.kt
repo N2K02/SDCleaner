@@ -26,7 +26,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import eu.darken.sdmse.common.compose.layout.SdmBrandTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -68,8 +68,6 @@ import eu.darken.sdmse.setup.inventory.InventorySetupCard
 import eu.darken.sdmse.setup.inventory.InventorySetupCardItem
 import eu.darken.sdmse.setup.notification.NotificationSetupCard
 import eu.darken.sdmse.setup.notification.NotificationSetupCardItem
-import eu.darken.sdmse.setup.root.RootSetupCard
-import eu.darken.sdmse.setup.root.RootSetupCardItem
 import eu.darken.sdmse.setup.saf.SAFSetupCard
 import eu.darken.sdmse.setup.saf.SAFSetupCardItem
 import eu.darken.sdmse.setup.shizuku.ShizukuSetupCard
@@ -438,7 +436,6 @@ private fun SetupCardDispatch(
         is SetupLoadingCardItem -> SetupLoadingCard(item, modifier)
         is SAFSetupCardItem -> SAFSetupCard(item, modifier)
         is StorageSetupCardItem -> StorageSetupCard(item, modifier)
-        is RootSetupCardItem -> RootSetupCard(item, modifier)
         is ShizukuSetupCardItem -> ShizukuSetupCard(item, modifier)
         is NotificationSetupCardItem -> NotificationSetupCard(item, modifier)
         is UsageStatsSetupCardItem -> UsageStatsSetupCard(item, modifier)

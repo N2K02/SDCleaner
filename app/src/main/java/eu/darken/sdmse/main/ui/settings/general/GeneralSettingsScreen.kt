@@ -23,7 +23,7 @@ import androidx.compose.material.icons.twotone.Widgets
 import androidx.compose.material.icons.automirrored.twotone.ViewList
 import eu.darken.sdmse.common.compose.layout.SdmScaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import eu.darken.sdmse.common.compose.layout.SdmBrandTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf

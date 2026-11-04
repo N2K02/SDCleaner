@@ -32,8 +32,6 @@ import eu.darken.sdmse.setup.inventory.InventorySetupCardItem
 import eu.darken.sdmse.setup.inventory.InventorySetupModule
 import eu.darken.sdmse.setup.notification.NotificationSetupCardItem
 import eu.darken.sdmse.setup.notification.NotificationSetupModule
-import eu.darken.sdmse.setup.root.RootSetupCardItem
-import eu.darken.sdmse.setup.root.RootSetupModule
 import eu.darken.sdmse.setup.saf.SAFSetupCardItem
 import eu.darken.sdmse.setup.saf.SAFSetupModule
 import eu.darken.sdmse.setup.shizuku.AdbManagerInstallGuide
@@ -63,7 +61,6 @@ class SetupViewModel @Inject constructor(
     private val safSetupModule: SAFSetupModule,
     private val automationSetupModule: AutomationSetupModule,
     private val webpageTool: WebpageTool,
-    private val rootSetupModule: RootSetupModule,
     private val shizukuSetupModule: ShizukuSetupModule,
     private val inventorySetupModule: InventorySetupModule,
     private val deviceDetective: DeviceDetective,
@@ -163,23 +160,7 @@ class SetupViewModel @Inject constructor(
                             is SetupModule.State.Loading -> SetupLoadingCardItem(state)
                         }
 
-                        SetupModule.Type.ROOT -> when (state) {
-                            is SetupModule.State.Current -> RootSetupCardItem(
-                                state = state as RootSetupModule.Result,
-                                onToggleUseRoot = {
-                                    launch {
-                                        rootSetupModule.toggleUseRoot(it)
-                                        rootSetupModule.refresh()
-                                    }
-                                },
-                                onHelp = {
-                                    webpageTool.open("https://sdmse.darken.eu/setup#root-access")
-                                },
-                                onRetry = { launch { rootSetupModule.refresh() } },
-                            )
-
-                            is SetupModule.State.Loading -> SetupLoadingCardItem(state)
-                        }
+                        SetupModule.Type.ROOT -> null // Unsupported legacy route.
 
                         SetupModule.Type.USAGE_STATS -> when (state) {
                             is SetupModule.State.Current -> UsageStatsSetupCardItem(
@@ -354,20 +335,11 @@ class SetupViewModel @Inject constructor(
     fun onRuntimePermissionsGranted(permission: Permission?, granted: Boolean) = launch {
         log(TAG) { "onRuntimePermissionGranted(result=$permission,granted=$granted)" }
         if (granted) {
-            when (permission) {
-                Permission.MANAGE_EXTERNAL_STORAGE,
-                Permission.READ_EXTERNAL_STORAGE,
-                Permission.WRITE_EXTERNAL_STORAGE -> {
-                    storageSetupModule.onPermissionChanged(permission, granted)
-                }
-
-                Permission.PACKAGE_USAGE_STATS -> {}
-                Permission.POST_NOTIFICATIONS -> {}
-                Permission.WRITE_SECURE_SETTINGS -> {}
-                Permission.QUERY_ALL_PACKAGES -> {}
-                Permission.INTERACT_ACROSS_USERS -> {}
-                Permission.GET_INSTALLED_APPS -> {}
-                null -> {}
+            val isStoragePermission = permission == Permission.READ_EXTERNAL_STORAGE ||
+                permission == Permission.WRITE_EXTERNAL_STORAGE ||
+                (android.os.Build.VERSION.SDK_INT >= 30 && permission == Permission.MANAGE_EXTERNAL_STORAGE)
+            if (permission != null && isStoragePermission) {
+                storageSetupModule.onPermissionChanged(permission, granted)
             }
             setupManager.refresh()
         } else if (permission == Permission.GET_INSTALLED_APPS) {
@@ -424,7 +396,6 @@ private val SETUP_DISPLAY_ORDER = listOf(
     SetupModule.Type.STORAGE,
     SetupModule.Type.SAF,
     SetupModule.Type.SHIZUKU,
-    SetupModule.Type.ROOT,
     SetupModule.Type.USAGE_STATS,
     SetupModule.Type.AUTOMATION,
 )

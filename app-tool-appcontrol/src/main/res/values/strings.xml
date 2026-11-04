@@ -15,7 +15,7 @@
     <string name="appcontrol_app_forcestop_description">Stop the app. Prevent it from starting itself until you open it or the device is rebooted.</string>
     <string name="appcontrol_app_uninstall_description">Uninstall this app from your device.</string>
     <string name="appcontrol_app_exclude_add_title">Exclude app</string>
-    <string name="appcontrol_app_exclude_add_description">Exclude this app from other operations in SD Maid.</string>
+    <string name="appcontrol_app_exclude_add_description">Exclude this app from other operations in SDCleaner.</string>
     <string name="appcontrol_app_exclude_edit_title">Edit exclusion</string>
     <string name="appcontrol_app_exclude_edit_description">This app is currently excluded from one or more tools.</string>
     <string name="appcontrol_tag_user">User</string>
@@ -101,7 +101,7 @@
     <string name="appcontrol_progress_exporting_x">Exporting %s</string>
     <string name="appcontrol_share_list_action">Share list</string>
     <string name="appcontrol_share_list_title">My Apps</string>
-    <string name="appcontrol_share_list_footer">Shared via SD Maid SE</string>
+    <string name="appcontrol_share_list_footer">Shared via SDCleaner</string>
     <string name="appcontrol_force_stop_selection_action">Force stop apps</string>
     <string name="appcontrol_force_stop_action">Force stop</string>
     <string name="appcontrol_force_stop_confirm_title">Confirm force stop</string>

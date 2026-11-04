@@ -38,3 +38,6 @@ data object AcknowledgementsRoute : NavigationDestination
 
 @Serializable
 data object SupportRoute : NavigationDestination
+
+@Serializable
+data class CleanerSettingsRoute(val section: String) : NavigationDestination

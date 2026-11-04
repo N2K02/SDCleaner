@@ -366,7 +366,7 @@ internal fun UpgradeMascot(
     happy: Boolean = true,
 ) {
     Image(
-        painter = painterResource(if (happy) R.drawable.sdm_happy else R.drawable.sdm_not_happy),
+        painter = painterResource(R.drawable.sdcleaner_icon_fg),
         contentDescription = null,
         modifier = modifier
             .size(size)

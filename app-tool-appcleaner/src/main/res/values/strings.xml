@@ -16,7 +16,7 @@
     <string name="appcleaner_include_minimumage_label">Minimum age</string>
     <string name="appcleaner_include_minimumage_summary">Skip files that are younger than the minimum age.</string>
     <string name="appcleaner_automation_romtype_detection_label">Operating system detection</string>
-    <string name="appcleaner_automation_romtype_detection_summary">Accessibility based automation may fail if SD Maid doesn\'t detect your OS correctly. Use this setting to override the detected OS.</string>
+    <string name="appcleaner_automation_romtype_detection_summary">Accessibility based automation may fail if SDCleaner doesn\'t detect your OS correctly. Use this setting to override the detected OS.</string>
     <string name="appcleaner_filter_codecache_label">Code cache</string>
     <string name="appcleaner_filter_codecache_summary">JVM code cache. Blocks of bytecode compiled into native code.</string>
     <string name="appcleaner_filter_advertisement_label">Advertisement data</string>
@@ -89,7 +89,7 @@
     <string name="appcleaner_exclusion_limited_title">Excluded app</string>
     <string name="appcleaner_exclusion_limited_body">You excluded this app from AppCleaner. Clearing caches for all apps at once uses the system-wide cache trim available through ADB access, which can\'t leave individual apps out, so this app\'s cached data is cleared along with everything else. Only the cached data shown here is affected, everything else the exclusion covers stays hidden and untouched.</string>
     <string name="appcleaner_automation_unavailable_title">Accessibility service unavailable</string>
-    <string name="appcleaner_automation_unavailable_body">Clearing these caches requires SD Maid\'s accessibility service, but it wasn\'t available.</string>
+    <string name="appcleaner_automation_unavailable_body">Clearing these caches requires SDCleaner\'s accessibility service, but it wasn\'t available.</string>
     <string name="appcleaner_delete_confirmation_message_x">Delete expendable files for %s?</string>
     <plurals name="appcleaner_delete_confirmation_message_selected_x_items">
         <item quantity="one">Delete expendable files for %d selected app?</item>
@@ -101,7 +101,7 @@
     <string name="appcleaner_automation_error_locked_appcache_body">The system has disabled the "Clear cache" button for this app. Exclude it to speed up cache clearing.</string>
     <string name="appcleaner_automation_error_securitycenter_permission_title">System app misconfigured</string>
     <string name="appcleaner_automation_error_securitycenter_permission_body">HyperOS\'s Security app (com.miui.securitycenter) is missing the Usage Stats permission (GET_USAGE_STATS). This breaks features like "Clear Data" in app details and cache clearing via accessibility. Grant the permission to restore full functionality.</string>
-    <string name="appcleaner_automation_compat_forcestop_hint">This can also happen if the \"System UI\" system app was recently force-stopped, e.g. by an app cleaning tool. Android then blocks SD Maid\'s automated button presses until you restart the device.</string>
+    <string name="appcleaner_automation_compat_forcestop_hint">This can also happen if the \"System UI\" system app was recently force-stopped, e.g. by an app cleaning tool. Android then blocks SDCleaner\'s automated button presses until you restart the device.</string>
     <string name="appcleaner_forcestop_before_clearing_label">Force-stop before clearing</string>
     <string name="appcleaner_forcestop_before_clearing_summary">Force-stop apps before clearing their cache. It can help clear some apps\' caches, but may cause apps to misbehave and require manual restart.</string>
     <string name="appcleaner_progress_force_stopping">Force-stopping apps…</string>

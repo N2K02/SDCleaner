@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -13,6 +14,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import eu.darken.sdmse.common.R as CommonR
 import eu.darken.sdmse.R
 import eu.darken.sdmse.main.ui.MainActivity
 import io.kotest.matchers.shouldBe
@@ -25,7 +27,7 @@ import testhelper.BaseAppFlowTest
 
 /**
  * Each card backed by framework state must be shown while the real framework reports the access missing, and
- * hidden once it reports it granted. Root and Shizuku are settings-driven and not covered. The storage card is
+ * hidden once it reports it granted. Shizuku is settings-driven and not covered. The storage card is
  * covered by [StorageCleanupFlowTest].
  */
 @RunWith(AndroidJUnit4::class)
@@ -136,8 +138,8 @@ class SetupDetectionTest : BaseAppFlowTest() {
         }
     }
 
-    // Root access stays incomplete throughout, so its card proves the list is still Setup's.
-    private fun awaitSetupScreen() = awaitListItem(hasText(str(R.string.setup_root_card_title)))
+    // Identify Setup without depending on an optional access card.
+    private fun awaitSetupScreen() = awaitNode(hasContentDescription(str(CommonR.string.general_close_action)))
 
     private fun isGranted(permission: String): Boolean =
         context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED

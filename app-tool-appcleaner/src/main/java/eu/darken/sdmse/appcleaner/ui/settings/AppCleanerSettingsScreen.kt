@@ -27,7 +27,7 @@ import eu.darken.sdmse.common.compose.layout.SdmScaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import eu.darken.sdmse.common.compose.layout.SdmBrandTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -162,15 +162,6 @@ internal fun AppCleanerSettingsScreen(
     var showAgeDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    val gateClick = rememberGateClickHandler(snackbarHostState)
-    val otherUsersBlockedMessage = stringResource(
-        if (state.otherUsersAccess == AccessState.Declined) {
-            CommonR.string.access_blocked_root_declined
-        } else {
-            CommonR.string.access_blocked_root_unavailable
-        }
-    )
-
     if (showSizeDialog) {
         SizeInputDialog(
             titleRes = R.string.appcleaner_include_minimumsize_label,
@@ -236,19 +227,6 @@ internal fun AppCleanerSettingsScreen(
                     subtitle = stringResource(R.string.appcleaner_include_systemapps_summary),
                     checked = state.includeSystemApps,
                     onCheckedChange = onIncludeSystemAppsChanged,
-                )
-            }
-            item {
-                SettingsBadgedSwitchItem(
-                    icon = Icons.TwoTone.Groups,
-                    title = stringResource(CommonR.string.general_include_multiuser_label),
-                    subtitle = stringResource(CommonR.string.general_include_multiuser_summary),
-                    checked = state.includeOtherUsers,
-                    onCheckedChange = onIncludeOtherUsersChanged,
-                    onBadgeClick = {
-                        gateClick(state.otherUsersGate, otherUsersBlockedMessage, onIncludeOtherUsersBadge)
-                    },
-                    gate = state.otherUsersGate.toSettingGate(),
                 )
             }
             item {

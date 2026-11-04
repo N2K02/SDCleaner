@@ -80,6 +80,7 @@ internal class DashboardViewModelResilienceTest : BaseTest() {
      *  [stall] optionally replaces one wrapped source with a never-emitting flow. */
     private fun TestScope.harness(
         stall: String? = null,
+        subscribeLegacy: Boolean = true,
         history: Flow<List<SpaceSnapshotEntity>> = emptyFlow(),
         // The dashboard gates its first frame on the real card config resolving (it can't know which
         // cards to draw otherwise), so default to a config that actually emits. A never-emitting
@@ -212,7 +213,7 @@ internal class DashboardViewModelResilienceTest : BaseTest() {
         )
 
         // Keep listState subscribed for the test scope's lifetime (safeStateIn uses WhileSubscribed).
-        backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) { vm.listState.collect { } }
+        if (subscribeLegacy) backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) { vm.listState.collect { } }
         return vm
     }
 
@@ -220,6 +221,23 @@ internal class DashboardViewModelResilienceTest : BaseTest() {
         mockk(relaxed = true) {
             every { flow } returns MutableStateFlow(value)
         }
+
+    @Test
+    fun `cleaner Home loads without card preferences or hidden analyzer subscriptions`() = runTest2 {
+        var hiddenSubscriptions = 0
+        val vm = harness(
+            subscribeLegacy = false,
+            cardConfig = stalled(),
+            history = flow { hiddenSubscriptions++; emit(emptyList()); awaitCancellation() },
+            emittingToolStates = true,
+        )
+        backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) { vm.cleanerListState.collect { } }
+        advanceUntilIdle()
+        val home = vm.cleanerListState.value.shouldNotBeNull()
+        home.items.filterIsInstance<eu.darken.sdmse.main.ui.dashboard.cards.ToolDashboardCardItem>().size shouldBe 4
+        home.items.filterIsInstance<AnalyzerDashboardCardItem>().size shouldBe 0
+        hiddenSubscriptions shouldBe 0
+    }
 
     @Test
     fun `listState emits when all sources behave`() = runTest2 {

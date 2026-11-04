@@ -114,19 +114,8 @@ fun SdmMascot(
     modifier: Modifier = Modifier,
     mode: SdmMascotMode = SdmMascotMode.Animated,
 ) {
-    val composition = if (LocalInspectionMode.current) {
-        // Previews render a single frame and never see an async load complete.
-        val context = LocalContext.current
-        remember { loadCompositionForPreview(context) }
-    } else {
-        rememberLottieComposition(MASCOT_ANIMATION).value
-    }
+    Image(painter = painterResource(R.drawable.sdcleaner_brand), contentDescription = "SDCleaner", modifier = modifier)
 
-    SdmMascotContent(
-        modifier = modifier,
-        composition = composition,
-        mode = mode,
-    )
 }
 
 /**

@@ -11,7 +11,7 @@ import eu.darken.sdmse.common.compose.layout.SdmScaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import eu.darken.sdmse.common.compose.layout.SdmBrandTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -95,19 +95,6 @@ internal fun CorpseFinderSettingsScreen(
     onHelp: () -> Unit = {},
 ) {
     val watcherSummary = stringResource(R.string.corpsefinder_watcher_summary)
-
-    val gateClick = rememberGateClickHandler(snackbarHostState)
-    val rootGate = state.rootFilterGate.toSettingGate()
-    val rootBlockedMessage = stringResource(
-        if (state.rootAccess == AccessState.Declined) {
-            CommonR.string.access_blocked_root_declined
-        } else {
-            CommonR.string.access_blocked_root_unavailable
-        }
-    )
-    val onRootGateClick: () -> Unit = {
-        gateClick(state.rootFilterGate, rootBlockedMessage, onRootFilterBadgeClick)
-    }
 
     SdmScaffold(
         topBar = {
@@ -215,83 +202,6 @@ internal fun CorpseFinderSettingsScreen(
                     subtitle = stringResource(R.string.corpsefinder_filter_publicobb_summary),
                     checked = state.filterPublicObbEnabled,
                     onCheckedChange = onFilterPublicObbChanged,
-                )
-            }
-            item {
-                SettingsBadgedSwitchItem(
-                    iconPainter = painterResource(UiR.drawable.ic_incognito_circle_24),
-                    title = stringResource(R.string.corpsefinder_filter_privatedata_label),
-                    subtitle = stringResource(R.string.corpsefinder_filter_privatedata_summary),
-                    checked = state.filterPrivateDataEnabled,
-                    onCheckedChange = onFilterPrivateDataChanged,
-                    onBadgeClick = onRootGateClick,
-                    gate = rootGate,
-                )
-            }
-            item {
-                SettingsBadgedSwitchItem(
-                    iconPainter = painterResource(UiR.drawable.ic_turbine_24),
-                    title = stringResource(R.string.corpsefinder_filter_dalvik_label),
-                    subtitle = stringResource(R.string.corpsefinder_filter_dalvik_summary),
-                    checked = state.filterDalvikCacheEnabled,
-                    onCheckedChange = onFilterDalvikCacheChanged,
-                    onBadgeClick = onRootGateClick,
-                    gate = rootGate,
-                )
-            }
-            item {
-                SettingsBadgedSwitchItem(
-                    iconPainter = painterResource(UiR.drawable.ic_artboard_24),
-                    title = stringResource(R.string.corpsefinder_filter_artprofiles_label),
-                    subtitle = stringResource(R.string.corpsefinder_filter_artprofiles_summary),
-                    checked = state.filterArtProfilesEnabled,
-                    onCheckedChange = onFilterArtProfilesChanged,
-                    onBadgeClick = onRootGateClick,
-                    gate = rootGate,
-                )
-            }
-            item {
-                SettingsBadgedSwitchItem(
-                    icon = Icons.TwoTone.LocalLibrary,
-                    title = stringResource(R.string.corpsefinder_filter_applib_label),
-                    subtitle = stringResource(R.string.corpsefinder_filter_applib_summary),
-                    checked = state.filterAppLibEnabled,
-                    onCheckedChange = onFilterAppLibChanged,
-                    onBadgeClick = onRootGateClick,
-                    gate = rootGate,
-                )
-            }
-            item {
-                SettingsBadgedSwitchItem(
-                    iconPainter = painterResource(CommonR.drawable.ic_app_extra_24),
-                    title = stringResource(R.string.corpsefinder_filter_appsource_label),
-                    subtitle = stringResource(R.string.corpsefinder_filter_appsource_summary),
-                    checked = state.filterAppSourceEnabled,
-                    onCheckedChange = onFilterAppSourceChanged,
-                    onBadgeClick = onRootGateClick,
-                    gate = rootGate,
-                )
-            }
-            item {
-                SettingsBadgedSwitchItem(
-                    iconPainter = painterResource(UiR.drawable.ic_folder_key_24),
-                    title = stringResource(R.string.corpsefinder_filter_appsource_private_label),
-                    subtitle = stringResource(R.string.corpsefinder_filter_appsource_private_summary),
-                    checked = state.filterAppSourcePrivateEnabled,
-                    onCheckedChange = onFilterAppSourcePrivateChanged,
-                    onBadgeClick = onRootGateClick,
-                    gate = rootGate,
-                )
-            }
-            item {
-                SettingsBadgedSwitchItem(
-                    iconPainter = painterResource(UiR.drawable.ic_folder_key_24),
-                    title = stringResource(R.string.corpsefinder_filter_appasec_label),
-                    subtitle = stringResource(R.string.corpsefinder_filter_appasec_summary),
-                    checked = state.filterAppSourceAsecEnabled,
-                    onCheckedChange = onFilterAppSourceAsecChanged,
-                    onBadgeClick = onRootGateClick,
-                    gate = rootGate,
                 )
             }
         }

@@ -1,10 +1,14 @@
 # SDCleaner
 
-SDCleaner is an Android cleanup app derived from SD Maid SE. This fork is being narrowed to app and system cleanup, leftover-file cleanup, and scheduled cleaning.
+SDCleaner is an Android cleanup app derived from SD Maid SE. It focuses on app caches, leftover files, unwanted system files, duplicate-file review, and scheduled cleaning.
+
+Root access and root-only cleaning options are not supported. Cleaning uses granted Android permissions, accessibility, or optional ADB/Shizuku access.
+
+Home shows cleaning tools and schedule status. Settings contains cleaning preferences, exclusions, permissions, appearance, diagnostics, and About & updates. The app uses the shared N2K02 Material 3 Expressive theme and updater.
 
 ## Build
 
-Build a local FOSS debug APK:
+Build with JDK 17, the Android SDK, and `N2K02_PACKAGES_TOKEN` set to a token with read access to the shared theme and updater packages:
 
 ```sh
 ./gradlew assembleFossDebug

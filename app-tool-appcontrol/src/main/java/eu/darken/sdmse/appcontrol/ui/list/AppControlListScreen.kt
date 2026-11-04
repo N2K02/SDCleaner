@@ -43,7 +43,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import eu.darken.sdmse.common.compose.layout.SdmBrandTopAppBar as TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
@@ -115,6 +115,7 @@ fun AppControlListScreenHost(
     }
 
     val context = LocalContext.current
+    val currentState by vm.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     val pendingExportIds = rememberSelectionState<InstallId>()
@@ -224,7 +225,7 @@ fun AppControlListScreenHost(
                     )
                 } else {
                     val singleId = ev.ids.first()
-                    val row = vm.state.value.rows?.firstOrNull { it.installId == singleId }
+                    val row = currentState.rows?.firstOrNull { it.installId == singleId }
                     val name = row?.appInfo?.label?.get(context) ?: singleId.pkgId.name
                     stringResource(CommonR.string.general_delete_confirmation_message_x, name)
                 },

@@ -44,6 +44,16 @@ class SystemCleanerSettingsScreenTest : BaseComposeRobolectricTest() {
     }
 
     @Test
+    fun `root-only filter controls stay absent with legacy availability`() {
+        composeRule.setSettingsScreen(SystemCleanerSettingsViewModel.State(
+            areSystemFilterAvailable = true,
+            systemFilterGate = FeatureGateState.AVAILABLE,
+        ))
+        org.junit.Assert.assertThrows(AssertionError::class.java) { composeRule.scrollToText("ANR errors") }
+        composeRule.onAllNodesWithContentDescription("Set up").assertCountEquals(0)
+    }
+
+    @Test
     fun `top bar shows the SystemCleaner title`() {
         composeRule.setSettingsScreen(SystemCleanerSettingsViewModel.State())
 
@@ -88,72 +98,6 @@ class SystemCleanerSettingsScreenTest : BaseComposeRobolectricTest() {
 
         composeRule.scrollToText("Screenshot Age")
         composeRule.onNodeWithText("Screenshot Age").assertExists()
-    }
-
-    @Test
-    fun `root-gated row shows Set up badge when root is unavailable`() {
-        // ANR is the first root-gated filter (first item in the "specific filters" category).
-        // When areSystemFilterAvailable=false, the row renders a "Set up" badge over its switch.
-        composeRule.setSettingsScreen(
-            SystemCleanerSettingsViewModel.State(
-                areSystemFilterAvailable = false,
-                filterAnr = false,
-            ),
-        )
-
-        // Scroll to the ANR row title so it's composed.
-        composeRule.scrollToText("ANR errors")
-        // The badge icon's content description is the localized "Set up" string from
-        // SettingsBadgedSwitchItem. Multiple gated rows render the badge so we expect ≥ 1.
-        composeRule.onAllNodesWithContentDescription("Set up").fetchSemanticsNodes().size.let {
-            if (it == 0) throw AssertionError("Expected at least one Set up badge visible")
-        }
-    }
-
-    @Test
-    fun `root-gated row badge tap invokes onRootFilterBadgeClick callback`() {
-        var badgeClicks = 0
-        composeRule.setSettingsScreen(
-            state = SystemCleanerSettingsViewModel.State(
-                areSystemFilterAvailable = false,
-                filterAnr = false,
-            ),
-            onRootFilterBadgeClick = { badgeClicks++ },
-        )
-
-        // Scroll to and tap the ANR row title — when gated, tapping the row routes to
-        // `onBadgeClick` (badgeClick takes the row click instead of toggling the switch).
-        composeRule.scrollToText("ANR errors")
-        composeRule.onNodeWithText("ANR errors").performClick()
-
-        if (badgeClicks < 1) throw AssertionError("Expected badge click to fire, got $badgeClicks")
-    }
-
-    @Test
-    fun `blocked root-gated row shows Unavailable badge and does not route to setup`() {
-        // When root is a settled dead-end, the row is non-actionable: it shows the muted
-        // "Unavailable" badge and tapping must NOT navigate to setup (it shows a snackbar instead).
-        var badgeClicks = 0
-        composeRule.setSettingsScreen(
-            state = SystemCleanerSettingsViewModel.State(
-                areSystemFilterAvailable = false,
-                systemFilterGate = FeatureGateState.BLOCKED,
-                filterAnr = false,
-            ),
-            onRootFilterBadgeClick = { badgeClicks++ },
-        )
-
-        composeRule.scrollToText("ANR errors")
-        composeRule.onAllNodesWithContentDescription("Unavailable").fetchSemanticsNodes().size.let {
-            if (it == 0) throw AssertionError("Expected at least one Unavailable badge visible")
-        }
-
-        composeRule.onNodeWithText("ANR errors").performClick()
-        composeRule.waitForIdle()
-
-        if (badgeClicks != 0) {
-            throw AssertionError("Blocked row must not route to setup, but onRootFilterBadgeClick fired $badgeClicks time(s)")
-        }
     }
 
     @Test

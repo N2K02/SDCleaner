@@ -38,7 +38,7 @@ class OnboardingFlowTest : BaseAppFlowTest() {
     }
 
     private fun awaitOnboardingSetup() {
-        awaitListItem(hasText(str(R.string.setup_root_card_title)))
+        awaitNode(hasContentDescription(str(CommonR.string.general_close_action)))
         awaitNode(hasContentDescription(str(CommonR.string.general_close_action)))
     }
 }

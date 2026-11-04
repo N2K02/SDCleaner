@@ -1,354 +1,133 @@
 package eu.darken.sdmse.main.ui.settings
 
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.twotone.ArrowBack
-import androidx.compose.material.icons.automirrored.twotone.ViewList
-import androidx.compose.material.icons.twotone.Apps
-import androidx.compose.material.icons.twotone.Compress
-import androidx.compose.material.icons.twotone.ContentCopy
-import androidx.compose.material.icons.twotone.DataUsage
-import androidx.compose.material.icons.twotone.Recycling
-import androidx.compose.material.icons.twotone.Swipe
-import androidx.compose.material.icons.automirrored.twotone.ContactSupport
-import androidx.compose.material.icons.twotone.Alarm
-import androidx.compose.material.icons.twotone.BarChart
-import androidx.compose.material.icons.twotone.Favorite
-import androidx.compose.material.icons.twotone.PhoneAndroid
-import androidx.compose.material.icons.twotone.Policy
-import androidx.compose.material.icons.twotone.Settings
-import androidx.compose.material.icons.twotone.SettingsBackupRestore
-import androidx.compose.material.icons.twotone.Shield
-import androidx.compose.material.icons.twotone.Stars
-import androidx.compose.material.icons.twotone.Update
-import androidx.compose.material3.MaterialTheme
-import eu.darken.sdmse.common.compose.layout.SdmScaffold
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import eu.darken.sdmse.common.compose.preview.Preview2
-import eu.darken.sdmse.common.compose.preview.PreviewWrapper
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import eu.darken.sdmse.R
+import dev.n2k02.updater.*
+import eu.darken.sdmse.cleaner.CleanerUpdater
 import eu.darken.sdmse.common.BuildConfigWrap
-import eu.darken.sdmse.common.R as CommonR
-import eu.darken.sdmse.common.compose.icons.Ghost
-import eu.darken.sdmse.common.compose.layout.SdmTooltipIconButton
-import eu.darken.sdmse.common.compose.icons.SdmIcons
-import eu.darken.sdmse.common.compose.settings.SettingsCategoryHeader
+import eu.darken.sdmse.common.compose.layout.SdmBrandTopAppBar
 import eu.darken.sdmse.common.compose.settings.SettingsPreferenceItem
-import eu.darken.sdmse.common.error.ErrorEventHandler
-import eu.darken.sdmse.common.navigation.NavigationEventHandler
-import eu.darken.sdmse.common.upgrade.ui.brandTitleText
-import eu.darken.sdmse.analyzer.ui.AnalyzerSettingsRoute
-import eu.darken.sdmse.appcleaner.ui.AppCleanerSettingsRoute
-import eu.darken.sdmse.appcontrol.ui.AppControlSettingsRoute
-import eu.darken.sdmse.corpsefinder.ui.CorpseFinderSettingsRoute
-import eu.darken.sdmse.deduplicator.ui.DeduplicatorSettingsRoute
-import eu.darken.sdmse.exclusion.ui.ExclusionsListRoute
-import eu.darken.sdmse.main.ui.navigation.AcknowledgementsRoute
-import eu.darken.sdmse.main.ui.navigation.BackupRestoreRoute
-import eu.darken.sdmse.common.navigation.routes.UpgradeRoute
-import eu.darken.sdmse.main.ui.navigation.GeneralSettingsRoute
-import eu.darken.sdmse.main.ui.navigation.SupportRoute
-import eu.darken.sdmse.scheduler.ui.SchedulerSettingsRoute
+import eu.darken.sdmse.common.navigation.LocalNavigationController
+import eu.darken.sdmse.main.ui.navigation.*
+import eu.darken.sdmse.main.ui.settings.general.GeneralSettingsViewModel
+import eu.darken.sdmse.common.theming.ThemeMode
 import eu.darken.sdmse.setup.SetupRoute
-import eu.darken.sdmse.squeezer.ui.SqueezerSettingsRoute
-import eu.darken.sdmse.stats.ui.StatsSettingsRoute
-import eu.darken.sdmse.swiper.ui.SwiperSettingsRoute
-import eu.darken.sdmse.systemcleaner.ui.SystemCleanerSettingsRoute
 import eu.darken.sdmse.setup.SetupScreenOptions
+import eu.darken.sdmse.exclusion.ui.ExclusionsListRoute
+import eu.darken.sdmse.scheduler.ui.SchedulerManagerRoute
+import eu.darken.sdmse.corpsefinder.ui.CorpseFinderSettingsRoute
+import eu.darken.sdmse.systemcleaner.ui.SystemCleanerSettingsRoute
+import eu.darken.sdmse.appcleaner.ui.AppCleanerSettingsRoute
+import eu.darken.sdmse.deduplicator.ui.DeduplicatorSettingsRoute
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 
 @Composable
-fun SettingsScreenHost(
-    vm: SettingsViewModel = hiltViewModel(),
-) {
-    ErrorEventHandler(vm)
-    NavigationEventHandler(vm)
+fun SettingsScreenHost() {
+    val nav = requireNotNull(LocalNavigationController.current)
+    val status by CleanerUpdater.controller.status.collectAsState()
+    SettingsPage("Settings", root = true) {
+        SettingsPreferenceItem(title = "Appearance", subtitle = "System, light, or dark theme", icon = Icons.Rounded.Palette,
+            onClick = { nav.goTo(CleanerSettingsRoute("appearance")) })
+        SettingsPreferenceItem(title = "Cleaning tools", subtitle = "App caches, leftover files, system files, and duplicates", icon = Icons.Rounded.CleaningServices,
+            onClick = { nav.goTo(CleanerSettingsRoute("tools")) })
+        SettingsPreferenceItem(title = "Cleaning schedules", subtitle = "Choose when automatic cleaning runs", icon = Icons.Rounded.Schedule,
+            onClick = { nav.goTo(SchedulerManagerRoute) })
+        SettingsPreferenceItem(title = "Exclusions", subtitle = "Files and apps to keep", icon = Icons.Rounded.Shield,
+            onClick = { nav.goTo(ExclusionsListRoute) })
+        SettingsPreferenceItem(title = "Permissions & setup", subtitle = "Review access needed by cleaning tools", icon = Icons.Rounded.Security,
+            onClick = { nav.goTo(SetupRoute(options = SetupScreenOptions(showCompleted = true))) })
+        SettingsPreferenceItem(title = "Backup & restore", subtitle = "Save or restore your cleaning configuration", icon = Icons.Rounded.SettingsBackupRestore,
+            onClick = { nav.goTo(BackupRestoreRoute) })
+        HorizontalDivider(Modifier.padding(horizontal = 24.dp, vertical = 16.dp))
+        SettingsPreferenceItem(title = "Diagnostics", subtitle = "App and device information", icon = Icons.Rounded.BugReport,
+            onClick = { nav.goTo(CleanerSettingsRoute("diagnostics")) })
+        ListItem(
+            headlineContent = { Text("About & updates") },
+            supportingContent = { Text(if (status.hasPendingUpdate()) "A new update is available" else BuildConfigWrap.VERSION_DESCRIPTION) },
+            leadingContent = { Icon(Icons.Rounded.SystemUpdate, null) },
+            trailingContent = { N2K02UpdateBadge(status) },
+            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 3.dp).clip(RoundedCornerShape(20.dp)).clickable { nav.goTo(CleanerSettingsRoute("updates")) },
+        )
+    }
+}
 
-    val context = LocalContext.current
-    val snackbarHostState = remember { SnackbarHostState() }
+@Composable
+fun CleanerSettingsScreenHost(section: String) {
+    val nav = requireNotNull(LocalNavigationController.current)
+    val title = when (section) {
+        "appearance" -> "Appearance"
+        "tools" -> "Cleaning tools"
+        "updates" -> "About & updates"
+        else -> "Diagnostics"
+    }
+    SettingsPage(title) {
+        when (section) {
+            "updates" -> {
+                val experimental by CleanerUpdater.experimental.collectAsState()
+                N2K02UpdateScreen(controller = CleanerUpdater.controller, installGuard = CleanerUpdater.guard,
+                    experimentalEnabled = experimental, onExperimentalEnabledChange = CleanerUpdater::setExperimental,
+                    modifier = Modifier.padding(16.dp))
+            }
+            "tools" -> {
+                SettingsPreferenceItem(title = "Leftover files", subtitle = "Data left behind by uninstalled apps", icon = Icons.Rounded.FolderDelete, onClick = { nav.goTo(CorpseFinderSettingsRoute) })
+                SettingsPreferenceItem(title = "System cleaner", subtitle = "Filters for unwanted files", icon = Icons.Rounded.CleaningServices, onClick = { nav.goTo(SystemCleanerSettingsRoute) })
+                SettingsPreferenceItem(title = "App cleaner", subtitle = "Cache and app cleaning options", icon = Icons.Rounded.Apps, onClick = { nav.goTo(AppCleanerSettingsRoute) })
+                SettingsPreferenceItem(title = "Duplicate files", subtitle = "Find redundant copies for review", icon = Icons.Rounded.ContentCopy, onClick = { nav.goTo(DeduplicatorSettingsRoute) })
+            }
+            "appearance" -> AppearanceSettings()
+            else -> {
+                ListItem(headlineContent = { Text("SDCleaner") }, supportingContent = { Text(BuildConfigWrap.VERSION_DESCRIPTION) })
+                ListItem(headlineContent = { Text("Android ${android.os.Build.VERSION.RELEASE}") }, supportingContent = { Text("${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}") })
+                Text("Cleaning results depend on the access granted in Permissions & setup. Review scan results before deleting files.", Modifier.padding(24.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppearanceSettings(vm: GeneralSettingsViewModel = hiltViewModel()) {
     val state by vm.state.collectAsStateWithLifecycle()
-
-    LaunchedEffect(vm) {
-        vm.events.collect { event ->
-            when (event) {
-                is SettingEvents.ShowVersionInfo -> {
-                    val result = snackbarHostState.showSnackbar(
-                        message = event.info,
-                        actionLabel = context.getString(CommonR.string.general_copy_action),
-                        duration = SnackbarDuration.Indefinite,
-                    )
-                    if (result == SnackbarResult.ActionPerformed) {
-                        vm.copyVersionInfos()
-                    }
-                }
-            }
-        }
-    }
-
-    SettingsScreen(
-        state = state,
-        snackbarHostState = snackbarHostState,
-        onNavigateUp = vm::navUp,
-        onExclusionsClick = { vm.navTo(ExclusionsListRoute) },
-        onGeneralSettingsClick = { vm.navTo(GeneralSettingsRoute) },
-        onSetupClick = { vm.navTo(SetupRoute(options = SetupScreenOptions(showCompleted = true))) },
-        onSupportClick = { vm.navTo(SupportRoute) },
-        onAcknowledgementsClick = { vm.navTo(AcknowledgementsRoute) },
-        onPrivacyClick = vm::openPrivacyPolicy,
-        onChangelogClick = { vm.openWebsite("https://sdmse.darken.eu/changelog") },
-        onChangelogLongClick = vm::showVersionInfos,
-        onToolSettingsClick = { tool ->
-            val route = when (tool) {
-                "CorpseFinder" -> CorpseFinderSettingsRoute
-                "SystemCleaner" -> SystemCleanerSettingsRoute
-                "AppCleaner" -> AppCleanerSettingsRoute
-                "Deduplicator" -> DeduplicatorSettingsRoute
-                "AppControl" -> AppControlSettingsRoute
-                "Squeezer" -> SqueezerSettingsRoute
-                "Swiper" -> SwiperSettingsRoute
-                "Analyzer" -> AnalyzerSettingsRoute
-                else -> return@SettingsScreen
-            }
-            vm.navTo(route)
-        },
-        onStatsClick = { vm.navTo(StatsSettingsRoute) },
-        onSchedulerClick = { vm.navTo(SchedulerSettingsRoute) },
-        onBackupRestoreClick = { vm.navTo(BackupRestoreRoute) },
-        onProClick = { vm.navTo(UpgradeRoute(manage = true)) },
-    )
-}
-
-@Composable
-internal fun SettingsScreen(
-    state: SettingsViewModel.State = SettingsViewModel.State(),
-    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
-    onNavigateUp: () -> Unit = {},
-    onExclusionsClick: () -> Unit = {},
-    onGeneralSettingsClick: () -> Unit = {},
-    onSetupClick: () -> Unit = {},
-    onSupportClick: () -> Unit = {},
-    onAcknowledgementsClick: () -> Unit = {},
-    onPrivacyClick: () -> Unit = {},
-    onChangelogClick: () -> Unit = {},
-    onChangelogLongClick: () -> Unit = {},
-    onToolSettingsClick: (String) -> Unit = {},
-    onStatsClick: () -> Unit = {},
-    onSchedulerClick: () -> Unit = {},
-    onBackupRestoreClick: () -> Unit = {},
-    onProClick: () -> Unit = {},
-) {
-    SdmScaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(CommonR.string.general_settings_title)) },
-                navigationIcon = {
-                    SdmTooltipIconButton(
-                        icon = Icons.AutoMirrored.TwoTone.ArrowBack,
-                        label = stringResource(CommonR.string.general_navigate_up_action),
-                        onClick = onNavigateUp,
-                    )
-                },
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = paddingValues,
-        ) {
-            // Tools category
-            item { SettingsCategoryHeader(text = stringResource(CommonR.string.settings_category_tools_label)) }
-
-            item {
-                SettingsPreferenceItem(
-                    icon = SdmIcons.Ghost,
-                    title = stringResource(CommonR.string.corpsefinder_tool_name),
-                    subtitle = stringResource(eu.darken.sdmse.corpsefinder.R.string.corpsefinder_settings_summary),
-                    onClick = { onToolSettingsClick("CorpseFinder") },
-                )
-            }
-            item {
-                SettingsPreferenceItem(
-                    icon = Icons.AutoMirrored.TwoTone.ViewList,
-                    title = stringResource(CommonR.string.systemcleaner_tool_name),
-                    subtitle = stringResource(eu.darken.sdmse.systemcleaner.R.string.systemcleaner_explanation_short),
-                    onClick = { onToolSettingsClick("SystemCleaner") },
-                )
-            }
-            item {
-                SettingsPreferenceItem(
-                    icon = Icons.TwoTone.Recycling,
-                    title = stringResource(CommonR.string.appcleaner_tool_name),
-                    subtitle = stringResource(eu.darken.sdmse.appcleaner.R.string.appcleaner_explanation_short),
-                    onClick = { onToolSettingsClick("AppCleaner") },
-                )
-            }
-            item {
-                SettingsPreferenceItem(
-                    icon = Icons.TwoTone.ContentCopy,
-                    title = stringResource(CommonR.string.deduplicator_tool_name),
-                    subtitle = stringResource(eu.darken.sdmse.deduplicator.R.string.deduplicator_explanation_short),
-                    onClick = { onToolSettingsClick("Deduplicator") },
-                )
-            }
-            item {
-                SettingsPreferenceItem(
-                    icon = Icons.TwoTone.Apps,
-                    title = stringResource(CommonR.string.appcontrol_tool_name),
-                    subtitle = stringResource(eu.darken.sdmse.appcontrol.R.string.appcontrol_explanation_short),
-                    onClick = { onToolSettingsClick("AppControl") },
-                )
-            }
-            item {
-                SettingsPreferenceItem(
-                    icon = Icons.TwoTone.Compress,
-                    title = stringResource(CommonR.string.squeezer_tool_name),
-                    subtitle = stringResource(eu.darken.sdmse.squeezer.R.string.squeezer_explanation_short),
-                    onClick = { onToolSettingsClick("Squeezer") },
-                )
-            }
-            item {
-                SettingsPreferenceItem(
-                    icon = Icons.TwoTone.Swipe,
-                    title = stringResource(CommonR.string.swiper_tool_name),
-                    subtitle = stringResource(eu.darken.sdmse.swiper.R.string.swiper_tool_description),
-                    onClick = { onToolSettingsClick("Swiper") },
-                )
-            }
-            item {
-                SettingsPreferenceItem(
-                    icon = Icons.TwoTone.DataUsage,
-                    title = stringResource(CommonR.string.analyzer_tool_name),
-                    subtitle = stringResource(eu.darken.sdmse.analyzer.R.string.analyzer_explanation_short),
-                    onClick = { onToolSettingsClick("Analyzer") },
-                )
-            }
-
-            // Device category
-            item { SettingsCategoryHeader(text = stringResource(CommonR.string.general_device_label)) }
-
-            item {
-                SettingsPreferenceItem(
-                    icon = Icons.TwoTone.Settings,
-                    title = stringResource(R.string.general_settings_label),
-                    subtitle = stringResource(R.string.general_settings_desc),
-                    onClick = onGeneralSettingsClick,
-                )
-            }
-            item {
-                SettingsPreferenceItem(
-                    icon = Icons.TwoTone.Shield,
-                    title = stringResource(eu.darken.sdmse.common.exclusion.R.string.exclusion_manager_title),
-                    subtitle = stringResource(eu.darken.sdmse.common.exclusion.R.string.exclusion_manager_desc),
-                    onClick = onExclusionsClick,
-                )
-            }
-            item {
-                SettingsPreferenceItem(
-                    icon = Icons.TwoTone.BarChart,
-                    title = stringResource(CommonR.string.stats_label),
-                    subtitle = stringResource(eu.darken.sdmse.common.stats.R.string.stats_settings_desc),
-                    onClick = onStatsClick,
-                )
-            }
-            item {
-                SettingsPreferenceItem(
-                    icon = Icons.TwoTone.Alarm,
-                    title = stringResource(eu.darken.sdmse.scheduler.R.string.scheduler_settings_label),
-                    subtitle = stringResource(eu.darken.sdmse.scheduler.R.string.scheduler_settings_summary),
-                    onClick = onSchedulerClick,
-                )
-            }
-            item {
-                SettingsPreferenceItem(
-                    icon = Icons.TwoTone.SettingsBackupRestore,
-                    title = stringResource(R.string.backup_restore_title),
-                    subtitle = stringResource(R.string.backup_restore_desc),
-                    onClick = onBackupRestoreClick,
-                )
-            }
-            item {
-                val setupTint: Color? = if (state.setupDone == false) MaterialTheme.colorScheme.tertiary else null
-                SettingsPreferenceItem(
-                    icon = Icons.TwoTone.PhoneAndroid,
-                    iconTint = setupTint,
-                    title = stringResource(CommonR.string.setup_title),
-                    subtitle = stringResource(R.string.setup_forcedshow_summary),
-                    onClick = onSetupClick,
-                )
-            }
-
-            // Other category
-            item { SettingsCategoryHeader(text = stringResource(R.string.settings_category_other_label)) }
-
-            item {
-                SettingsPreferenceItem(
-                    icon = Icons.TwoTone.Stars,
-                    // Composed like the dashboard title card: the flavor's title template carries
-                    // the upgrade branding ("Pro" on GPLAY, "FOSS" on FOSS). Plain String because
-                    // that is what the settings item takes.
-                    title = brandTitleText(includeQualifier = true),
-                    subtitle = stringResource(R.string.settings_upgrade_description),
-                    onClick = onProClick,
-                )
-            }
-
-            item {
-                SettingsPreferenceItem(
-                    icon = Icons.AutoMirrored.TwoTone.ContactSupport,
-                    title = stringResource(R.string.settings_support_label),
-                    subtitle = stringResource(R.string.settings_support_description),
-                    onClick = onSupportClick,
-                )
-            }
-            item {
-                SettingsPreferenceItem(
-                    icon = Icons.TwoTone.Update,
-                    title = stringResource(R.string.changelog_label),
-                    subtitle = BuildConfigWrap.VERSION_DESCRIPTION,
-                    onClick = onChangelogClick,
-                    onLongClick = onChangelogLongClick,
-                )
-            }
-            item {
-                SettingsPreferenceItem(
-                    icon = Icons.TwoTone.Favorite,
-                    title = stringResource(R.string.settings_acknowledgements_label),
-                    subtitle = stringResource(CommonR.string.general_thank_you_label),
-                    onClick = onAcknowledgementsClick,
-                )
-            }
-            item {
-                SettingsPreferenceItem(
-                    icon = Icons.TwoTone.Policy,
-                    title = stringResource(R.string.settings_privacy_policy_label),
-                    subtitle = stringResource(R.string.settings_privacy_policy_desc),
-                    onClick = onPrivacyClick,
-                )
-            }
-        }
+    Text("Use device colors when supported. Choose when to use the dark appearance.", Modifier.padding(24.dp))
+    ThemeMode.entries.forEach { mode ->
+        ListItem(headlineContent = { Text(mode.name.lowercase().replaceFirstChar { it.uppercase() }) },
+            leadingContent = { RadioButton(selected = state.themeMode == mode, onClick = { vm.setThemeMode(mode) }) })
     }
 }
 
-@Preview2
 @Composable
-private fun SettingsScreenPreview() {
-    PreviewWrapper {
-        SettingsScreen()
+private fun SettingsHeader(title: String, root: Boolean = false) {
+    val nav = requireNotNull(LocalNavigationController.current)
+    SdmBrandTopAppBar(title = { Text(title, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) }, navigationIcon = {
+        if (root) Icon(Icons.Rounded.Settings, null, Modifier.padding(start = 16.dp))
+        else IconButton(onClick = { nav.up() }) {
+            Icon(when (title) {
+                "Appearance" -> Icons.Rounded.Palette
+                "Cleaning tools" -> Icons.Rounded.CleaningServices
+                "About & updates" -> Icons.Rounded.SystemUpdate
+                else -> Icons.Rounded.BugReport
+            }, "Back")
+        }
+    })
+}
+
+@Composable
+private fun SettingsPage(title: String, root: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
+    Scaffold(topBar = { SettingsHeader(title, root) }) { padding ->
+        androidx.compose.foundation.rememberScrollState().let { scroll ->
+            Column(Modifier.fillMaxSize().padding(padding).then(Modifier.verticalScroll(scroll)).padding(bottom = 24.dp), content = content)
+        }
     }
 }

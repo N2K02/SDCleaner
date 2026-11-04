@@ -27,6 +27,7 @@ jobs:
   build:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
         with:
@@ -36,6 +37,8 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: false
       - name: Resolve version and release notes
         env:
           GH_TOKEN: ${{ github.token }}
@@ -75,64 +78,92 @@ jobs:
             echo "### Install"
             echo "Install the signed APK from the update release."
           } > release-notes.md
-      - name: Build debug APK for PR validation
-        if: github.event_name == 'pull_request'
+      - name: Validate tests and Android lint
         env:
           N2K02_PACKAGES_TOKEN: ${{ secrets.N2K02_PACKAGES_TOKEN }}
-        run: |
-          chmod +x gradlew
-          ./gradlew --no-daemon testFossDebugUnitTest lintFossDebug assembleFossDebug -PappVersion="$VERSION" -PappVersionCode="$VERSION_CODE" -PappVersionSuffix="$VERSION_SUFFIX"
-      - name: Prepare signing key
-        env:
-          SIGNING_PASSPHRASE: ${{ secrets.SIGNING_PASSPHRASE }}
-          SIGNING_KEYSTORE_ENC_BASE64: ${{ secrets.SIGNING_KEYSTORE_ENC_BASE64 }}
-          ANDROID_SIGNING_KEYSTORE_B64: ${{ secrets.ANDROID_SIGNING_KEYSTORE_B64 }}
-          ANDROID_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_SIGNING_STORE_PASSWORD }}
-          ANDROID_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
-          ANDROID_SIGNING_ALIAS: ${{ secrets.ANDROID_SIGNING_ALIAS }}
         shell: bash
         run: |
           set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon testFossDebugUnitTest lintFossDebug || {
+            find app/build -name 'lint-results-*.txt' -exec cat {} +
+            exit 1
+          }
+      - name: Build and sign APK
+        env:
+          N2K02_PACKAGES_TOKEN: ${{ secrets.N2K02_PACKAGES_TOKEN }}
+          SIGNING_PASSPHRASE: ${{ secrets.SIGNING_PASSPHRASE }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          variant=Release
+          [[ "$GITHUB_EVENT_NAME" != "pull_request" ]] || variant=Debug
+          ./gradlew --no-daemon "assembleFoss$variant" -PappVersion="$VERSION" -PappVersionCode="$VERSION_CODE" -PappVersionSuffix="$VERSION_SUFFIX"
+          APK=$(find "app/build/outputs/apk/foss/${variant,,}" -name '*.apk' -type f | head -1)
+          test -n "$APK"
+          : "${SIGNING_PASSPHRASE:?SIGNING_PASSPHRASE required}"
           K="$RUNNER_TEMP/sdcleaner-signing"
           umask 077
           mkdir -p "$K"
-          echo "$K" >> "$GITHUB_ENV"
-          if [[ -n "$SIGNING_KEYSTORE_ENC_BASE64" ]]; then
-            : "${SIGNING_PASSPHRASE:?SIGNING_PASSPHRASE required}"
-            printf '%s' "$SIGNING_KEYSTORE_ENC_BASE64" | base64 --decode | openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -pass env:SIGNING_PASSPHRASE -out "$K/release.keystore"
-          elif [[ -n "$ANDROID_SIGNING_KEYSTORE_B64" ]]; then
-            printf '%s' "$ANDROID_SIGNING_KEYSTORE_B64" | base64 --decode > "$K/release.keystore"
-          else
-            echo "::error::Configure SIGNING_KEYSTORE_ENC_BASE64 or ANDROID_SIGNING_KEYSTORE_B64 for release signing"
-            exit 1
-          fi
-          test -s "$K/release.keystore"
-          {
-            echo "STORE_PATH=$K/release.keystore"
-            echo "STORE_PASSWORD=${ANDROID_SIGNING_STORE_PASSWORD:?ANDROID_SIGNING_STORE_PASSWORD required}" 
-            echo "KEY_PASSWORD=${ANDROID_SIGNING_KEY_PASSWORD:-$ANDROID_SIGNING_STORE_PASSWORD}"
-            echo "KEY_ALIAS=${ANDROID_SIGNING_ALIAS:?ANDROID_SIGNING_ALIAS required}"
-          } >> "$GITHUB_ENV"
-      - name: Build signed release APK
-        env:
-          N2K02_PACKAGES_TOKEN: ${{ secrets.N2K02_PACKAGES_TOKEN }}
-        run: |
-          ./gradlew --no-daemon assembleFossRelease -PappVersion="$VERSION" -PappVersionCode="$VERSION_CODE" -PappVersionSuffix="$VERSION_SUFFIX"
-          APK=$(find app/build/outputs/apk/foss/release -name '*.apk' -type f | head -1)
-          test -n "$APK"
-          cp "$APK" "$APP-$VERSION.apk"
-          test -s "$APP-$VERSION.apk"
-      - name: Verify release signer
-        run: |
+          trap 'rm -rf "$K"' EXIT
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -in signing/keys.tar.enc -pass env:SIGNING_PASSPHRASE | tar -xf - -C "$K"
+          export RELEASE_PASSWORD=$(cat "$K/release.pass")
+          echo "::add-mask::$RELEASE_PASSWORD"
           BT=$(ls -d "${ANDROID_HOME:-$ANDROID_SDK_ROOT}"/build-tools/* | sort -V | tail -1)
+          "$BT/apksigner" sign --ks "$K/release.p12" --ks-pass env:RELEASE_PASSWORD --ks-key-alias release --key-pass env:RELEASE_PASSWORD --out "$APP-$VERSION.apk" "$APK"
           "$BT/apksigner" verify --print-certs "$APP-$VERSION.apk" | grep -E 'Signer.*(DN|SHA-256 digest)'
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ env.APP }}-${{ env.VERSION }}-${{ github.event_name == 'pull_request' && 'experimental' || 'stable' }}
           path: ${{ env.APP }}-${{ env.VERSION }}.apk
           if-no-files-found: error
+      - name: Publish source repository release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            tag="experimental-pr-$PR_NUMBER-run-$GITHUB_RUN_NUMBER"
+            target="$PR_HEAD_SHA"
+            extra=(--prerelease --latest=false)
+          else
+            tag="sdcleaner-v$VERSION"
+            target="$GITHUB_SHA"
+            extra=(--latest)
+          fi
+          gh release create "$tag" "$APP-$VERSION.apk" --repo "$GITHUB_REPOSITORY" --target "$target" --title "$APP $VERSION$VERSION_SUFFIX" --notes-file release-notes.md "${extra[@]}"
+      - name: Check public distribution configuration
+        id: distribution
+        env:
+          DIST_TOKEN: ${{ secrets.ANDROID_DISTRIBUTION_TOKEN }}
+        shell: bash
+        run: |
+          if [[ -n "$DIST_TOKEN" ]]; then
+            echo 'enabled=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'enabled=false' >> "$GITHUB_OUTPUT"
+            echo '::warning::Signed APK is preserved in Releases and workflow artifacts. Configure ANDROID_DISTRIBUTION_TOKEN to publish the updater feed.'
+          fi
       - name: Publish APK and update channel manifest
+        if: steps.distribution.outputs.enabled == 'true'
         env:
           GH_TOKEN: ${{ secrets.ANDROID_DISTRIBUTION_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: bash .github/scripts/publish-distribution.sh
+      - name: Remove decrypted signing material
+        if: always()
+        shell: bash
+        run: rm -rf "$RUNNER_TEMP/sdcleaner-signing"
+      - name: Preserve validation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-reports
+          path: |
+            app/build/reports/
+            app/build/test-results/
+            app/build/intermediates/lint_intermediate_text_report/
+          if-no-files-found: ignore

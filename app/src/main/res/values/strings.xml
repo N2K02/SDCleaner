@@ -23,22 +23,22 @@
     <string name="dashboard_hero_nothing_freed_headline">Nothing was freed</string>
     <string name="dashboard_hero_nothing_freed_caption">The cleanup finished, but none of the found data could be removed.</string>
     <string name="dashboard_hero_nothing_freed_hint">Some data can only be removed with extra access, such as the accessibility service or root.</string>
-    <!-- Shown when every finding needs SD Maid Pro. Deliberately not "can be freed": the main action
+    <!-- Shown when every finding needs SDCleaner Pro. Deliberately not "can be freed": the main action
          will not free any of it. %1$s is the locked size, e.g. "3.7 GB" -->
     <string name="dashboard_hero_locked_headline">%1$s found</string>
     <plurals name="dashboard_hero_locked_x_items">
-        <item quantity="one">%d item needs SD Maid Pro</item>
-        <item quantity="other">%d items need SD Maid Pro</item>
+        <item quantity="one">%d item needs SDCleaner Pro</item>
+        <item quantity="other">%d items need SDCleaner Pro</item>
     </plurals>
     <!-- Tappable line on the hero card, routing to the upgrade screen -->
-    <string name="dashboard_hero_locked_hint">Tap to unlock with SD Maid Pro.</string>
+    <string name="dashboard_hero_locked_hint">Tap to unlock with SDCleaner Pro.</string>
     <!-- Caption of the nested block that collects Pro-gated findings sitting next to findings the
          user can already free. "More" is load-bearing: it is on top of what the card's headline
          already promises. Deliberately carries no size - the block's chips sit directly below it and
          there is usually only one, so a total here would just print the same figure twice. -->
-    <string name="dashboard_hero_locked_block_caption">More can be freed with SD Maid Pro</string>
+    <string name="dashboard_hero_locked_block_caption">More can be freed with SDCleaner Pro</string>
     <!-- Accessibility name for the bar's collapsed summary chip when the space it shows needs Pro -->
-    <string name="dashboard_hero_locked_chip_description">Needs SD Maid Pro</string>
+    <string name="dashboard_hero_locked_chip_description">Needs SDCleaner Pro</string>
     <!-- Accessibility descriptions for the hero card's relative timestamp; %1$s is e.g. "5 min. ago" -->
     <string name="dashboard_hero_scanned_timestamp_description">Scanned %1$s</string>
     <string name="dashboard_hero_freed_timestamp_description">Freed %1$s</string>
@@ -104,7 +104,7 @@
     <string name="debug_debuglog_sessions_delete_confirmation_message">Delete this debug log session?</string>
     <string name="support_contact_post_send_message">Message sent successfully?</string>
     <string name="tasks_activity_notification_channel_label">Active tasks</string>
-    <string name="tasks_activity_working_notification_title">SD Maid is working</string>
+    <string name="tasks_activity_working_notification_title">SDCleaner is working</string>
     <plurals name="tasks_activity_active_notification_message">
         <item quantity="one">%d active task</item>
         <item quantity="other">%d active tasks</item>
@@ -120,26 +120,26 @@
     <string name="tasks_timeout_error_desc">The task took too long and was stopped. Please try again.</string>
 
     <string name="onboarding_welcome_title">Welcome</string>
-    <string name="onboarding_welcome_body1">SD Maid SE manages files, apps and storage.</string>
+    <string name="onboarding_welcome_body1">SDCleaner manages files, apps and storage.</string>
     <string name="onboarding_welcome_body2">Gain storage space by cleaning up behind other apps. Delete expendable files and remove leftover data.</string>
     <string name="onboarding_welcome_body_beta">This is a beta (testing) build. Proceed with a sense of humor and a backup plan. Please report issues you encounter.</string>
     <string name="onboarding_welcome_continue_action">Continue</string>
 
-    <string name="onboarding_versus_title">SD Maid / SD Maid SE</string>
-    <string name="onboarding_versus_body1">SD Maid SE (aka. SD Maid 2) is the successor to SD Maid (aka. SD Maid 1). A new app, optimized for modern Android.</string>
+    <string name="onboarding_versus_title">SDCleaner / SDCleaner</string>
+    <string name="onboarding_versus_body1">SDCleaner (aka. SDCleaner 2) is the successor to SDCleaner (aka. SDCleaner 1). A new app, optimized for modern Android.</string>
     <string name="onboarding_versus_body2">It\'s predecessor\'s architecture is over 7 years old and not designed for the challenges of newer Android versions. A complete redesign was necessary to continue development.</string>
-    <string name="onboarding_versus_body3">Consider switching to SD Maid SE for improved results.</string>
-    <string name="onboarding_versus_body4">SD Maid 1\'s \"pro status\" is unfortunately not transferable to SD Maid 2/SE. After 12 years of free updates, a new purchase is required to sustain development (feed the developer).</string>
+    <string name="onboarding_versus_body3">Consider switching to SDCleaner for improved results.</string>
+    <string name="onboarding_versus_body4">SDCleaner 1\'s \"pro status\" is unfortunately not transferable to SDCleaner. After 12 years of free updates, a new purchase is required to sustain development (feed the developer).</string>
     <string name="onboarding_versus_continue_action">Continue</string>
 
     <string name="onboarding_privacy_title">Privacy</string>
-    <string name="onboarding_privacy_body1">SD Maid has no ads and does not sell user data.</string>
+    <string name="onboarding_privacy_body1">SDCleaner has no ads and does not sell user data.</string>
     <string name="onboarding_setup_title">Setup</string>
-    <string name="onboarding_setup_body1">SD Maid will search all accessible data areas.</string>
+    <string name="onboarding_setup_body1">SDCleaner will search all accessible data areas.</string>
     <string name="onboarding_setup_body2">What is accessible depends on your device, Android version and granted permissions.</string>
-    <string name="onboarding_setup_body4">SD Maid\'s defaults are configured to be safe and thorough, offering a good balance for most users.</string>
+    <string name="onboarding_setup_body4">SDCleaner\'s defaults are configured to be safe and thorough, offering a good balance for most users.</string>
     <string name="onboarding_setup_body5">For more thorough results, visit each tool\'s settings and adjust them to your liking.</string>
-    <string name="onboarding_setup_body3">Start using SD Maid by setting up access.</string>
+    <string name="onboarding_setup_body3">Start using SDCleaner by setting up access.</string>
     <string name="onboarding_setup_continue_action">Set up access</string>
     <string name="onboarding_setup_tours_enabled_label">Show guided tours</string>
     <string name="onboarding_setup_tours_enabled_explanation">A quick guided tour of each feature as you open it.</string>
@@ -177,7 +177,7 @@
     <string name="ui_previews_summary">Display file previews in all tools (e.g. image and video thumbnails).</string>
 
     <string name="ui_language_override_label">App language</string>
-    <string name="ui_language_override_desc">Select a different language for SD Maid, independent of your system\'s default language. Currently: %s</string>
+    <string name="ui_language_override_desc">Select a different language for SDCleaner, independent of your system\'s default language. Currently: %s</string>
 
     <string name="settings_support_label">Support</string>
     <string name="settings_support_description">Read documentation, report issues, chat with others or record debug logs.</string>
@@ -238,12 +238,12 @@
     <string name="settings_acknowledgements_category_thanks_title">Thanks</string>
     <string name="settings_acknowledgements_category_thanks_subtitle">Special thanks to our friends.</string>
     <string name="settings_acknowledgements_category_licenses_title">Licenses</string>
-    <string name="settings_acknowledgements_category_licenses_subtitle">Software used by SD Maid.</string>
+    <string name="settings_acknowledgements_category_licenses_subtitle">Software used by SDCleaner.</string>
 
     <string name="setup_label">Setup</string>
     <string name="setup_incomplete_card_title">Setup is incomplete</string>
-    <string name="setup_incomplete_card_body">Finish SD Maid\'s setup to get better results.</string>
-    <string name="setup_incomplete_card_healing_in_progress_body">SD Maid is trying to fix setup issues.</string>
+    <string name="setup_incomplete_card_body">Finish SDCleaner\'s setup to get better results.</string>
+    <string name="setup_incomplete_card_healing_in_progress_body">SDCleaner is trying to fix setup issues.</string>
     <string name="setup_incomplete_card_continue_action">Continue setup</string>
     <string name="setup_forcedshow_summary">Show setup screen again, including already completed items.</string>
     <string name="setup_checking_card_body">Verifying setup completion and functionality.</string>
@@ -252,54 +252,54 @@
     <string name="general_error_setup_require_msg">Further set up is required to use this feature. Complete the remaining setup steps.</string>
 
     <string name="setup_saf_card_title">Storage access framework</string>
-    <string name="setup_saf_card_body">Improve results by granting SD Maid access to additional areas.</string>
+    <string name="setup_saf_card_body">Improve results by granting SDCleaner access to additional areas.</string>
     <string name="setup_saf_card_body2">In most cases the window will open with the correct path preselected. Entries turn green when access is granted. </string>
     <string name="setup_saf_error_wrong_path">You selected the wrong path</string>
     <string name="setup_saf_missing_app_error">The Documents UI app is unavailable. It\'s a built-in system app and should be available on all Android devices.</string>
 
     <string name="setup_manage_storage_card_title">Manage storage</string>
-    <string name="setup_manage_storage_card_body">Allow SD Maid to manage your storage.</string>
+    <string name="setup_manage_storage_card_body">Allow SDCleaner to manage your storage.</string>
     <string name="setup_manage_storage_card_body2">Basic access to public storage, e.g. \"Download/\" and \"DCIM/\", but not always \"Android/data\".</string>
 
     <string name="setup_root_card_title">Root access</string>
-    <string name="setup_root_card_body">Should SD Maid use root access if it is available? Root access can be used to check additional system folders and private application data.</string>
+    <string name="setup_root_card_body">Should SDCleaner use root access if it is available? Root access can be used to check additional system folders and private application data.</string>
     <string name="setup_root_state_ready_label">Root access is ready.</string>
     <!-- No longer rendered, kept because the locale files already translate it and ExtraTranslation is a fatal lint check -->
     <string name="setup_root_state_waiting_label">Root access is not available.</string>
     <string name="setup_root_state_failed_title">Root access failed</string>
-    <string name="setup_root_state_failed_body">SD Maid asked for root access and didn\'t get it. If your device is rooted, open your root manager (Magisk, KernelSU or similar) and check whether the request from SD Maid was denied or is still waiting.</string>
-    <string name="setup_root_state_failed_body_nomanager">SD Maid asked for root access and didn\'t get it, and no root manager app was detected. If your device uses hidden or built-in root, try again.</string>
+    <string name="setup_root_state_failed_body">SDCleaner asked for root access and didn\'t get it. If your device is rooted, open your root manager (Magisk, KernelSU or similar) and check whether the request from SDCleaner was denied or is still waiting.</string>
+    <string name="setup_root_state_failed_body_nomanager">SDCleaner asked for root access and didn\'t get it, and no root manager app was detected. If your device uses hidden or built-in root, try again.</string>
     <string name="setup_root_enable_root_use_label">Try to use root access</string>
     <string name="setup_root_disable_root_use_label">I didn\'t root my device</string>
     <string name="setup_root_card_body2">Only available on rooted devices. If you didn\'t make this modification, then your device is not rooted and this setting has no effect.</string>
 
     <string name="setup_shizuku_card_title">ADB access</string>
-    <string name="setup_shizuku_card_body">Allow SD Maid to use ADB access where possible to improve results and enable features.</string>
+    <string name="setup_shizuku_card_body">Allow SDCleaner to use ADB access where possible to improve results and enable features.</string>
     <string name="setup_shizuku_card_body2">This setting has no effect unless Porter or Shizuku is set up on your device.</string>
-    <string name="setup_shizuku_card_root_info">ADB access in combination with root access does not enable additional features, but it improves reliability. SD Maid will use it as fallback method.</string>
+    <string name="setup_shizuku_card_root_info">ADB access in combination with root access does not enable additional features, but it improves reliability. SDCleaner will use it as fallback method.</string>
     <!-- No longer rendered, kept because the locale files already translate it and ExtraTranslation is a fatal lint check -->
     <string name="setup_shizuku_state_ready_label">The link is ready.</string>
     <!-- %1$s is the installed app's own name, e.g. "Porter" or "Shizuku". -->
-    <string name="setup_shizuku_service_ready_label">SD Maid can now use ADB access through %1$s.</string>
+    <string name="setup_shizuku_service_ready_label">SDCleaner can now use ADB access through %1$s.</string>
     <string name="setup_shizuku_state_waiting_label">Waiting for the link.</string>
     <string name="setup_shizuku_state_not_installed_label">No ADB access app is installed.</string>
     <!-- %1$s is the app this build can send the user to, "Porter" or "Shizuku". -->
     <string name="setup_shizuku_install_manager_action">Install %1$s</string>
     <string name="setup_shizuku_state_failed_title">ADB access failed</string>
     <!-- No longer rendered, kept because the locale files already translate it and ExtraTranslation is a fatal lint check -->
-    <string name="setup_shizuku_state_failed_label">Shizuku is running, but it never connected SD Maid to its helper service.</string>
+    <string name="setup_shizuku_state_failed_label">Shizuku is running, but it never connected SDCleaner to its helper service.</string>
     <!-- %1$s is the product name, "Porter" or "Shizuku". -->
-    <string name="setup_shizuku_service_failed_label">%1$s is running, but it never connected SD Maid to its helper service.</string>
+    <string name="setup_shizuku_service_failed_label">%1$s is running, but it never connected SDCleaner to its helper service.</string>
     <!-- %1$s is the preferred app's own name, e.g. "Porter". %2$s is the other installed app's own name, e.g. "Shizuku". -->
-    <string name="setup_shizuku_state_backend_priority_label">%1$s is installed, so SD Maid waits for %1$s instead of %2$s. Start %1$s to continue.</string>
+    <string name="setup_shizuku_state_backend_priority_label">%1$s is installed, so SDCleaner waits for %1$s instead of %2$s. Start %1$s to continue.</string>
     <!-- %1$s is the installed app's own name, e.g. "Porter" or "Shizuku". -->
-    <string name="setup_shizuku_state_manager_outdated_label">Update %1$s to use it with SD Maid.</string>
+    <string name="setup_shizuku_state_manager_outdated_label">Update %1$s to use it with SDCleaner.</string>
     <!-- %1$s is the installed app's own name, e.g. "Porter" or "Shizuku". -->
-    <string name="setup_shizuku_state_sdmaid_outdated_label">This version of SD Maid is too old for %1$s. Update SD Maid.</string>
+    <string name="setup_shizuku_state_sdmaid_outdated_label">This version of SDCleaner is too old for %1$s. Update SDCleaner.</string>
     <!-- %1$s is the installed app's own name, e.g. "Porter" or "Shizuku". -->
-    <string name="setup_shizuku_state_permission_denied_label">%1$s has not allowed SD Maid yet.</string>
+    <string name="setup_shizuku_state_permission_denied_label">%1$s has not allowed SDCleaner yet.</string>
     <!-- %1$s is the installed app's own name, e.g. "Porter" or "Shizuku". -->
-    <string name="setup_shizuku_state_permission_denied_permanently_label">%1$s denies SD Maid access. Allow SD Maid in %1$s to continue.</string>
+    <string name="setup_shizuku_state_permission_denied_permanently_label">%1$s denies SDCleaner access. Allow SDCleaner in %1$s to continue.</string>
     <string name="setup_shizuku_state_known_issue_hint">Some devices are affected by a known problem that stops the helper service from starting. This may be one of them.</string>
     <string name="setup_shizuku_open_manager_action">Open %1$s</string>
     <string name="setup_shizuku_enable_shizuku_use_label">Try to use ADB access</string>
@@ -309,36 +309,36 @@
     <string name="setup_permission_granted_label">Permission granted</string>
 
     <string name="setup_usagestats_title">Usage statistics</string>
-    <string name="setup_usagestats_body">The usage statistics permission grants access to more app details. SD Maid uses it to determine additional cache sizes.</string>
+    <string name="setup_usagestats_body">The usage statistics permission grants access to more app details. SDCleaner uses it to determine additional cache sizes.</string>
     <string name="setup_usagestats_hint">Required for accessibility service based cache deletion.</string>
 
     <string name="setup_notification_title">Notifications</string>
-    <string name="setup_notification_body">Allow SD Maid to post notifications to inform you about on-going operations or important events.</string>
+    <string name="setup_notification_body">Allow SDCleaner to post notifications to inform you about on-going operations or important events.</string>
     <string name="setup_notification_hint">Notifications are used sparingly 🤞</string>
 
     <string name="setup_acs_card_title">Accessibility service</string>
-    <string name="setup_acs_card_body">The accessibility service allows SD Maid to interact with your screen and automate tedious actions, e.g. tapping \"Clear cache\" on multiple screens.</string>
-    <string name="setup_acs_card_body2">SD Maid will not use the accessibility service without your consent, will always display a prominent (cancelable) indicator while active and will not use it to collect information.</string>
+    <string name="setup_acs_card_body">The accessibility service allows SDCleaner to interact with your screen and automate tedious actions, e.g. tapping \"Clear cache\" on multiple screens.</string>
+    <string name="setup_acs_card_body2">SDCleaner will not use the accessibility service without your consent, will always display a prominent (cancelable) indicator while active and will not use it to collect information.</string>
     <string name="setup_acs_state_enabled">Accessibility service is enabled</string>
     <string name="setup_acs_state_disabled">Accessibility service is disabled</string>
     <string name="setup_acs_state_running">Accessibility service is running</string>
     <string name="setup_acs_state_ondemand">Service will be launched on demand</string>
     <string name="setup_acs_state_stopped">Accessibility service is stopped</string>
-    <string name="setup_acs_state_stopped_hint">The service is enabled, but not running. Toggle it off/on or reboot your device. Check that SD Maid is not being \"optimized\" by the system.</string>
-    <string name="setup_acs_state_stopped_hint_miui">If the service keeps getting disabled after a while, try enabling the \"Auto Start\" option for SD Maid in the system settings.</string>
-    <string name="setup_acs_state_stopped_hint_miui_killed">If the system keeps closing SD Maid, enable the \"Auto Start\" option for SD Maid in the system settings and lock SD Maid in the recent apps view.</string>
+    <string name="setup_acs_state_stopped_hint">The service is enabled, but not running. Toggle it off/on or reboot your device. Check that SDCleaner is not being \"optimized\" by the system.</string>
+    <string name="setup_acs_state_stopped_hint_miui">If the service keeps getting disabled after a while, try enabling the \"Auto Start\" option for SDCleaner in the system settings.</string>
+    <string name="setup_acs_state_stopped_hint_miui_killed">If the system keeps closing SDCleaner, enable the \"Auto Start\" option for SDCleaner in the system settings and lock SDCleaner in the recent apps view.</string>
     <string name="setup_acs_consent_positive_action">Enable service and grant access</string>
     <string name="setup_acs_consent_negative_action">Don\'t use accessibility service</string>
-    <string name="setup_acs_allow_hint">The accessibility shortcut or button for SD Maid SE is enabled. Open your device\'s Accessibility settings and disable the shortcut/button option to prevent an unwanted icon on the screen edge.</string>
+    <string name="setup_acs_allow_hint">The accessibility shortcut or button for SDCleaner is enabled. Open your device\'s Accessibility settings and disable the shortcut/button option to prevent an unwanted icon on the screen edge.</string>
     <string name="setup_acs_disallow_hint">If you change your mind, you can alter this option again by going into settings and restarting the setup.</string>
     <string name="setup_acs_appops_restriction_title">Restricted settings</string>
-    <string name="setup_acs_appops_restriction_body">Can\'t enable SD Maids accessibility service? Android 13+ may apply restrictions to apps not installed via Google Play. Lift these restrictions from the system\'s detail page for SD Maid. The option is in the context menu in the top right corner.</string>
+    <string name="setup_acs_appops_restriction_body">Can\'t enable SDCleaners accessibility service? Android 13+ may apply restrictions to apps not installed via Google Play. Lift these restrictions from the system\'s detail page for SDCleaner. The option is in the context menu in the top right corner.</string>
 
     <string name="setup_acs_advanced_protection_title">Blocked by Advanced Protection</string>
-    <string name="setup_acs_advanced_protection_body">Android\'s Advanced Protection blocks SD Maid\'s accessibility service on Android 17 and newer, so it can\'t be enabled while Advanced Protection is on. Tap Help for details and alternatives.</string>
+    <string name="setup_acs_advanced_protection_body">Android\'s Advanced Protection blocks SDCleaner\'s accessibility service on Android 17 and newer, so it can\'t be enabled while Advanced Protection is on. Tap Help for details and alternatives.</string>
 
     <string name="setup_inventory_card_title">App inventory</string>
-    <string name="setup_inventory_card_body">SD Maid needs to know which apps you have to find files that don\'t belong to any installed apps.</string>
+    <string name="setup_inventory_card_body">SDCleaner needs to know which apps you have to find files that don\'t belong to any installed apps.</string>
     <string name="setup_inventory_card_extra">Look for a permission called \"App list\" or \"Query all packages\".</string>
 
     <string name="setup_inventory_limitation_title">Possible device limitation</string>
@@ -346,9 +346,9 @@
     <string name="setup_inventory_limitation_body2">Some devices (e.g. HarmonyOS) never provide a complete app list. To protect your data, app-related tools stay disabled, but you can still view storage usage with reduced detail.</string>
 
     <string name="setup_inventory_probe_failed_title">Couldn\'t read the app list</string>
-    <string name="setup_inventory_probe_failed_body">SD Maid asked Android for the list of installed apps and the request failed. App-related tools stay disabled until it works. Trying again may help.</string>
+    <string name="setup_inventory_probe_failed_body">SDCleaner asked Android for the list of installed apps and the request failed. App-related tools stay disabled until it works. Trying again may help.</string>
 
-    <string name="dataarea_warningcard_empty_message">SD Maid didn\'t find any data areas that can be scanned. Did you complete the setup?</string>
+    <string name="dataarea_warningcard_empty_message">SDCleaner didn\'t find any data areas that can be scanned. Did you complete the setup?</string>
     <string name="dataarea_warningcard_label">Data areas</string>
     <string name="dataarea_warningcard_reload_action">Reload data areas</string>
 
@@ -377,36 +377,36 @@
     <string name="data_area_public_storage_label">Public storage</string>
     <string name="data_area_sdcard_label">SD card</string>
     <string name="data_areas_label">Data areas</string>
-    <string name="data_areas_description">Data areas represent locations on your device that are accessible to SD Maid. Different data areas may be available depending on your Android version and the permissions that have been granted.</string>
+    <string name="data_areas_description">Data areas represent locations on your device that are accessible to SDCleaner. Different data areas may be available depending on your Android version and the permissions that have been granted.</string>
     <string name="updates_dashcard_title">Update available</string>
     <string name="updates_dashcard_body">An update is available. You have %1$s and the latest version is %2$s.</string>
 
-    <string name="translation_encourage_title">Translate SD Maid</string>
-    <string name="translation_encourage_body">SD Maid is translated by volunteers. Translation, review or proofreading, your help is appreciated!</string>
+    <string name="translation_encourage_title">Translate SDCleaner</string>
+    <string name="translation_encourage_body">SDCleaner is translated by volunteers. Translation, review or proofreading, your help is appreciated!</string>
     <string name="translation_translators_title">This version is translated by</string>
     <string name="translation_translators_people">Person1;Person2(optional@email.com)</string>
 
     <string name="motd_setting_enabled_label">Important messages</string>
-    <string name="motd_setting_enabled_explanation">Allow SD Maid to check for important messages from the developer.</string>
+    <string name="motd_setting_enabled_explanation">Allow SDCleaner to check for important messages from the developer.</string>
 
     <string name="updatecheck_setting_enabled_label">Update check</string>
-    <string name="updatecheck_setting_enabled_explanation">Allow SD Maid to check for updates to let you know if a newer version is available.</string>
+    <string name="updatecheck_setting_enabled_explanation">Allow SDCleaner to check for updates to let you know if a newer version is available.</string>
     <string name="device_settings_category">Device</string>
 
     <string name="review_app_review_action">Review</string>
     <string name="review_app_dismiss_action">Maybe later</string>
-    <string name="review_app_body">Would you like to leave SD Maid a review? ❤️</string>
+    <string name="review_app_body">Would you like to leave SDCleaner a review? ❤️</string>
 
-    <string name="anniversary_card_title">Happy SD Maid Anniversary ❤️</string>
+    <string name="anniversary_card_title">Happy SDCleaner Anniversary ❤️</string>
     <string name="anniversary_card_install_date">With you since %s</string>
     <plurals name="anniversary_card_body">
-        <item quantity="one">Already %1$d year together. Thanks for trusting SD Maid to keep your Android clean and tidy. Freed space: %2$s</item>
-        <item quantity="other">%1$d years strong. Your device stays clean and tidy with SD Maid. Freed space: %2$s</item>
+        <item quantity="one">Already %1$d year together. Thanks for trusting SDCleaner to keep your Android clean and tidy. Freed space: %2$s</item>
+        <item quantity="other">%1$d years strong. Your device stays clean and tidy with SDCleaner. Freed space: %2$s</item>
     </plurals>
-    <string name="anniversary_share_title">Share your SD Maid anniversary</string>
+    <string name="anniversary_share_title">Share your SDCleaner anniversary</string>
     <plurals name="anniversary_share_text">
-        <item quantity="one">%1$d year with SD Maid — Freed space: %2$s. Keeping your Android clean and tidy. #SDMaid\nTry it: %3$s</item>
-        <item quantity="other">%1$d years with SD Maid — Freed space: %2$s. Keeping your Android clean and tidy. #SDMaid\nTry it: %3$s</item>
+        <item quantity="one">%1$d year with SDCleaner — Freed space: %2$s. Keeping your Android clean and tidy. #SDMaid\nTry it: %3$s</item>
+        <item quantity="other">%1$d years with SDCleaner — Freed space: %2$s. Keeping your Android clean and tidy. #SDMaid\nTry it: %3$s</item>
     </plurals>
     <string name="shortcut_onetap_short">Scan + Delete</string>
     <string name="shortcut_onetap_long">Scan and delete in one action</string>
@@ -417,19 +417,19 @@
 
     <string name="analyzer_storage_trend_delta_in_7d">%s in 7 days</string>
 
-    <string name="tour_dashboard_overview_body">This is your dashboard, SD Maid\'s home screen. Every tool and operation lives on a card here.</string>
-    <string name="tour_dashboard_setup_body">The setup card appears when something needs configuring. Open it and resolve the issues so SD Maid can do more. You can also reach setup from settings, if you dismiss it.</string>
+    <string name="tour_dashboard_overview_body">This is your dashboard, SDCleaner\'s home screen. Every tool and operation lives on a card here.</string>
+    <string name="tour_dashboard_setup_body">The setup card appears when something needs configuring. Open it and resolve the issues so SDCleaner can do more. You can also reach setup from settings, if you dismiss it.</string>
     <string name="tour_dashboard_tools_body">Open a tool\'s card for details. Scan and delete actions live on each card, details appear once a scan finds something.</string>
     <string name="tour_dashboard_main_action_body">The big button at the bottom is the one-tap action. One tap to scan, one tap to clean, all automatic tools.</string>
     <string name="tour_dashboard_manual_tools_body">Some tools, like Swiper, aren\'t automatic, they offer a guided workflow you step through yourself.</string>
-    <string name="tour_dashboard_settings_body">SD Maid\'s defaults are conservative and safe. Every device is a little different, so adjust the settings to get more out of it.</string>
+    <string name="tour_dashboard_settings_body">SDCleaner\'s defaults are conservative and safe. Every device is a little different, so adjust the settings to get more out of it.</string>
 
-    <string name="tour_setup_intro_body">Each card on this screen is a permission SD Maid can use. All are optional, but more permissions mean more features and more thorough scans. Without any, most tools will find little to clean.</string>
+    <string name="tour_setup_intro_body">Each card on this screen is a permission SDCleaner can use. All are optional, but more permissions mean more features and more thorough scans. Without any, most tools will find little to clean.</string>
 
     <string name="general_settings_reset_guided_tours_label">Reset guided tours</string>
     <string name="general_settings_reset_guided_tours_summary">Show all guided tours again the next time you visit their screen. Also re-enables all tours if you previously turned them off.</string>
 
-    <string name="widget_home_title">SD Maid</string>
+    <string name="widget_home_title">SDCleaner</string>
     <string name="widget_home_description">Storage usage and one-tap cleanup</string>
     <string name="widget_home_storage_internal">Internal</string>
     <string name="widget_home_storage_external">External</string>
@@ -467,13 +467,13 @@
     <string name="backup_restore_recovery_desc">A safety snapshot from an unfinished restore is available</string>
     <string name="backup_restore_confirm_title">Restore this backup?</string>
     <string name="backup_restore_confirm_created">Created: %1$s</string>
-    <string name="backup_restore_confirm_source">From SD Maid %1$s on %2$s (Android %3$s)</string>
+    <string name="backup_restore_confirm_source">From SDCleaner %1$s on %2$s (Android %3$s)</string>
     <string name="backup_restore_mode_label">Restore mode</string>
     <string name="backup_restore_mode_merge">Merge</string>
     <string name="backup_restore_mode_merge_desc">Add the backup on top of your current configuration</string>
     <string name="backup_restore_mode_replace">Replace</string>
     <string name="backup_restore_mode_replace_desc">Reset your current configuration, then apply the backup</string>
-    <string name="backup_restore_warn_version_body">This backup is from SD Maid %1$s, but you are on %2$s. Restoring is only officially supported between identical versions.</string>
+    <string name="backup_restore_warn_version_body">This backup is from SDCleaner %1$s, but you are on %2$s. Restoring is only officially supported between identical versions.</string>
     <string name="backup_restore_warn_android_body">This backup was made on Android %1$s, but this device runs Android %2$s.</string>
     <string name="backup_restore_warn_device_body">This backup was made on a different device (%1$s vs %2$s).</string>
     <string name="backup_restore_warn_flavor_body">This backup is from a different app edition (%1$s vs %2$s).</string>

@@ -25,7 +25,7 @@ import eu.darken.sdmse.common.compose.layout.SdmScaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import eu.darken.sdmse.common.compose.layout.SdmBrandTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -156,19 +156,6 @@ internal fun SystemCleanerSettingsScreen(
             },
             onDismiss = { showScreenshotAgeDialog = false },
         )
-    }
-
-    val gateClick = rememberGateClickHandler(snackbarHostState)
-    val rootGate = state.systemFilterGate.toSettingGate()
-    val rootBlockedMessage = stringResource(
-        if (state.rootAccess == AccessState.Declined) {
-            CommonR.string.access_blocked_root_declined
-        } else {
-            CommonR.string.access_blocked_root_unavailable
-        }
-    )
-    val onRootGateClick: () -> Unit = {
-        gateClick(state.systemFilterGate, rootBlockedMessage, onRootFilterBadgeClick)
     }
 
     SdmScaffold(
@@ -351,106 +338,6 @@ internal fun SystemCleanerSettingsScreen(
                 )
             }
 
-            item { SettingsCategoryHeader(text = stringResource(CommonR.string.settings_category_filter_specific)) }
-            item {
-                SettingsBadgedSwitchItem(
-                    icon = Icons.TwoTone.RunningWithErrors,
-                    title = stringResource(R.string.systemcleaner_filter_anr_label),
-                    subtitle = stringResource(R.string.systemcleaner_filter_anr_summary),
-                    checked = state.filterAnr,
-                    onCheckedChange = onAnrChanged,
-                    onBadgeClick = onRootGateClick,
-                    gate = rootGate,
-                )
-            }
-            item {
-                SettingsBadgedSwitchItem(
-                    icon = SdmIcons.AndroidStudio,
-                    title = stringResource(R.string.systemcleaner_filter_localtmp_label),
-                    subtitle = stringResource(R.string.systemcleaner_filter_localtmp_summary),
-                    checked = state.filterLocalTmp,
-                    onCheckedChange = onLocalTmpChanged,
-                    onBadgeClick = onRootGateClick,
-                    gate = rootGate,
-                )
-            }
-            item {
-                SettingsBadgedSwitchItem(
-                    icon = SdmIcons.AndroidStudio,
-                    title = stringResource(R.string.systemcleaner_filter_downloadcache_label),
-                    subtitle = stringResource(R.string.systemcleaner_filter_downloadcache_summary),
-                    checked = state.filterDownloadCache,
-                    onCheckedChange = onDownloadCacheChanged,
-                    onBadgeClick = onRootGateClick,
-                    gate = rootGate,
-                )
-            }
-            item {
-                SettingsBadgedSwitchItem(
-                    icon = Icons.AutoMirrored.TwoTone.FormatListBulleted,
-                    title = stringResource(R.string.systemcleaner_filter_datalogger_label),
-                    subtitle = stringResource(R.string.systemcleaner_filter_datalogger_summary),
-                    checked = state.filterDataLogger,
-                    onCheckedChange = onDataLoggerChanged,
-                    onBadgeClick = onRootGateClick,
-                    gate = rootGate,
-                )
-            }
-            item {
-                SettingsBadgedSwitchItem(
-                    icon = Icons.AutoMirrored.TwoTone.FormatListBulleted,
-                    title = stringResource(R.string.systemcleaner_filter_logdropbox_label),
-                    subtitle = stringResource(R.string.systemcleaner_filter_logdropbox_summary),
-                    checked = state.filterLogDropbox,
-                    onCheckedChange = onLogDropboxChanged,
-                    onBadgeClick = onRootGateClick,
-                    gate = rootGate,
-                )
-            }
-            item {
-                SettingsBadgedSwitchItem(
-                    icon = Icons.TwoTone.TaskAlt,
-                    title = stringResource(R.string.systemcleaner_filter_recenttasks_label),
-                    subtitle = stringResource(R.string.systemcleaner_filter_recenttasks_summary),
-                    checked = state.filterRecentTasks,
-                    onCheckedChange = onRecentTasksChanged,
-                    onBadgeClick = onRootGateClick,
-                    gate = rootGate,
-                )
-            }
-            item {
-                SettingsBadgedSwitchItem(
-                    icon = SdmIcons.Tombstone,
-                    title = stringResource(R.string.systemcleaner_filter_tombstones_label),
-                    subtitle = stringResource(R.string.systemcleaner_filter_tombstones_summary),
-                    checked = state.filterTombstones,
-                    onCheckedChange = onTombstonesChanged,
-                    onBadgeClick = onRootGateClick,
-                    gate = rootGate,
-                )
-            }
-            item {
-                SettingsBadgedSwitchItem(
-                    icon = Icons.TwoTone.StackedBarChart,
-                    title = stringResource(R.string.systemcleaner_filter_usagestats_label),
-                    subtitle = stringResource(R.string.systemcleaner_filter_usagestats_summary),
-                    checked = state.filterUsageStats,
-                    onCheckedChange = onUsageStatsChanged,
-                    onBadgeClick = onRootGateClick,
-                    gate = rootGate,
-                )
-            }
-            item {
-                SettingsBadgedSwitchItem(
-                    icon = Icons.TwoTone.Apps,
-                    title = stringResource(R.string.systemcleaner_filter_packagecaches_label),
-                    subtitle = stringResource(R.string.systemcleaner_filter_packagecaches_summary),
-                    checked = state.filterPackageCache,
-                    onCheckedChange = onPackageCacheChanged,
-                    onBadgeClick = onRootGateClick,
-                    gate = rootGate,
-                )
-            }
         }
     }
 }

@@ -10,7 +10,7 @@ import androidx.compose.material.icons.twotone.History
 import androidx.compose.material.icons.twotone.SettingsBackupRestore
 import eu.darken.sdmse.common.compose.layout.SdmScaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import eu.darken.sdmse.common.compose.layout.SdmBrandTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf

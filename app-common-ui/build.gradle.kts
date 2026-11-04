@@ -36,6 +36,7 @@ android {
 setupKotlinOptions(compose = true)
 
 dependencies {
+    implementation("dev.n2k02:theme:0.1.4")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:${Versions.Desugar.core}")
     implementation(project(":app-common"))
     implementation(project(":app-common-io"))

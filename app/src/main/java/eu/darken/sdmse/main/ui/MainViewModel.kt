@@ -35,6 +35,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
+import androidx.work.await
 import java.time.Duration
 import java.time.Instant
 import javax.inject.Inject
@@ -48,7 +50,36 @@ class MainViewModel @Inject constructor(
     private val generalSettings: GeneralSettings,
     private val oneTapCleaner: OneTapCleaner,
     private val appScope: AppCoroutineScope,
+    private val sessions: eu.darken.sdmse.common.debug.recorder.core.DebugLogSessionManager,
+
 ) : ViewModel4(dispatcherProvider = dispatcherProvider, tag = TAG) {
+
+    val tasksIdle = taskManager.state.map { it.isIdle }
+        .stateIn(vmScope, SharingStarted.Eagerly, false)
+
+    private val quitting = MutableStateFlow(false)
+    fun stopForQuit(context: android.content.Context, onStopped: () -> Unit) {
+        if (!quitting.compareAndSet(false, true)) return
+        launch {
+            try {
+                eu.darken.sdmse.cleaner.CleanerUpdater.cancel()
+                eu.darken.sdmse.cleaner.stopCleaner(
+                    cancelBackground = { androidx.work.WorkManager.getInstance(context).cancelAllWork().await() },
+                    cancelTasks = { SDMTool.Type.entries.forEach { taskManager.cancel(it) } },
+                    awaitIdle = { taskManager.state.first { it.isIdle }; Unit },
+                    stopRecording = { sessions.forceStopRecording(); Unit },
+                    stopHost = {
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
+                            eu.darken.sdmse.automation.core.AutomationService.instance?.disableSelf()
+                            onStopped()
+                        }
+                    },
+                )
+            } catch (error: kotlinx.coroutines.TimeoutCancellationException) {
+                errorEvents.emit(IllegalStateException("Cleaning is still stopping. Try Quit again once the active task finishes.", error))
+            } finally { quitting.value = false }
+        }
+    }
 
     val startRoute: NavigationDestination = if (generalSettings.isOnboardingCompleted.valueBlocking) {
         DashboardRoute

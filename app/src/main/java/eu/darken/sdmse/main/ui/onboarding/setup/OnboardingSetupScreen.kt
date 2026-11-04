@@ -98,7 +98,7 @@ internal fun OnboardingSetupScreen(
                     Spacer(modifier = Modifier.height(32.dp))
 
                     Image(
-                        painter = painterResource(R.drawable.sdm_happy),
+                        painter = painterResource(R.drawable.sdcleaner_icon_fg),
                         contentDescription = null,
                         modifier = Modifier.size(128.dp),
                     )

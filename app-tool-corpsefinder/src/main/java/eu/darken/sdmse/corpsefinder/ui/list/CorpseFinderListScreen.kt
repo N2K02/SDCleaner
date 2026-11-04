@@ -63,6 +63,7 @@ fun CorpseFinderListScreenHost(
     NavigationEventHandler(vm)
 
     val context = LocalContext.current
+    val currentState by vm.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     var confirmDeletion by remember { mutableStateOf<CorpseFinderListViewModel.Event.ConfirmDeletion?>(null) }
@@ -89,7 +90,7 @@ fun CorpseFinderListScreenHost(
     confirmDeletion?.let { pending ->
         val singleId = pending.ids.singleOrNull()
         val message = if (singleId != null) {
-            val row = vm.state.value.rows?.firstOrNull { it.identifier == singleId }
+            val row = currentState.rows?.firstOrNull { it.identifier == singleId }
             val name = row?.corpse?.lookup?.userReadableName?.get(context) ?: singleId.toString()
             stringResource(CommonR.string.general_delete_confirmation_message_x, name)
         } else {

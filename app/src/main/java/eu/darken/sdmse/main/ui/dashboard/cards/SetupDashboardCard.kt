@@ -71,7 +71,7 @@ internal fun SetupDashboardCard(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                painter = painterResource(R.drawable.sdm_not_happy),
+                painter = painterResource(R.drawable.sdcleaner_icon_fg),
                 contentDescription = null,
                 modifier = Modifier.size(24.dp),
                 tint = Color.Unspecified,

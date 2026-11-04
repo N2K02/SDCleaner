@@ -69,8 +69,8 @@ class StorageCleanupFlowTest : BaseAppFlowTest() {
             pollUntil("storage access granted") { hasStorageAccess() }
 
             awaitNoListItem(hasText(str(R.string.setup_manage_storage_card_title)))
-            // Root access stays incomplete, so its card proves the list is still Setup's.
-            awaitListItem(hasText(str(R.string.setup_root_card_title)))
+            // The close action identifies Setup independently of which permissions remain missing.
+            awaitNode(hasContentDescription(str(CommonR.string.general_close_action)))
             Files.exists(plantFile) shouldBe true
 
             // Onboarding ends on Setup, pushed over the dashboard.

@@ -213,7 +213,7 @@ class DashboardViewModel @Inject constructor(
         .onEach { log(TAG, VERBOSE) { "listState.$name upstream emit: ${descLite(it)}" } }
         .onStart { log(TAG, VERBOSE) { "listState.$name upstream start" } }
 
-    private val updateInfo: Flow<UpdateDashboardCardItem?> = buildUpdateInfo()
+    private val updateInfo: Flow<UpdateDashboardCardItem?> = kotlinx.coroutines.flow.flowOf(null)
 
     internal val upgradeInfo: Flow<UpgradeRepo.Info?> = upgradeRepo.upgradeInfo
         .map {
@@ -265,7 +265,7 @@ class DashboardViewModel @Inject constructor(
     private val dataAreaItem: Flow<ErrorDataAreaDashboardCardItem?> = areaManager.latestResult
         .map { result -> dataAreaCardFor(result) { launch { areaManager.reload() } } }
 
-    private val motdItem: Flow<MotdDashboardCardItem?> = buildMotdItem()
+    private val motdItem: Flow<MotdDashboardCardItem?> = kotlinx.coroutines.flow.flowOf(null)
 
     private val setupCardItem: Flow<SetupDashboardCardItem?> = buildSetupCardItem()
 
@@ -459,6 +459,33 @@ class DashboardViewModel @Inject constructor(
         val items: List<DashboardItem>,
     )
 
+    // Home collects only cleanup sources. The legacy dashboard state remains available to
+    // reusable tool screens/tests, but must not start inventory or media queries from Home.
+    private val cleaningCards = kotlinx.coroutines.flow.combine(
+        corpseFinderItem, systemCleanerItem, appCleanerItem, deduplicatorItem,
+    ) { corpse, system, apps, duplicates -> listOfNotNull(corpse, system, apps, duplicates) }
+
+    private val cleanerDryRunWarning = debugCardProvider.create(
+        vm = this,
+        onNavigate = { navTo(it as eu.darken.sdmse.common.navigation.NavigationDestination) },
+        onError = { errorEvents.tryEmit(it) },
+        onShowEvent = { events.tryEmit(it) },
+    ).map { debug ->
+        debug?.takeIf { it.isDryRunEnabled }?.let {
+            DryRunWarningDashboardCardItem(onDisable = { it.onDryRunEnabled(false) })
+        }
+    }.onStart { emit(null) }
+
+    val cleanerListState: StateFlow<ListState?> = kotlinx.coroutines.flow.combine(
+        cleaningCards,
+        setupCardItem.onStart { emit(null) },
+        schedulerItem,
+        dataAreaItem.onStart { emit(null) },
+        cleanerDryRunWarning,
+    ) { tools, setup, schedules, areaError, dryRun ->
+        ListState(listOfNotNull(areaError, setup, dryRun) + tools + listOfNotNull(schedules))
+    }.safeStateIn(initialValue = null, onError = { null })
+
     /** The main-action/hero state machine; this VM delegates to it and keeps error/navigation routing. */
     private val mainActionEngine = DashboardMainActionEngine(
         scope = vmScope,
@@ -476,7 +503,7 @@ class DashboardViewModel @Inject constructor(
     )
 
     val bottomBarState: StateFlow<BottomBarState?> = mainActionEngine.bottomBarState(
-        listIsReady = listState.map { state -> state?.items?.any { it is MainActionItem } == true },
+        listIsReady = cleanerListState.map { state -> state?.items?.any { it is MainActionItem } == true },
     ).safeStateIn(
         initialValue = null,
         onError = { null },

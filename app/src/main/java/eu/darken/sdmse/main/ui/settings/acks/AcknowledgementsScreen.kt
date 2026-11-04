@@ -10,7 +10,7 @@ import androidx.compose.material.icons.automirrored.twotone.ArrowBack
 import androidx.compose.material3.MaterialTheme
 import eu.darken.sdmse.common.compose.layout.SdmScaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import eu.darken.sdmse.common.compose.layout.SdmBrandTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import eu.darken.sdmse.common.compose.preview.Preview2
 import eu.darken.sdmse.common.compose.preview.PreviewWrapper

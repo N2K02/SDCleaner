@@ -12,6 +12,7 @@ import androidx.compose.animation.togetherWith
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,6 +22,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -98,6 +101,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
+        eu.darken.sdmse.cleaner.CleanerUpdater.init(this) { vm.tasksIdle.value }
         curriculumVitae.updateAppOpened()
 
         // Fresh launch: a shortcut/widget intent seeds the back stack with ONLY the target screen (see
@@ -162,7 +166,7 @@ class MainActivity : ComponentActivity() {
                     // overlay don't intercept touches, so the app underneath stays interactive.
                     Box(modifier = Modifier.fillMaxSize()) {
                         Navigation()
-                        FloatingLogPanelHost()
+
                     }
 
                     val showWidgetConsent by vm.showWidgetConsent.collectAsStateWithLifecycle()
@@ -242,6 +246,9 @@ class MainActivity : ComponentActivity() {
                 val sceneStrategy = remember(isTv) {
                     ModalBottomSheetSceneStrategy<NavKey>(isTv = isTv).then(SinglePaneSceneStrategy())
                 }
+                var quitDialog by remember { mutableStateOf(false) }
+                Column(Modifier.fillMaxSize()) {
+                Box(Modifier.weight(1f)) {
                 NavDisplay(
                     backStack = backStack,
                     onBack = { navCtrl.up() },
@@ -271,6 +278,35 @@ class MainActivity : ComponentActivity() {
                         }
                     },
                 )
+                }
+                if (backStack.any { it == DashboardRoute || it == eu.darken.sdmse.main.ui.navigation.SettingsRoute }) {
+                    eu.darken.sdmse.cleaner.CleanerNavigation(
+                        settings = backStack.any { it == eu.darken.sdmse.main.ui.navigation.SettingsRoute },
+                        onHome = { backStack.clear(); backStack.add(DashboardRoute) },
+                        onSettings = {
+                            backStack.clear()
+                            backStack.add(DashboardRoute)
+                            backStack.add(eu.darken.sdmse.main.ui.navigation.SettingsRoute)
+                        },
+                        onQuit = { quitDialog = true },
+                    )
+                }
+                }
+                if (quitDialog) {
+                    SdmConfirmDialog(
+                        title = "Quit SDCleaner?",
+                        message = "Active cleaning will stop. Schedules resume on the next launch. Accessibility access will need to be enabled again for automated app cleaning.",
+                        onDismissRequest = { quitDialog = false },
+                        positive = SdmDialogAction(label = "Quit", onClick = {
+                            quitDialog = false
+                            vm.stopForQuit(this@MainActivity) {
+                                finishAndRemoveTask()
+                                android.os.Process.killProcess(android.os.Process.myPid())
+                            }
+                        }),
+                        negative = SdmDialogAction(label = "Cancel", onClick = { quitDialog = false }),
+                    )
+                }
             }
         }
     }
@@ -283,6 +319,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        eu.darken.sdmse.cleaner.CleanerUpdater.resume(this)
         savedIntent?.let { intent ->
             handleShortcutAction(intent)
             savedIntent = null
@@ -294,9 +331,9 @@ class MainActivity : ComponentActivity() {
     // onNewIntent deliveries).
     private fun shortcutRoute(intent: Intent?): NavigationDestination? =
         when (intent?.getStringExtra(ShortcutActivity.EXTRA_SHORTCUT_ACTION)) {
-            ShortcutActivity.ACTION_OPEN_APPCONTROL -> AppControlListRoute
-            ShortcutActivity.ACTION_OPEN_ANALYZER -> DeviceStorageRoute
-            ShortcutActivity.ACTION_UPGRADE -> UpgradeRoute()
+            ShortcutActivity.ACTION_OPEN_APPCONTROL -> DashboardRoute
+            ShortcutActivity.ACTION_OPEN_ANALYZER -> DashboardRoute
+            ShortcutActivity.ACTION_UPGRADE -> DashboardRoute
             else -> null
         }
 

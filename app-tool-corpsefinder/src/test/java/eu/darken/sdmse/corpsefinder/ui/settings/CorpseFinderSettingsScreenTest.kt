@@ -45,6 +45,17 @@ class CorpseFinderSettingsScreenTest : BaseComposeRobolectricTest() {
     }
 
     @Test
+    fun `root-only filters stay absent with legacy root availability`() {
+        composeRule.setSettingsScreen(CorpseFinderSettingsViewModel.State(
+            rootFilterGate = FeatureGateState.AVAILABLE,
+            isFilterPrivateDataAvailable = true,
+        ))
+        composeRule.onAllNodesWithText("Private app data").assertCountEquals(0)
+        org.junit.Assert.assertThrows(AssertionError::class.java) { composeRule.scrollToText("Private app data") }
+        composeRule.onAllNodesWithContentDescription("Set up").assertCountEquals(0)
+    }
+
+    @Test
     fun `top bar shows the CorpseFinder title`() {
         composeRule.setSettingsScreen(CorpseFinderSettingsViewModel.State())
 
@@ -89,72 +100,6 @@ class CorpseFinderSettingsScreenTest : BaseComposeRobolectricTest() {
         composeRule.onNodeWithText("Include desirable remnants").performClick()
 
         captured shouldBe true
-    }
-
-    @Test
-    fun `private app data row when root is available shows no Set up badge and tap toggles filter`() {
-        var filterToggled: Boolean? = null
-        var badgeClicked = 0
-        composeRule.setContent {
-            PreviewWrapper {
-                CorpseFinderSettingsScreen(
-                    state = CorpseFinderSettingsViewModel.State(
-                        filterPrivateDataEnabled = true,
-                        isFilterPrivateDataAvailable = true,
-                        rootFilterGate = FeatureGateState.AVAILABLE,
-                    ),
-                    onFilterPrivateDataChanged = { filterToggled = it },
-                    onRootFilterBadgeClick = { badgeClicked++ },
-                )
-            }
-        }
-
-        composeRule.scrollToText("Private app data")
-        composeRule.onNodeWithText("Private app data").assertExists()
-        // Ungated case: the "Set up" badge icon is NOT rendered for this row.
-        // (Other rows may render it, so we check no badge sits near "Private app data".
-        // Since we can't easily scope by parent here, asserting the toggle behaviour below
-        // is the load-bearing differential check.)
-        composeRule.onNodeWithText("Private app data").performClick()
-
-        // Available: tapping the row goes to the filter toggle, NOT the badge handler.
-        filterToggled shouldBe false
-        badgeClicked shouldBe 0
-    }
-
-    @Test
-    fun `private app data row when root is not available shows Set up badge and tap routes to badge handler`() {
-        var filterToggled: Boolean? = null
-        var badgeClicked = 0
-        composeRule.setContent {
-            PreviewWrapper {
-                CorpseFinderSettingsScreen(
-                    state = CorpseFinderSettingsViewModel.State(
-                        filterPrivateDataEnabled = true,
-                        isFilterPrivateDataAvailable = false,
-                    ),
-                    onFilterPrivateDataChanged = { filterToggled = it },
-                    onRootFilterBadgeClick = { badgeClicked++ },
-                )
-            }
-        }
-
-        composeRule.scrollToText("Private app data")
-        composeRule.onNodeWithText("Private app data").assertExists()
-        // Gated case: the SettingsBadgedSwitchItem renders a "Set up" icon
-        // (contentDescription comes from CommonR.string.general_set_up_action). Multiple root-
-        // gated rows render the same icon, so we just assert at least one is present.
-        val badgeCount = composeRule.onAllNodesWithContentDescription("Set up")
-            .fetchSemanticsNodes().size
-        if (badgeCount < 1) {
-            throw AssertionError("Expected at least one `Set up` badge but found 0")
-        }
-
-        composeRule.onNodeWithText("Private app data").performClick()
-
-        // Unavailable: tapping the row routes to the badge handler, NOT the filter toggle.
-        filterToggled shouldBe null
-        badgeClicked shouldBe 1
     }
 
     @Test

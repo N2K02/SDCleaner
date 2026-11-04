@@ -56,7 +56,7 @@ class TaskResultNotifications @Inject constructor(
             .setChannelId(CHANNEL_ID)
             .setContentIntent(openPendingIntent)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setSmallIcon(R.drawable.ic_notification_maid_happy_24)
+            .setSmallIcon(R.drawable.sdcleaner_icon_mono)
             .setOngoing(false)
             .setAutoCancel(true)
             .setSubText(context.getString(R.string.tasks_result_subtext))

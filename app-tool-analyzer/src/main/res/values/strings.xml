@@ -41,7 +41,7 @@
     <string name="analyzer_storage_content_type_system_other_label">Other</string>
     <string name="analyzer_storage_content_type_system_info">Files that don\'t fit the Apps or User files categories. Browse only — deletion is not supported. Some areas may be incomplete due to access restrictions.</string>
     <string name="analyzer_storage_content_type_media_readonly_info">Files can\'t be matched to the apps that own them right now. Sizes are shown for reference only — deletion, filters and Swiper are disabled.</string>
-    <string name="analyzer_storage_content_type_system_other_desc">System files and other data that SD Maid could not access or categorize. The operating system restricts listing the contents of some areas.</string>
+    <string name="analyzer_storage_content_type_system_other_desc">System files and other data that SDCleaner could not access or categorize. The operating system restricts listing the contents of some areas.</string>
     <string name="analyzer_storage_content_type_otherusers_label">Other users</string>
     <string name="analyzer_storage_content_type_otherusers_description">Apps and files that belong to other users or work profiles on this device.</string>
     <string name="analyzer_storage_content_type_otherusers_user_partial">App data only, shared files of this user are not included.</string>
@@ -66,7 +66,7 @@
     <!-- Settings -->
     <string name="analyzer_settings_storage_category_label">Storage</string>
     <string name="analyzer_settings_lowstorage_title">Low storage threshold</string>
-    <string name="analyzer_settings_lowstorage_desc">When free space drops below this, SD Maid treats the storage as running out.</string>
+    <string name="analyzer_settings_lowstorage_desc">When free space drops below this, SDCleaner treats the storage as running out.</string>
     <string name="analyzer_settings_lowstorage_value_auto">Automatic (currently %1$s)</string>
     <string name="analyzer_settings_lowstorage_value_auto_unknown">Automatic</string>
     <string name="analyzer_settings_lowstorage_automatic_action">Automatic</string>

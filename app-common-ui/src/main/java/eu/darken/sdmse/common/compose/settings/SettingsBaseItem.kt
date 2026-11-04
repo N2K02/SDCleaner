@@ -1,5 +1,8 @@
 package eu.darken.sdmse.common.compose.settings
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -51,6 +54,9 @@ fun SettingsBaseItem(
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 3.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
             // Before combinedClickable so the requester/observer attach to the row's focus
             // target. Keyed by title unless the caller overrides (rows with dynamic titles).
             .dpadFocusMemoryItem(focusKey ?: title)

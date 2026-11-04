@@ -72,6 +72,7 @@ class SchedulerManager @Inject constructor(
                         previous == null -> current.checkSchedulingState()
                         previous.scheduledAt != current.scheduledAt ||
                             previous.intervalMinutes != current.intervalMinutes ||
+                            previous.runOnce != current.runOnce ||
                             previous.initialDelayMinutes != current.initialDelayMinutes ||
                             previous.repeatInterval != current.repeatInterval ||
                             previous.hour != current.hour ||
@@ -126,7 +127,8 @@ class SchedulerManager @Inject constructor(
 
     suspend fun reschedule(id: ScheduleId) {
         log(TAG, INFO) { "Rescheduling $id" }
-        getSchedule(id)!!.schedule(reschedule = true)
+        val schedule = getSchedule(id) ?: return
+        if (schedule.isEnabled && !schedule.runOnce) schedule.schedule(reschedule = true)
     }
 
     private suspend fun Schedule.schedule(reschedule: Boolean) {
@@ -248,7 +250,10 @@ class SchedulerManager @Inject constructor(
             return@updateBlocking this
         }
 
-        val updatedTarget = target.copy(executedAt = Instant.now())
+        val updatedTarget = target.copy(
+            executedAt = Instant.now(),
+            scheduledAt = if (target.runOnce) null else target.scheduledAt,
+        )
 
         copy(schedules = this.schedules.minus(target).plus(updatedTarget).toSet())
     }

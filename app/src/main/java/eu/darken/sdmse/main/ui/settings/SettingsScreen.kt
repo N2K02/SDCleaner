@@ -38,19 +38,76 @@ fun SettingsScreenHost() {
     val nav = requireNotNull(LocalNavigationController.current)
     val status by CleanerUpdater.controller.status.collectAsState()
     SettingsPage("Settings", root = true) {
+        Spacer(Modifier.height(12.dp))
+        Text(
+            "CLEANING",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 24.dp, bottom = 8.dp),
+        )
+        CleanerQuickAction(
+            title = "Cache cleanup",
+            description = "Manage app cache cleaning and cleanup methods",
+            icon = Icons.Rounded.DeleteSweep,
+            onClick = { nav.goTo(AppCleanerSettingsRoute) },
+        )
+        CleanerQuickAction(
+            title = "Temporary & system files",
+            description = "Review filters for unwanted files",
+            icon = Icons.Rounded.CleaningServices,
+            onClick = { nav.goTo(SystemCleanerSettingsRoute) },
+        )
+        CleanerQuickAction(
+            title = "Obsolete files",
+            description = "Find leftovers from uninstalled applications",
+            icon = Icons.Rounded.FolderDelete,
+            onClick = { nav.goTo(CorpseFinderSettingsRoute) },
+        )
+        CleanerQuickAction(
+            title = "Duplicate files",
+            description = "Find redundant copies before removing them",
+            icon = Icons.Rounded.ContentCopy,
+            onClick = { nav.goTo(DeduplicatorSettingsRoute) },
+        )
+        Spacer(Modifier.height(12.dp))
+        Card(
+            onClick = { nav.goTo(SchedulerManagerRoute) },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        ) {
+            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.EventRepeat, null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Cleaning Scheduler", style = MaterialTheme.typography.titleLarge)
+                        Text("Run after X minutes or repeat every X minutes", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Icon(Icons.Rounded.ChevronRight, null)
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
+                Text("Custom intervals · Initial delay · Scheduled times", style = MaterialTheme.typography.labelMedium)
+            }
+        }
+        SettingsPreferenceItem(title = "Cleaning rules", subtitle = "Configure additional cleaning tools", icon = Icons.Rounded.Tune,
+            onClick = { nav.goTo(CleanerSettingsRoute("tools")) })
+        SettingsPreferenceItem(title = "Excluded files & apps", subtitle = "Protect items from scheduled cleaning", icon = Icons.Rounded.FolderOff,
+            onClick = { nav.goTo(ExclusionsListRoute) })
+        HorizontalDivider(Modifier.padding(horizontal = 24.dp, vertical = 14.dp))
+        Text(
+            "APP",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 24.dp, bottom = 8.dp),
+        )
         SettingsPreferenceItem(title = "Appearance", subtitle = "System, light, or dark theme", icon = Icons.Rounded.Palette,
             onClick = { nav.goTo(CleanerSettingsRoute("appearance")) })
-        SettingsPreferenceItem(title = "Cleaning tools", subtitle = "App caches, leftover files, system files, and duplicates", icon = Icons.Rounded.CleaningServices,
-            onClick = { nav.goTo(CleanerSettingsRoute("tools")) })
-        SettingsPreferenceItem(title = "Cleaning schedules", subtitle = "Choose when automatic cleaning runs", icon = Icons.Rounded.Schedule,
-            onClick = { nav.goTo(SchedulerManagerRoute) })
-        SettingsPreferenceItem(title = "Exclusions", subtitle = "Files and apps to keep", icon = Icons.Rounded.Shield,
-            onClick = { nav.goTo(ExclusionsListRoute) })
         SettingsPreferenceItem(title = "Permissions & setup", subtitle = "Review access needed by cleaning tools", icon = Icons.Rounded.Security,
             onClick = { nav.goTo(SetupRoute(options = SetupScreenOptions(showCompleted = true))) })
         SettingsPreferenceItem(title = "Backup & restore", subtitle = "Save or restore your cleaning configuration", icon = Icons.Rounded.SettingsBackupRestore,
             onClick = { nav.goTo(BackupRestoreRoute) })
-        HorizontalDivider(Modifier.padding(horizontal = 24.dp, vertical = 16.dp))
+        HorizontalDivider(Modifier.padding(horizontal = 24.dp, vertical = 14.dp))
         SettingsPreferenceItem(title = "Diagnostics", subtitle = "App and device information", icon = Icons.Rounded.BugReport,
             onClick = { nav.goTo(CleanerSettingsRoute("diagnostics")) })
         ListItem(
@@ -61,6 +118,39 @@ fun SettingsScreenHost() {
             colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 3.dp).clip(RoundedCornerShape(20.dp)).clickable { nav.goTo(CleanerSettingsRoute("updates")) },
         )
+    }
+}
+
+@Composable
+private fun CleanerQuickAction(
+    title: String,
+    description: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 3.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.secondaryContainer,
+            ) {
+                Icon(icon, null, Modifier.padding(10.dp).size(22.dp))
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Icon(Icons.Rounded.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 

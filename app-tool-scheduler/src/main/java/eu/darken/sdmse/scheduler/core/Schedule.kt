@@ -24,6 +24,7 @@ data class Schedule(
     @SerialName("repeatInterval") val repeatInterval: Duration = Duration.ofDays(3),
     @SerialName("intervalMinutes") val intervalMinutes: Long? = null,
     @SerialName("initialDelayMinutes") val initialDelayMinutes: Long = 0,
+    @SerialName("runOnce") val runOnce: Boolean = false,
     @SerialName("userZone") val userZone: String? = null,
     @SerialName("corpsefinderEnabled") val useCorpseFinder: Boolean = false,
     @SerialName("systemcleanerEnabled") val useSystemCleaner: Boolean = false,
@@ -83,6 +84,8 @@ data class Schedule(
         if (scheduledAt == null) return null
 
         if (intervalMinutes != null) {
+            if (runOnce) return Duration.between(now, scheduledAt.plus(Duration.ofMinutes(initialDelayMinutes.coerceAtLeast(1))))
+                .coerceAtLeast(Duration.ZERO)
             val step = Duration.ofMinutes(intervalMinutes.coerceAtLeast(15))
             val anchor = scheduledAt.plus(Duration.ofMinutes(initialDelayMinutes.coerceAtLeast(0)))
             val first = if (anchor.isAfter(now)) anchor else {

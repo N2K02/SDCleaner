@@ -64,13 +64,13 @@ class ScheduleItemViewModel @Inject constructor(
         .map { d ->
             State(
                 label = d.label,
-                hour = d.hour,
-                minute = d.minute,
+                hour = d.hour ?: toEdit.hour,
+                minute = d.minute ?: toEdit.minute,
                 repeatInterval = d.repeatInterval,
                 intervalMinutes = d.intervalMinutes,
                 runOnce = d.runOnce,
                 initialDelayMinutes = d.initialDelayMinutes,
-                canSave = !d.label.isNullOrBlank() && d.hour != null && d.minute != null,
+                canSave = !d.label.isNullOrBlank() && (d.intervalMinutes != null || (d.hour != null && d.minute != null)),
                 isReady = true,
             )
         }
@@ -126,7 +126,7 @@ class ScheduleItemViewModel @Inject constructor(
     fun saveSchedule() = launch {
         log(TAG) { "saveSchedule()" }
         val d = draft.value ?: return@launch
-        if (d.label.isNullOrBlank() || d.hour == null || d.minute == null) {
+        if (d.label.isNullOrBlank() || (d.intervalMinutes == null && (d.hour == null || d.minute == null))) {
             log(TAG, WARN) { "saveSchedule: incomplete draft, ignoring" }
             return@launch
         }

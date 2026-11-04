@@ -35,6 +35,12 @@ data class Schedule(
     val isEnabled: Boolean
         get() = scheduledAt != null
 
+    /** A manual cleanup must not consume a pending one-time schedule. */
+    internal fun afterExecution(at: Instant, manual: Boolean): Schedule = copy(
+        executedAt = at,
+        scheduledAt = if (runOnce && !manual) null else scheduledAt,
+    )
+
     // A zero/negative/sub-day interval (possible via hand-edited backup restores) would make the
     // plusDays stepping in the calc functions below spin forever; the scheduler's real minimum is 1 day.
     private val intervalDaysSafe: Long

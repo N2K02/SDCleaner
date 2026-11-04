@@ -261,7 +261,7 @@ class SchedulerManager @Inject constructor(
         copy(schedules = this.schedules.minus(target).toSet())
     }
 
-    suspend fun updateExecutedNow(id: ScheduleId) = internalState.updateBlocking {
+    suspend fun updateExecutedNow(id: ScheduleId, manual: Boolean = false) = internalState.updateBlocking {
         log(TAG) { "updateExecutedNow(): $id" }
         val target = this.schedules.singleOrNull { it.id == id }
         if (target == null) {
@@ -269,10 +269,7 @@ class SchedulerManager @Inject constructor(
             return@updateBlocking this
         }
 
-        val updatedTarget = target.copy(
-            executedAt = Instant.now(),
-            scheduledAt = if (target.runOnce) null else target.scheduledAt,
-        )
+        val updatedTarget = target.afterExecution(at = Instant.now(), manual = manual)
 
         copy(schedules = this.schedules.minus(target).plus(updatedTarget).toSet())
     }

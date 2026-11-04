@@ -125,7 +125,11 @@ internal fun ScheduleRow(
                     color = if (isEnabled) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
                 ) {
                     Text(
-                        text = if (isEnabled) "Enabled" else "Paused",
+                        text = when {
+                            isEnabled -> "Enabled"
+                            schedule.runOnce && schedule.executedAt != null -> "Completed"
+                            else -> "Paused"
+                        },
                         style = MaterialTheme.typography.labelSmall,
                         color = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),

@@ -145,7 +145,7 @@ class SchedulerWorker @AssistedInject constructor(
         }
 
         try {
-            schedulerManager.updateExecutedNow(scheduleId)
+            schedulerManager.updateExecutedNow(scheduleId, manual = isManual)
         } catch (e: Exception) {
             // On cancellation (e.g. schedule disabled) the schedule must not be re-armed
             if (e is CancellationException) throw e

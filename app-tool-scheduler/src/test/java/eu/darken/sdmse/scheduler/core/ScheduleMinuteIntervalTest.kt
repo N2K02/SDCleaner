@@ -38,6 +38,25 @@ class ScheduleMinuteIntervalTest : BaseTest() {
         schedule.calcExecutionEta(anchor.plusSeconds(6 * 60), reschedule = false) shouldBe Duration.ZERO
     }
 
+    @Test fun `manual run does not consume pending one-time schedule`() {
+        val scheduled = Schedule(
+            id = "once",
+            scheduledAt = anchor,
+            runOnce = true,
+            intervalMinutes = 1,
+            initialDelayMinutes = 5,
+        )
+        val execution = anchor.plusSeconds(60)
+        scheduled.afterExecution(at = execution, manual = true).let {
+            it.scheduledAt shouldBe anchor
+            it.executedAt shouldBe execution
+        }
+        scheduled.afterExecution(at = execution, manual = false).let {
+            it.scheduledAt shouldBe null
+            it.executedAt shouldBe execution
+        }
+    }
+
     @Test fun `disabled schedule does not run`() {
         val schedule = Schedule(id = "minute", intervalMinutes = 30, initialDelayMinutes = 5)
         schedule.calcExecutionEta(anchor, reschedule = false) shouldBe null

@@ -30,6 +30,7 @@ import eu.darken.sdmse.scheduler.ui.SchedulerManagerRoute
 import eu.darken.sdmse.scheduler.ui.manager.SchedulerManagerViewModel
 import eu.darken.sdmse.scheduler.core.Schedule
 import java.time.Instant
+import kotlinx.coroutines.delay
 import eu.darken.sdmse.corpsefinder.ui.CorpseFinderSettingsRoute
 import eu.darken.sdmse.systemcleaner.ui.SystemCleanerSettingsRoute
 import eu.darken.sdmse.appcleaner.ui.AppCleanerSettingsRoute
@@ -116,9 +117,18 @@ private fun SchedulerOverviewCard(
     onClick: () -> Unit,
 ) {
     val enabled = schedules.filter { it.isEnabled }
+    var now by remember { mutableStateOf(Instant.now()) }
+    LaunchedEffect(enabled.isNotEmpty()) {
+        if (enabled.isNotEmpty()) {
+            while (true) {
+                delay(30_000)
+                now = Instant.now()
+            }
+        }
+    }
     val next = enabled.mapNotNull { schedule ->
         runCatching {
-            schedule.calcExecutionEta(Instant.now(), reschedule = false)
+            schedule.calcExecutionEta(now, reschedule = false)
                 ?.let { schedule to it }
         }.getOrNull()
     }.minByOrNull { it.second }

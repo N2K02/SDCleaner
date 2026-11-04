@@ -27,6 +27,9 @@ import eu.darken.sdmse.setup.SetupRoute
 import eu.darken.sdmse.setup.SetupScreenOptions
 import eu.darken.sdmse.exclusion.ui.ExclusionsListRoute
 import eu.darken.sdmse.scheduler.ui.SchedulerManagerRoute
+import eu.darken.sdmse.scheduler.ui.manager.SchedulerManagerViewModel
+import eu.darken.sdmse.scheduler.core.Schedule
+import java.time.Instant
 import eu.darken.sdmse.corpsefinder.ui.CorpseFinderSettingsRoute
 import eu.darken.sdmse.systemcleaner.ui.SystemCleanerSettingsRoute
 import eu.darken.sdmse.appcleaner.ui.AppCleanerSettingsRoute
@@ -37,6 +40,8 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 fun SettingsScreenHost() {
     val nav = requireNotNull(LocalNavigationController.current)
     val status by CleanerUpdater.controller.status.collectAsState()
+    val schedulerVm: SchedulerManagerViewModel = hiltViewModel()
+    val schedulerState by schedulerVm.state.collectAsStateWithLifecycle()
     SettingsPage("Settings", root = true) {
         Spacer(Modifier.height(12.dp))
         Text(
@@ -70,26 +75,10 @@ fun SettingsScreenHost() {
             onClick = { nav.goTo(DeduplicatorSettingsRoute) },
         )
         Spacer(Modifier.height(12.dp))
-        Card(
+        SchedulerOverviewCard(
+            schedules = schedulerState.schedules,
             onClick = { nav.goTo(SchedulerManagerRoute) },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-        ) {
-            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.EventRepeat, null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.primary)
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("Cleaning Scheduler", style = MaterialTheme.typography.titleLarge)
-                        Text("Run after X minutes or repeat every X minutes", style = MaterialTheme.typography.bodySmall)
-                    }
-                    Icon(Icons.Rounded.ChevronRight, null)
-                }
-                HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
-                Text("Custom intervals · Initial delay · Scheduled times", style = MaterialTheme.typography.labelMedium)
-            }
-        }
+        )
         SettingsPreferenceItem(title = "Cleaning rules", subtitle = "Configure additional cleaning tools", icon = Icons.Rounded.Tune,
             onClick = { nav.goTo(CleanerSettingsRoute("tools")) })
         SettingsPreferenceItem(title = "Excluded files & apps", subtitle = "Protect items from scheduled cleaning", icon = Icons.Rounded.FolderOff,
@@ -118,6 +107,83 @@ fun SettingsScreenHost() {
             colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 3.dp).clip(RoundedCornerShape(20.dp)).clickable { nav.goTo(CleanerSettingsRoute("updates")) },
         )
+    }
+}
+
+@Composable
+private fun SchedulerOverviewCard(
+    schedules: List<Schedule>,
+    onClick: () -> Unit,
+) {
+    val enabled = schedules.filter { it.isEnabled }
+    val next = enabled.mapNotNull { schedule ->
+        runCatching {
+            schedule.calcExecutionEta(Instant.now(), reschedule = false)
+                ?.let { schedule to it }
+        }.getOrNull()
+    }.minByOrNull { it.second }
+    val statusLabel = when {
+        enabled.isNotEmpty() -> "Enabled"
+        schedules.isNotEmpty() -> "Paused"
+        else -> "Not configured"
+    }
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+    ) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                ) {
+                    Icon(
+                        Icons.Rounded.EventRepeat,
+                        null,
+                        modifier = Modifier.padding(12.dp).size(28.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Scheduler", style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        "Automate cleaning at a set time or repeat every X minutes",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = if (enabled.isNotEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
+                ) {
+                    Text(
+                        statusLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (enabled.isNotEmpty()) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    )
+                }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Icon(Icons.Rounded.Schedule, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(7.dp))
+                val text = when {
+                    next != null -> {
+                        val mins = (next.second.toMinutes() + if (next.second.seconds % 60L != 0L) 1L else 0L)
+                        "Next run in ${mins.coerceAtLeast(0)} min"
+                    }
+                    enabled.isEmpty() -> "No active cleanups"
+                    else -> "Waiting for next cleanup"
+                }
+                Text(text, style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
+                Text("${enabled.size} active", style = MaterialTheme.typography.labelMedium)
+                Spacer(Modifier.width(6.dp))
+                Icon(Icons.Rounded.ChevronRight, null, modifier = Modifier.size(20.dp))
+            }
+        }
     }
 }
 

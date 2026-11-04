@@ -213,6 +213,16 @@ class SchedulerManagerViewModel @Inject constructor(
         )
     }
 
+    fun runNow(id: ScheduleId) = launch {
+        val schedule = schedulerManager.getSchedule(id) ?: return@launch
+        if (!upgradeRepo.isProForUi()) {
+            navTo(UpgradeRoute())
+            return@launch
+        }
+        if (!schedule.useAppCleaner && !schedule.useSystemCleaner && !schedule.useCorpseFinder) return@launch
+        schedulerManager.runNow(id)
+    }
+
     fun toggleCorpseFinder(id: ScheduleId) = launch { toggleTool(id) { it.copy(useCorpseFinder = !it.useCorpseFinder) } }
 
     fun toggleSystemCleaner(id: ScheduleId) = launch { toggleTool(id) { it.copy(useSystemCleaner = !it.useSystemCleaner) } }

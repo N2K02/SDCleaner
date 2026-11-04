@@ -24,7 +24,12 @@ class ScheduleMinuteIntervalTest : BaseTest() {
 
     @Test fun `invalid backup intervals clamp to fifteen minutes`() {
         val schedule = Schedule(id = "minute", scheduledAt = anchor, intervalMinutes = 1)
-        schedule.calcExecutionEta(anchor, reschedule = false) shouldBe Duration.ofMinutes(15)
+        schedule.calcExecutionEta(anchor.plusSeconds(60), reschedule = false) shouldBe Duration.ofMinutes(14)
+    }
+
+    @Test fun `zero-delay interval schedules execute on enable`() {
+        val schedule = Schedule(id = "immediate", scheduledAt = anchor, intervalMinutes = 60)
+        schedule.calcExecutionEta(anchor.plusMillis(100), reschedule = false) shouldBe Duration.ZERO
     }
 
     @Test fun `one-time cleanup runs after requested delay`() {

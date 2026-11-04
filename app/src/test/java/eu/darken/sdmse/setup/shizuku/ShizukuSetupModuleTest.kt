@@ -16,6 +16,7 @@ import eu.darken.sdmse.common.areas.DataAreaManager
 import eu.darken.sdmse.common.coroutine.DispatcherProvider
 import eu.darken.sdmse.common.datastore.DataStoreValue
 import eu.darken.sdmse.common.pkgs.toPkgId
+import eu.darken.sdmse.common.pkgs.PackageEventListener
 import eu.darken.sdmse.common.root.RootManager
 import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.longs.shouldBeGreaterThanOrEqual
@@ -60,6 +61,7 @@ class ShizukuSetupModuleTest : BaseTest() {
     private val packageManager: PackageManager = mockk()
     private val adbSettings: AdbSettings = mockk()
     private val shizukuManager: ShizukuManager = mockk()
+    private val packageEvents: PackageEventListener = mockk()
     private val dataAreaManager: DataAreaManager = mockk(relaxed = true)
     private val rootManager: RootManager = mockk()
 
@@ -98,6 +100,7 @@ class ShizukuSetupModuleTest : BaseTest() {
             DataStoreValue.Updated(old = old, new = new)
         }
 
+        every { packageEvents.events } returns emptyFlow()
         every { shizukuManager.adbLink } returns linkFlow
         every { shizukuManager.connectionChanges } returns connectionChanges
         every { shizukuManager.permissionChanges } returns emptyFlow()
@@ -143,6 +146,7 @@ class ShizukuSetupModuleTest : BaseTest() {
         adbSettings,
         shizukuManager,
         dataAreaManager,
+        packageEvents,
         rootManager,
     )
 
@@ -341,7 +345,9 @@ class ShizukuSetupModuleTest : BaseTest() {
         coVerify(exactly = 0) { shizukuManager.getServiceState() }
     }
 
-    @Test fun `installation and removal refresh the optional offer without opting in`() = runTest {
+    @Test fun `package events refresh the optional offer without opting in`() = runTest {
+        val changes = MutableSharedFlow<PackageEventListener.Event>()
+        every { packageEvents.events } returns changes
         useShizukuFlow.value = null
         var installed = false
         coEvery { shizukuManager.availability() } answers {
@@ -357,14 +363,14 @@ class ShizukuSetupModuleTest : BaseTest() {
         results.last().isComplete shouldBe true
 
         installed = true
-        mod.refresh()
+        changes.emit(PackageEventListener.Event.PackageInstalled(shizukuPkg))
         runCurrent()
         results.last().isInstalled shouldBe true
         results.last().useShizuku shouldBe null
         results.last().isComplete shouldBe false
 
         installed = false
-        mod.refresh()
+        changes.emit(PackageEventListener.Event.PackageRemoved(shizukuPkg))
         runCurrent()
         results.last().isInstalled shouldBe false
         results.last().isComplete shouldBe true

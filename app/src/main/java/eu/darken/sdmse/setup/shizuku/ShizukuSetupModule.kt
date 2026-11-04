@@ -23,6 +23,7 @@ import eu.darken.sdmse.common.debug.logging.log
 import eu.darken.sdmse.common.debug.logging.logTag
 import eu.darken.sdmse.common.flow.replayingShare
 import eu.darken.sdmse.common.pkgs.Pkg
+import eu.darken.sdmse.common.pkgs.PackageEventListener
 import eu.darken.sdmse.common.pkgs.getLabel2
 import eu.darken.sdmse.common.pkgs.getLaunchIntent
 import eu.darken.sdmse.common.rngString
@@ -38,6 +39,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
@@ -56,6 +58,7 @@ class ShizukuSetupModule @Inject constructor(
     private val adbSettings: AdbSettings,
     private val shizukuManager: ShizukuManager,
     private val dataAreaManager: DataAreaManager,
+    private val packageEvents: PackageEventListener,
     rootManager: RootManager,
 ) : SetupModule {
 
@@ -109,7 +112,10 @@ class ShizukuSetupModule @Inject constructor(
         rootManager.useRoot,
         // Refusals and their death invalidate diagnostics too, even while the link stays null.
         shizukuManager.connectionChanges,
-    ) { _, useShizuku, useRoot, _ ->
+        // A manager may be installed or removed while this screen stays open. New forks are not
+        // known in advance, so recheck on any package change. The shared receiver stops with its subscribers.
+        packageEvents.events.map { Unit }.onStart { emit(Unit) },
+    ) { _, useShizuku, useRoot, _, _ ->
         // One snapshot per emission, so backend, manager and hints can't disagree with each other.
         val availability = shizukuManager.availability()
         val backend = shizukuManager.backendOf(availability)

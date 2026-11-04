@@ -9,7 +9,6 @@ class SetupCardOrderingTest : BaseTest() {
     @Test
     fun `card order stays canonical when completion changes`() {
         val inputOrder = listOf(
-            SetupModule.Type.ROOT,
             SetupModule.Type.AUTOMATION,
             SetupModule.Type.INVENTORY,
             SetupModule.Type.SHIZUKU,
@@ -24,7 +23,6 @@ class SetupCardOrderingTest : BaseTest() {
             SetupModule.Type.STORAGE,
             SetupModule.Type.SAF,
             SetupModule.Type.SHIZUKU,
-            SetupModule.Type.ROOT,
             SetupModule.Type.USAGE_STATS,
             SetupModule.Type.AUTOMATION,
         )

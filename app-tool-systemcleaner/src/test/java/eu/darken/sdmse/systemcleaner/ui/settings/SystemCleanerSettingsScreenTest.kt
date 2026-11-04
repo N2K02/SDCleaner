@@ -49,6 +49,7 @@ class SystemCleanerSettingsScreenTest : BaseComposeRobolectricTest() {
             areSystemFilterAvailable = true,
             systemFilterGate = FeatureGateState.AVAILABLE,
         ))
+        org.junit.Assert.assertThrows(AssertionError::class.java) { composeRule.scrollToText("ANR errors") }
         composeRule.onAllNodesWithContentDescription("Set up").assertCountEquals(0)
     }
 

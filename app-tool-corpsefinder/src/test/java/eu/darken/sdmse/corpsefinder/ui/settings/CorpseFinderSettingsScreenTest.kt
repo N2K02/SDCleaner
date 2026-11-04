@@ -51,6 +51,7 @@ class CorpseFinderSettingsScreenTest : BaseComposeRobolectricTest() {
             isFilterPrivateDataAvailable = true,
         ))
         composeRule.onAllNodesWithText("Private app data").assertCountEquals(0)
+        org.junit.Assert.assertThrows(AssertionError::class.java) { composeRule.scrollToText("Private app data") }
         composeRule.onAllNodesWithContentDescription("Set up").assertCountEquals(0)
     }
 

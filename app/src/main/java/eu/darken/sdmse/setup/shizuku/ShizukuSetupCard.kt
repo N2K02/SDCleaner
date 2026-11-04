@@ -41,7 +41,7 @@ import eu.darken.sdmse.common.pkgs.toPkgId
 import eu.darken.sdmse.setup.SetupCardContainer
 import eu.darken.sdmse.setup.SetupLimitationBox
 import eu.darken.sdmse.setup.SetupCardItem
-import eu.darken.sdmse.setup.root.RadioOption
+import eu.darken.sdmse.setup.RadioOption
 import eu.darken.sdmse.common.io.R as IoR
 
 data class ShizukuSetupCardItem(

@@ -58,24 +58,31 @@ class SchedulerManager @Inject constructor(
             .catch { log(TAG, ERROR) { "Failed to save schedules: ${it.asLog()}" } }
             .launchIn(appScope)
 
-        // Check if the enabled state of any schedule changed
+        // Reconcile both enabled state AND timing changes. A changed interval must replace queued
+        // WorkManager requests; checking only isScheduled() leaves the old ETA in place.
         internalState.flow
             .withPrevious()
-            .filter { (oldState, newState) ->
-                if (oldState == null) return@filter true
-                val oldMap = oldState.schedules.associateBy { it.id }
-                val newMap = newState.schedules.associateBy { it.id }
-
-                for ((id, newItem) in newMap) {
-                    val oldItem = oldMap[id] ?: return@filter true
-                    if (oldItem.copy(executedAt = null) != newItem.copy(executedAt = null)) return@filter true
+            .onEach { (oldState, newState) ->
+                val oldById = oldState?.schedules?.associateBy { it.id }.orEmpty()
+                val newById = newState.schedules.associateBy { it.id }
+                oldById.values.filter { it.id !in newById }.forEach { it.cancel() }
+                newState.schedules.forEach { current ->
+                    val previous = oldById[current.id]
+                    when {
+                        previous == null -> current.checkSchedulingState()
+                        previous.scheduledAt != current.scheduledAt ||
+                            previous.intervalMinutes != current.intervalMinutes ||
+                            previous.initialDelayMinutes != current.initialDelayMinutes ||
+                            previous.repeatInterval != current.repeatInterval ||
+                            previous.hour != current.hour ||
+                            previous.minute != current.minute ||
+                            previous.userZone != current.userZone -> {
+                            current.cancel()
+                            if (current.isEnabled) current.schedule(reschedule = false)
+                        }
+                        else -> current.checkSchedulingState()
+                    }
                 }
-                return@filter false
-            }
-            .map { it.second }
-            .onEach { newState ->
-                log(TAG, INFO) { "Scheduler data changed, re-checking states." }
-                newState.schedules.forEach { it.checkSchedulingState() }
             }
             .launchIn(appScope)
 

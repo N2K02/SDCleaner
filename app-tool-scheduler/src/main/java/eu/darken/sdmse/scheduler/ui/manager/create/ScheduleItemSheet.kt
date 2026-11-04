@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.twotone.ArrowBack
 import androidx.compose.material.icons.twotone.AccessTime
 import androidx.compose.material.icons.twotone.Add
 import androidx.compose.material.icons.twotone.Remove
@@ -54,6 +56,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.darken.sdmse.common.R as CommonR
+import eu.darken.sdmse.common.compose.layout.SdmScaffold
+import eu.darken.sdmse.common.compose.layout.SdmBrandTopAppBar
 import eu.darken.sdmse.common.compose.preview.Preview2
 import eu.darken.sdmse.common.compose.preview.PreviewWrapper
 import eu.darken.sdmse.common.error.ErrorEventHandler
@@ -73,20 +77,35 @@ fun ScheduleItemSheetHost(
 
     LaunchedEffect(scheduleId) { vm.setScheduleId(scheduleId) }
 
-    ScheduleItemSheet(
-        stateSource = vm.state,
-        onLabelChanged = vm::updateLabel,
-        onTimePicked = vm::updateTime,
-        onIncreaseDays = vm::increaseDays,
-        onDecreaseDays = vm::decreaseDays,
-        onRepeatDaysChanged = vm::setRepeatDays,
-        onIntervalModeChanged = vm::setIntervalMode,
-        onRunOnceModeSelected = vm::setRunOnceMode,
-        onIntervalMinutesChanged = vm::setIntervalMinutes,
-        onInitialDelayChanged = vm::setInitialDelayMinutes,
-        onSave = vm::saveSchedule,
-    )
-}
+    SdmScaffold(
+        topBar = {
+            SdmBrandTopAppBar(
+                title = { Text("Scheduler") },
+                navigationIcon = {
+                    IconButton(onClick = vm::navUp) {
+                        Icon(Icons.AutoMirrored.TwoTone.ArrowBack, contentDescription = "Back")
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding)) {
+            ScheduleItemSheet(
+                stateSource = vm.state,
+                onLabelChanged = vm::updateLabel,
+                onTimePicked = vm::updateTime,
+                onIncreaseDays = vm::increaseDays,
+                onDecreaseDays = vm::decreaseDays,
+                onRepeatDaysChanged = vm::setRepeatDays,
+                onIntervalModeChanged = vm::setIntervalMode,
+                onRunOnceModeSelected = vm::setRunOnceMode,
+                onIntervalMinutesChanged = vm::setIntervalMinutes,
+                onInitialDelayChanged = vm::setInitialDelayMinutes,
+                onSave = vm::saveSchedule,
+            )
+        
+        }
+    }}
 
 @Composable
 internal fun ScheduleItemSheet(

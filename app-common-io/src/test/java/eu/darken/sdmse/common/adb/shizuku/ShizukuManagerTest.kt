@@ -1,5 +1,6 @@
 package eu.darken.sdmse.common.adb.shizuku
 
+import android.os.DeadObjectException
 import eu.darken.sdmse.common.adb.AdbConnectTimeoutException
 import eu.darken.sdmse.common.adb.AdbSettings
 import eu.darken.sdmse.common.adb.AdbUnavailableException
@@ -7,12 +8,14 @@ import eu.darken.sdmse.common.adb.service.AdbServiceClient
 import eu.darken.sdmse.common.datastore.DataStoreValue
 import eu.darken.sdmse.common.pkgs.toPkgId
 import eu.darken.sdmse.common.sharedresource.Resource
+import eu.darken.sdmse.common.sharedresource.SharedResource
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -407,6 +410,65 @@ class ShizukuManagerTest : BaseTest() {
     }
 
     // --- getServiceState -----------------------------------------------------------------------
+
+    @Test fun `helper is available only after a successful IPC response and releases its lease`() {
+        coEvery { shizukuWrapper.permission() } returns AdbPermission.GRANTED
+        val connection: AdbServiceClient.Connection = mockk()
+        val lease: SharedResource<*>.Lease = mockk(relaxed = true)
+        every { connection.ipc.checkBase() } returns "helper connected"
+        coEvery { serviceClient.get() } returns Resource(connection, lease)
+
+        runBlocking { manager().getServiceState() } shouldBe ShizukuServiceState.Available
+
+        verify(exactly = 1) { connection.ipc.checkBase() }
+        verify(exactly = 1) { lease.close() }
+    }
+
+    @Test fun `helper IPC death reports failure and releases its lease`() {
+        coEvery { shizukuWrapper.permission() } returns AdbPermission.GRANTED
+        val connection: AdbServiceClient.Connection = mockk()
+        val lease: SharedResource<*>.Lease = mockk(relaxed = true)
+        every { connection.ipc.checkBase() } throws DeadObjectException()
+        coEvery { serviceClient.get() } returns Resource(connection, lease)
+
+        runBlocking { manager().getServiceState() } shouldBe ShizukuServiceState.Failed
+
+        verify(exactly = 1) { lease.close() }
+    }
+
+    @Test fun `helper availability is probed again after disconnection and recovery`() {
+        coEvery { shizukuWrapper.permission() } returns AdbPermission.GRANTED
+        val connection: AdbServiceClient.Connection = mockk()
+        every { connection.ipc.checkBase() } returns "helper connected"
+        coEvery { serviceClient.get() } returns Resource(connection, mockk(relaxed = true))
+        val mgr = manager()
+        runBlocking { mgr.isOurServiceAvailable() } shouldBe true
+
+        coEvery { serviceClient.get() } throws AdbUnavailableException("helper disconnected")
+        runBlocking { mgr.isOurServiceAvailable() } shouldBe false
+
+        coEvery { serviceClient.get() } returns Resource(connection, mockk(relaxed = true))
+        runBlocking { mgr.isOurServiceAvailable() } shouldBe true
+
+        coVerify(exactly = 3) { serviceClient.get() }
+        verify(exactly = 2) { connection.ipc.checkBase() }
+    }
+
+    @Test fun `running LocalAdb and granted permission do not imply a connected helper`() {
+        setShizukuPackages("dev.n2k02.localadb")
+        coEvery { shizukuWrapper.availability() } returns AdbAvailability.Installed(
+            backend = AdbBackend.SHIZUKU,
+            packageName = "dev.n2k02.localadb",
+            connected = true,
+        )
+        coEvery { shizukuWrapper.isGranted() } returns true
+        coEvery { shizukuWrapper.permission() } returns AdbPermission.GRANTED
+        coEvery { serviceClient.get() } throws AdbConnectTimeoutException("helper never connected")
+
+        runBlocking { manager().isShizukud() } shouldBe false
+
+        coVerify(exactly = 1) { serviceClient.get() }
+    }
 
     @Test fun `getServiceState reports Unknown, not PermissionDenied, when permission is null`() {
         // null means "cannot know" (no live link), which resolves itself once the server runs.

@@ -18,6 +18,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.twotone.AccessTime
 import androidx.compose.material.icons.twotone.Add
 import androidx.compose.material.icons.twotone.Remove
+import androidx.compose.material3.Card
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
@@ -69,6 +71,9 @@ fun ScheduleItemSheetHost(
         onIncreaseDays = vm::increaseDays,
         onDecreaseDays = vm::decreaseDays,
         onRepeatDaysChanged = vm::setRepeatDays,
+        onIntervalModeChanged = vm::setIntervalMode,
+        onIntervalMinutesChanged = vm::setIntervalMinutes,
+        onInitialDelayChanged = vm::setInitialDelayMinutes,
         onSave = vm::saveSchedule,
     )
 }
@@ -81,6 +86,9 @@ internal fun ScheduleItemSheet(
     onIncreaseDays: () -> Unit = {},
     onDecreaseDays: () -> Unit = {},
     onRepeatDaysChanged: (Int) -> Unit = {},
+    onIntervalModeChanged: (Boolean) -> Unit = {},
+    onIntervalMinutesChanged: (Long) -> Unit = {},
+    onInitialDelayChanged: (Long) -> Unit = {},
     onSave: () -> Unit = {},
 ) {
     val state by stateSource.collectAsStateWithLifecycle(initialValue = ScheduleItemViewModel.State())
@@ -135,6 +143,56 @@ internal fun ScheduleItemSheet(
             modifier = Modifier.fillMaxWidth(),
         )
 
+        Spacer(modifier = Modifier.height(16.dp))
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text("Cleaning Scheduler", style = MaterialTheme.typography.titleLarge)
+                Text("Choose when automatic cleanup runs.", style = MaterialTheme.typography.bodySmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = state.intervalMinutes == null, onClick = { onIntervalModeChanged(false) }, label = { Text("Specific time") })
+                    FilterChip(selected = state.intervalMinutes != null, onClick = { onIntervalModeChanged(true) }, label = { Text("Repeat every X min") })
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        if (state.intervalMinutes != null) {
+            Text("Repeat interval", style = MaterialTheme.typography.titleMedium)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { onIntervalMinutesChanged(state.intervalMinutes - 15) }) {
+                    Icon(Icons.TwoTone.Remove, contentDescription = "Decrease interval")
+                }
+                OutlinedTextField(
+                    value = state.intervalMinutes.toString(),
+                    onValueChange = { it.toLongOrNull()?.let(onIntervalMinutesChanged) },
+                    label = { Text("Every (minutes)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = { onIntervalMinutesChanged(state.intervalMinutes + 15) }) {
+                    Icon(Icons.TwoTone.Add, contentDescription = "Increase interval")
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(15L, 30L, 60L, 120L).forEach { minutes ->
+                    FilterChip(
+                        selected = state.intervalMinutes == minutes,
+                        onClick = { onIntervalMinutesChanged(minutes) },
+                        label = { Text("$minutes min") },
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = state.initialDelayMinutes.toString(),
+                onValueChange = { it.toLongOrNull()?.let(onInitialDelayChanged) },
+                label = { Text("Start after (minutes)") },
+                supportingText = { Text("First run after enabling. Android may defer background work.") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        } else {
         Spacer(modifier = Modifier.height(8.dp))
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -214,6 +272,7 @@ internal fun ScheduleItemSheet(
             }
         }
 
+        }
         Spacer(modifier = Modifier.height(16.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),

@@ -91,7 +91,7 @@ class ScheduleItemViewModel @Inject constructor(
     }
 
     fun setInitialDelayMinutes(minutes: Long) {
-        draft.update { it?.copy(initialDelayMinutes = minutes.coerceIn(0L, 30L * 24L * 60L)) }
+        draft.update { it?.copy(initialDelayMinutes = minutes.coerceIn(if (it.runOnce) 1L else 0L, 30L * 24L * 60L)) }
     }
 
     fun updateLabel(label: String) {

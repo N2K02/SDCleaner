@@ -18,6 +18,7 @@ import androidx.compose.material.icons.twotone.AccessTime
 import androidx.compose.material.icons.twotone.History
 import androidx.compose.material.icons.twotone.PlayArrow
 import androidx.compose.material3.Card
+import androidx.compose.material3.Surface
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -72,6 +73,9 @@ internal fun ScheduleRow(
         schedule.hour,
         schedule.minute,
         schedule.repeatInterval,
+        schedule.intervalMinutes,
+        schedule.initialDelayMinutes,
+        schedule.runOnce,
         schedule.userZone,
     ) {
         if (schedule.scheduledAt == null) return@remember null
@@ -87,17 +91,24 @@ internal fun ScheduleRow(
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.TwoTone.Alarm,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                )
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                ) {
+                    Icon(
+                        Icons.TwoTone.Alarm,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(10.dp).size(24.dp),
+                    )
+                }
                 Spacer(modifier = Modifier.width(8.dp))
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = schedule.label.ifBlank { stringResource(R.string.scheduler_schedule_default_name) },
                         style = MaterialTheme.typography.titleMedium,
@@ -107,6 +118,17 @@ internal fun ScheduleRow(
                             if (schedule.runOnce) daysText else "$daysText · First run after ${schedule.initialDelayMinutes} min"
                         } else stringResource(R.string.scheduler_current_schedule_x_at_x, daysText, timeText),
                         style = MaterialTheme.typography.titleSmall,
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = if (isEnabled) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                ) {
+                    Text(
+                        text = if (isEnabled) "Enabled" else "Paused",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                     )
                 }
             }

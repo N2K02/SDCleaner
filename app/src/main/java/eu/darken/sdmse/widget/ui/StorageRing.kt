@@ -2,6 +2,7 @@ package eu.darken.sdmse.widget.ui
 
 import android.content.Context
 import android.content.res.Configuration
+import android.os.Build
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -15,7 +16,6 @@ import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
 import androidx.glance.layout.size
-import eu.darken.sdmse.common.hasApiLevel
 import eu.darken.sdmse.common.ui.R as CommonUiR
 import kotlin.math.roundToInt
 
@@ -46,12 +46,19 @@ internal fun StorageRing(ratio: Float, diameter: Dp, isLow: Boolean = false) {
  * The low-storage branch deliberately comes FIRST: a Material You wallpaper accent must never
  * override the warning colour, otherwise a device with an amber-ish accent shows no difference at all.
  */
-@ColorInt
-internal fun storageArcColor(context: Context, isLow: Boolean): Int = when {
-    isLow -> context.getColor(CommonUiR.color.md_theme_storageLow)
-    hasApiLevel(31) -> context.getColor(android.R.color.system_accent1_500)
-    else -> context.getColor(CommonUiR.color.md_theme_primary)
+/**
+ * Select the resource first, separately from resource resolution, so the selection can be
+ * verified on the JVM without Robolectric downloading Android framework artifacts.
+ */
+internal fun storageArcColorResource(isLow: Boolean, sdkInt: Int): Int = when {
+    isLow -> CommonUiR.color.md_theme_storageLow
+    sdkInt >= 31 -> android.R.color.system_accent1_500
+    else -> CommonUiR.color.md_theme_primary
 }
+
+@ColorInt
+internal fun storageArcColor(context: Context, isLow: Boolean): Int =
+    context.getColor(storageArcColorResource(isLow = isLow, sdkInt = Build.VERSION.SDK_INT))
 
 private fun storageRingBitmap(context: Context, ratio: Float, sizePx: Int, isLow: Boolean): Bitmap {
     val night = (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==

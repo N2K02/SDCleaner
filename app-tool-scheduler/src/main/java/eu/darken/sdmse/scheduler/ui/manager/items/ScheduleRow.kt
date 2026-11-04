@@ -16,6 +16,7 @@ import androidx.compose.material.icons.twotone.Cancel
 import androidx.compose.material.icons.twotone.Edit
 import androidx.compose.material.icons.twotone.AccessTime
 import androidx.compose.material.icons.twotone.History
+import androidx.compose.material.icons.twotone.PlayArrow
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -50,6 +51,7 @@ internal fun ScheduleRow(
     schedule: Schedule,
     showCommands: Boolean,
     onEdit: () -> Unit,
+    onRunNow: () -> Unit = {},
     onToggle: () -> Unit,
     onRemove: () -> Unit,
     onToggleCorpseFinder: () -> Unit,
@@ -192,6 +194,15 @@ internal fun ScheduleRow(
             }
 
             Spacer(modifier = Modifier.padding(vertical = 4.dp))
+            OutlinedButton(
+                onClick = onRunNow,
+                enabled = schedule.useCorpseFinder || schedule.useSystemCleaner || schedule.useAppCleaner,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.TwoTone.PlayArrow, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Run now")
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

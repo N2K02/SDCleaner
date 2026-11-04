@@ -132,7 +132,10 @@ class SchedulerManager @Inject constructor(
     suspend fun runNow(id: ScheduleId) {
         val schedule = getSchedule(id) ?: return
         val request = OneTimeWorkRequestBuilder<SchedulerWorker>()
-            .setInputData(workDataOf(SchedulerWorker.INPUT_SCHEDULE_ID to schedule.id))
+            .setInputData(workDataOf(
+                SchedulerWorker.INPUT_SCHEDULE_ID to schedule.id,
+                SchedulerWorker.INPUT_MANUAL to true,
+            ))
             .build()
         workManager.enqueueUniqueWork(
             "worker-schedule-manual-$id",

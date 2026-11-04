@@ -155,21 +155,22 @@ internal fun ScheduleItemSheet(
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
-        if (state.intervalMinutes != null) {
+        val intervalMinutes = state.intervalMinutes
+        if (intervalMinutes != null) {
             Text("Repeat interval", style = MaterialTheme.typography.titleMedium)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { onIntervalMinutesChanged(state.intervalMinutes - 15) }) {
+                IconButton(onClick = { onIntervalMinutesChanged(intervalMinutes - 15) }) {
                     Icon(Icons.TwoTone.Remove, contentDescription = "Decrease interval")
                 }
                 OutlinedTextField(
-                    value = state.intervalMinutes.toString(),
+                    value = intervalMinutes.toString(),
                     onValueChange = { it.toLongOrNull()?.let(onIntervalMinutesChanged) },
                     label = { Text("Every (minutes)") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.weight(1f),
                 )
-                IconButton(onClick = { onIntervalMinutesChanged(state.intervalMinutes + 15) }) {
+                IconButton(onClick = { onIntervalMinutesChanged(intervalMinutes + 15) }) {
                     Icon(Icons.TwoTone.Add, contentDescription = "Increase interval")
                 }
             }

@@ -68,6 +68,7 @@ internal fun ShizukuSetupCard(
     item: ShizukuSetupCardItem,
     modifier: Modifier = Modifier,
 ) {
+    if (!item.state.isInstalled) return
     SetupCardContainer(
         icon = SdmIcons.Shizuku,
         title = stringResource(R.string.setup_shizuku_card_title),
@@ -269,26 +270,47 @@ internal fun ShizukuSetupCard(
             }
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .selectableGroup(),
-        ) {
-            RadioOption(
-                label = stringResource(R.string.setup_shizuku_enable_shizuku_use_label),
-                selected = item.state.useShizuku == true,
-                onSelect = { item.onToggleUseShizuku(true) },
+        if (item.state.useShizuku == null) {
+            val managerName = item.state.managerLabel ?: item.state.backend.label
+            Text(
+                text = stringResource(R.string.setup_adb_manager_detected, managerName),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             )
-            RadioOption(
-                label = stringResource(R.string.setup_shizuku_disable_shizuku_use_label),
-                selected = item.state.useShizuku == false,
-                onSelect = { item.onToggleUseShizuku(false) },
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedButton(onClick = { item.onToggleUseShizuku(false) }, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.setup_adb_ignore))
+                }
+                Button(onClick = { item.onToggleUseShizuku(true) }, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.setup_adb_configure))
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .selectableGroup(),
+            ) {
+                RadioOption(
+                    label = stringResource(R.string.setup_shizuku_enable_shizuku_use_label),
+                    selected = item.state.useShizuku == true,
+                    onSelect = { item.onToggleUseShizuku(true) },
+                )
+                RadioOption(
+                    label = stringResource(R.string.setup_shizuku_disable_shizuku_use_label),
+                    selected = item.state.useShizuku == false,
+                    onSelect = { item.onToggleUseShizuku(false) },
+                )
+            }
         }
 
         Text(
-            text = stringResource(R.string.setup_shizuku_card_body2),
+            text = stringResource(R.string.setup_adb_choice_hint),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

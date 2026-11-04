@@ -138,7 +138,8 @@ class ShizukuSetupModule @Inject constructor(
             sdMaidTooOld = incompatible?.clientTooOld == true,
         )
 
-        if (useShizuku != true) return@combine flowOf<SetupModule.State>(baseState)
+        // An absent manager must never trigger a helper probe, even with an old opt-in.
+        if (useShizuku != true || !baseState.isInstalled) return@combine flowOf<SetupModule.State>(baseState)
 
         shizukuManager.permissionChanges
             .onStart { emit(Unit) }
@@ -222,6 +223,11 @@ class ShizukuSetupModule @Inject constructor(
 
     suspend fun toggleUseShizuku(useShizuku: Boolean?) {
         log(TAG) { "toggleUseShizuku(useShizuku=$useShizuku)" }
+        // A stale card click after uninstall must not enable access or request permission.
+        if (useShizuku == true && !shizukuManager.isInstalled()) {
+            refresh()
+            return
+        }
         // Drop any cached state so we don't replay a stale Result for the previous setting.
         lastResult = null
         val couldUseShizuku = shizukuManager.useShizuku.first()
@@ -253,6 +259,10 @@ class ShizukuSetupModule @Inject constructor(
 
     suspend fun grantAccess() {
         log(TAG) { "grantAccess()" }
+        if (!shizukuManager.isInstalled()) {
+            refresh()
+            return
+        }
         val result = sharedPermissionRequest().await()
         log(TAG) { "grantAccess(): Permission request result was $result" }
         // Neither an Allow nor a Deny given in the manager app is pushed to us, so re-probe to show it.
@@ -299,12 +309,11 @@ class ShizukuSetupModule @Inject constructor(
 
         override val type: SetupModule.Type = SetupModule.Type.SHIZUKU
 
-        // "Wants Shizuku but it isn't installed" is NOT complete. Treating it as complete hid the card
-        // and rendered the whole setup screen as done, so users believed Shizuku was working while we
-        // silently fell back to the accessibility service. An incompatible manager isn't complete
-        // either: the card has to say which side needs an update.
+        // No manager means nothing optional to configure. Do not persist a refusal: a later
+        // installation can be detected and offered to the user on the next resume.
         override val isComplete: Boolean =
-            useShizuku == false || (useShizuku == true && isInstalled && ourService)
+            !isInstalled || useShizuku == false || (useShizuku == true && ourService)
+
     }
 
     @Module @InstallIn(SingletonComponent::class)

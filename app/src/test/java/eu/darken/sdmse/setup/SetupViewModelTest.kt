@@ -106,6 +106,17 @@ class SetupViewModelTest : BaseTest() {
     }
 
     @Test
+    fun `missing manager stays hidden when showing completed setup items`() = runTest2(context = testDispatcher) {
+        setupState(ShizukuSetupModule.Result(pkg = "moe.shizuku.privileged.api".toPkgId(), useShizuku = true))
+        val vm = buildVm()
+        vm.setScreenOptions(SetupScreenOptions(showCompleted = true))
+        backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) { vm.uiState.collect() }
+        advanceUntilIdle()
+        val cards = vm.uiState.value.shouldBeInstanceOf<SetupUiState.Cards>()
+        cards.items.filterIsInstance<ShizukuSetupCardItem>().size shouldBe 0
+    }
+
+    @Test
     fun `shizuku card open falls back to the app info page without a launcher entry`() =
         runTest2(context = testDispatcher) {
             // Nothing registers a launcher activity for this package in the test environment, which is

@@ -611,9 +611,10 @@ class SetupScreenTest : BaseComposeRobolectricTest() {
     private fun shizukuItem(
         state: ShizukuSetupModule.Result,
         onInstall: () -> Unit = {},
+        onChoice: (Boolean?) -> Unit = {},
     ) = ShizukuSetupCardItem(
         state = state,
-        onToggleUseShizuku = {},
+        onToggleUseShizuku = onChoice,
         onOpen = {},
         onHelp = {},
         onInstall = onInstall,
@@ -702,30 +703,28 @@ class SetupScreenTest : BaseComposeRobolectricTest() {
     }
 
     @Test
-    fun `shizuku card offers the flavor's install target when nothing is installed`() {
-        var installed = 0
+    fun `absent manager does not render an ADB setup card`() {
         composeRule.setSetupContent {
-            SetupScreen(
-                uiState = SetupUiState.Cards(
-                    items = listOf(shizukuItem(nothingInstalledState(), onInstall = { installed++ })),
-                ),
-            )
+            SetupScreen(uiState = SetupUiState.Cards(items = listOf(shizukuItem(nothingInstalledState()))))
         }
+        composeRule.onAllNodesWithText(context.getString(R.string.setup_shizuku_card_title)).assertCountEquals(0)
+        composeRule.onAllNodesWithText(context.getString(R.string.setup_adb_configure)).assertCountEquals(0)
+    }
 
-        // Brand comes from a flavor resource, so this asserts "Install Porter" under testFoss and
-        // "Install Shizuku" under testGplay without the test knowing which it ran as.
-        val installAction = context.getString(
-            R.string.setup_shizuku_install_manager_action,
-            context.getString(R.string.setup_shizuku_install_manager_label),
-        )
-
-        composeRule
-            .onAllNodesWithText(context.getString(R.string.setup_shizuku_state_not_installed_label))
+    @Test
+    fun `detected manager offers configure or ignore before opting in`() {
+        val choices = mutableListOf<Boolean?>()
+        composeRule.setSetupContent {
+            SetupScreen(uiState = SetupUiState.Cards(items = listOf(shizukuItem(
+                connectedState(managerLabel = "LocalAdb").copy(useShizuku = null),
+                onChoice = { choices += it },
+            ))))
+        }
+        composeRule.onAllNodesWithText(context.getString(R.string.setup_adb_manager_detected, "LocalAdb"))
             .assertCountEquals(1)
-        composeRule.onAllNodesWithText(installAction).assertCountEquals(1)
-
-        composeRule.onNodeWithText(installAction).performClick()
-        composeRule.runOnIdle { assertTrue(installed == 1) }
+        composeRule.onNodeWithText(context.getString(R.string.setup_adb_ignore)).performClick()
+        composeRule.onNodeWithText(context.getString(R.string.setup_adb_configure)).performClick()
+        composeRule.runOnIdle { assertTrue(choices == listOf(false, true)) }
     }
 
     @Test

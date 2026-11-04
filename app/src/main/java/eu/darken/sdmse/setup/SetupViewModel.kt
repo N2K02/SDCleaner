@@ -125,6 +125,7 @@ class SetupViewModel @Inject constructor(
         val typeFilter = options.typeFilter
         setupState.moduleStates
             .filter { typeFilter == null || typeFilter.contains(it.type) }
+            .filter { it !is ShizukuSetupModule.Result || it.isInstalled }
             .filter { it !is SetupModule.State.Current || !it.isComplete || options.showCompleted }
                 .mapNotNull { state ->
                     when (state.type) {
@@ -269,7 +270,7 @@ class SetupViewModel @Inject constructor(
                                 showKnownIssueHint = hasKnownShizukuIssueRisk,
                                 installLabelRes = adbManagerInstallGuide.labelRes,
                                 onInstall = { webpageTool.open(adbManagerInstallGuide.url) },
-                            )
+                            ).takeIf { it.state.isInstalled }
 
                             is SetupModule.State.Loading -> SetupLoadingCardItem(state)
                         }

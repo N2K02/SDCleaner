@@ -273,6 +273,10 @@
     <string name="setup_root_disable_root_use_label">I didn\'t root my device</string>
     <string name="setup_root_card_body2">Only available on rooted devices. If you didn\'t make this modification, then your device is not rooted and this setting has no effect.</string>
 
+    <string name="setup_adb_manager_detected">%1$s is installed and can provide ADB access. Configure it now?</string>
+    <string name="setup_adb_ignore">Ignore</string>
+    <string name="setup_adb_configure">Configure</string>
+    <string name="setup_adb_choice_hint">You can change this choice in Permissions &amp; setup.</string>
     <string name="setup_shizuku_card_title">ADB access</string>
     <string name="setup_shizuku_card_body">Allow SDCleaner to use ADB access where possible to improve results and enable features.</string>
     <string name="setup_shizuku_card_body2">This setting has no effect unless Porter or Shizuku is set up on your device.</string>

@@ -72,6 +72,7 @@ fun ScheduleItemSheetHost(
         onDecreaseDays = vm::decreaseDays,
         onRepeatDaysChanged = vm::setRepeatDays,
         onIntervalModeChanged = vm::setIntervalMode,
+        onRunOnceModeSelected = vm::setRunOnceMode,
         onIntervalMinutesChanged = vm::setIntervalMinutes,
         onInitialDelayChanged = vm::setInitialDelayMinutes,
         onSave = vm::saveSchedule,
@@ -87,6 +88,7 @@ internal fun ScheduleItemSheet(
     onDecreaseDays: () -> Unit = {},
     onRepeatDaysChanged: (Int) -> Unit = {},
     onIntervalModeChanged: (Boolean) -> Unit = {},
+    onRunOnceModeSelected: () -> Unit = {},
     onIntervalMinutesChanged: (Long) -> Unit = {},
     onInitialDelayChanged: (Long) -> Unit = {},
     onSave: () -> Unit = {},
@@ -148,15 +150,17 @@ internal fun ScheduleItemSheet(
             Column(modifier = Modifier.padding(12.dp)) {
                 Text("Cleaning Scheduler", style = MaterialTheme.typography.titleLarge)
                 Text("Choose when automatic cleanup runs.", style = MaterialTheme.typography.bodySmall)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = state.intervalMinutes == null, onClick = { onIntervalModeChanged(false) }, label = { Text("Specific time") })
-                    FilterChip(selected = state.intervalMinutes != null, onClick = { onIntervalModeChanged(true) }, label = { Text("Repeat every X min") })
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    FilterChip(selected = state.runOnce, onClick = onRunOnceModeSelected, label = { Text("After X min") })
+                    FilterChip(selected = state.intervalMinutes != null && !state.runOnce, onClick = { onIntervalModeChanged(true) }, label = { Text("Repeat") })
+                    FilterChip(selected = state.intervalMinutes == null, onClick = { onIntervalModeChanged(false) }, label = { Text("At a time") })
                 }
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
         val intervalMinutes = state.intervalMinutes
         if (intervalMinutes != null) {
+            if (!state.runOnce) {
             Text("Repeat interval", style = MaterialTheme.typography.titleMedium)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { onIntervalMinutesChanged(intervalMinutes - 15) }) {
@@ -183,12 +187,13 @@ internal fun ScheduleItemSheet(
                     )
                 }
             }
+            }
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
                 value = state.initialDelayMinutes.toString(),
                 onValueChange = { it.toLongOrNull()?.let(onInitialDelayChanged) },
-                label = { Text("Start after (minutes)") },
-                supportingText = { Text("First run after enabling. Android may defer background work.") },
+                label = { Text(if (state.runOnce) "Run after (minutes)" else "Start after (minutes)") },
+                supportingText = { Text(if (state.runOnce) "Run once, then disable this schedule." else "First run after enabling. Android may defer background work.") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),

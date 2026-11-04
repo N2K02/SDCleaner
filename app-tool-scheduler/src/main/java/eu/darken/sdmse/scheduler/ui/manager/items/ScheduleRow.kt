@@ -76,6 +76,7 @@ internal fun ScheduleRow(
         schedule.intervalMinutes,
         schedule.initialDelayMinutes,
         schedule.runOnce,
+        schedule.executedAt,
         schedule.userZone,
     ) {
         if (schedule.scheduledAt == null) return@remember null

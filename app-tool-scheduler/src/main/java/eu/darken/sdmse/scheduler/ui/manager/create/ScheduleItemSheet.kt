@@ -443,7 +443,7 @@ internal fun ScheduleItemSheet(
         }
         Button(
             onClick = onSave,
-            enabled = state.canSave,
+            enabled = state.canSave && areMinuteFieldsValid(state, intervalText, delayText),
             modifier = Modifier.fillMaxWidth().height(56.dp),
             shape = RoundedCornerShape(28.dp),
         ) {
@@ -462,6 +462,22 @@ internal fun ScheduleItemSheet(
             },
             onDismiss = { showTimePicker = false },
         )
+    }
+}
+
+/** Invalid or partially typed minute values must not silently save the previous valid value. */
+internal fun areMinuteFieldsValid(
+    state: ScheduleItemViewModel.State,
+    intervalText: String,
+    delayText: String,
+): Boolean = when {
+    state.intervalMinutes == null -> true
+    state.runOnce -> delayText.toLongOrNull()?.let { it in 1L..43_200L } == true
+    else -> {
+        val intervalValid = intervalText.toLongOrNull()?.let { it in 15L..43_200L } == true
+        val delayValid = state.initialDelayMinutes == 0L ||
+            delayText.toLongOrNull()?.let { it in 1L..43_200L } == true
+        intervalValid && delayValid
     }
 }
 

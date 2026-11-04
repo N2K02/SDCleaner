@@ -172,6 +172,26 @@ class ScheduleItemViewModelTest : BaseTest() {
     }
 
     @Test
+    fun `invalid partial minute entry blocks saving`() {
+        val repeating = ScheduleItemViewModel.State(intervalMinutes = 60, initialDelayMinutes = 0)
+        areMinuteFieldsValid(repeating, intervalText = "1", delayText = "0") shouldBe false
+        areMinuteFieldsValid(repeating, intervalText = "", delayText = "0") shouldBe false
+        areMinuteFieldsValid(repeating, intervalText = "15", delayText = "0") shouldBe true
+
+        val delayed = repeating.copy(initialDelayMinutes = 5)
+        areMinuteFieldsValid(delayed, intervalText = "60", delayText = "") shouldBe false
+        areMinuteFieldsValid(delayed, intervalText = "60", delayText = "5") shouldBe true
+
+        val oneTime = repeating.copy(intervalMinutes = 1, runOnce = true, initialDelayMinutes = 5)
+        areMinuteFieldsValid(oneTime, intervalText = "1", delayText = "") shouldBe false
+        areMinuteFieldsValid(oneTime, intervalText = "1", delayText = "0") shouldBe false
+        areMinuteFieldsValid(oneTime, intervalText = "1", delayText = "5") shouldBe true
+
+        val clockTime = repeating.copy(intervalMinutes = null)
+        areMinuteFieldsValid(clockTime, intervalText = "", delayText = "") shouldBe true
+    }
+
+    @Test
     fun `setRepeatDays applies value in normal range`() = runTest2 {
         val (vm, _, _) = harness(initial = emptySet())
         vm.setScheduleId("brand-new")

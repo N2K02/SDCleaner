@@ -230,6 +230,15 @@ internal fun ScheduleItemSheet(
             }
         }
         val intervalMinutes = state.intervalMinutes
+        // Keep partially entered numbers in the text field; avoid clamping the first digit.
+        var intervalText by remember { mutableStateOf(intervalMinutes?.toString().orEmpty()) }
+        LaunchedEffect(intervalMinutes) {
+            intervalText = intervalMinutes?.toString().orEmpty()
+        }
+        var delayText by remember { mutableStateOf(state.initialDelayMinutes.toString()) }
+        LaunchedEffect(state.initialDelayMinutes) {
+            delayText = state.initialDelayMinutes.toString()
+        }
         if (intervalMinutes != null) {
             Card(
                 shape = RoundedCornerShape(22.dp),
@@ -245,11 +254,24 @@ internal fun ScheduleItemSheet(
                                 Icon(Icons.TwoTone.Remove, contentDescription = "Decrease interval")
                             }
                             OutlinedTextField(
-                                value = intervalMinutes.toString(),
-                                onValueChange = { it.toLongOrNull()?.let(onIntervalMinutesChanged) },
+                                value = intervalText,
+                                onValueChange = { input ->
+                                    if (input.matches(MINUTE_INPUT_REGEX)) {
+                                        intervalText = input
+                                        input.toLongOrNull()?.takeIf { it in 15L..43_200L }
+                                            ?.let(onIntervalMinutesChanged)
+                                    }
+                                },
                                 label = { Text("Every (minutes)") },
                                 singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                supportingText = { Text("Minimum 15 minutes") },
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Number,
+                                    imeAction = ImeAction.Done,
+                                ),
+                                keyboardActions = KeyboardActions(
+                                    onDone = { intervalText = intervalMinutes.toString() },
+                                ),
                                 textStyle = MaterialTheme.typography.titleLarge.copy(textAlign = TextAlign.Center),
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(14.dp),
@@ -294,11 +316,24 @@ internal fun ScheduleItemSheet(
                                 Icon(Icons.TwoTone.Remove, contentDescription = "Decrease initial delay")
                             }
                             OutlinedTextField(
-                                value = state.initialDelayMinutes.toString(),
-                                onValueChange = { it.toLongOrNull()?.let(onInitialDelayChanged) },
+                                value = delayText,
+                                onValueChange = { input ->
+                                    if (input.matches(MINUTE_INPUT_REGEX)) {
+                                        delayText = input
+                                        val minimum = if (state.runOnce) 1L else 0L
+                                        input.toLongOrNull()?.takeIf { it in minimum..43_200L }
+                                            ?.let(onInitialDelayChanged)
+                                    }
+                                },
                                 label = { Text("After (minutes)") },
                                 singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Number,
+                                    imeAction = ImeAction.Done,
+                                ),
+                                keyboardActions = KeyboardActions(
+                                    onDone = { delayText = state.initialDelayMinutes.toString() },
+                                ),
                                 textStyle = MaterialTheme.typography.titleLarge.copy(textAlign = TextAlign.Center),
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(14.dp),
@@ -437,6 +472,7 @@ private fun formatTime(hour: Int?, minute: Int?): String {
 
 private val TIME_INPUT_REGEX = Regex("^(\\d{1,2}):(\\d{2})$")
 private val DAYS_INPUT_REGEX = Regex("^\\d{1,2}$")
+private val MINUTE_INPUT_REGEX = Regex("^\\d{0,5}$")
 
 private fun parseTime(text: String): Pair<Int, Int>? {
     val match = TIME_INPUT_REGEX.matchEntire(text.trim()) ?: return null

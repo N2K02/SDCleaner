@@ -77,7 +77,14 @@ class ScheduleItemViewModel @Inject constructor(
         .safeStateIn(initialValue = State(), onError = { State(isReady = false) })
 
     fun setIntervalMode(enabled: Boolean) {
-        draft.update { it?.copy(intervalMinutes = if (enabled) (it.intervalMinutes ?: 60L) else null, runOnce = false) }
+        draft.update {
+            it?.copy(
+                intervalMinutes = if (enabled) {
+                    if (it.runOnce) 60L else (it.intervalMinutes ?: 60L).coerceAtLeast(15L)
+                } else null,
+                runOnce = false,
+            )
+        }
     }
 
     fun setRunOnceMode() {

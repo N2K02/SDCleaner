@@ -124,6 +124,54 @@ class ScheduleItemViewModelTest : BaseTest() {
     }
 
     @Test
+    fun `switching from run once to repeating restores a valid interval`() = runTest2 {
+        val (vm, _, _) = harness(initial = emptySet())
+        vm.setScheduleId("new")
+        advanceUntilIdle()
+
+        vm.setRunOnceMode()
+        advanceUntilIdle()
+        vm.state.first().runOnce shouldBe true
+        vm.state.first().intervalMinutes shouldBe 1L
+
+        vm.setIntervalMode(true)
+        advanceUntilIdle()
+        vm.state.first().runOnce shouldBe false
+        vm.state.first().intervalMinutes shouldBe 60L
+    }
+
+    @Test
+    fun `repeating intervals clamp below fifteen minutes`() = runTest2 {
+        val (vm, _, _) = harness(initial = emptySet())
+        vm.setScheduleId("new")
+        advanceUntilIdle()
+        vm.setIntervalMode(true)
+        vm.setIntervalMinutes(1)
+        advanceUntilIdle()
+        vm.state.first().intervalMinutes shouldBe 15L
+    }
+
+    @Test
+    fun `saving a delayed one time cleanup preserves its mode`() = runTest2 {
+        val (vm, manager, _) = harness(initial = emptySet())
+        vm.setScheduleId("new")
+        advanceUntilIdle()
+        vm.updateLabel("One-off")
+        vm.setRunOnceMode()
+        vm.setInitialDelayMinutes(5)
+        advanceUntilIdle()
+
+        vm.state.first().canSave shouldBe true
+        vm.saveSchedule()
+        advanceUntilIdle()
+        coVerify(exactly = 1) {
+            manager.saveSchedule(match {
+                it.id == "new" && it.runOnce && it.intervalMinutes == 1L && it.initialDelayMinutes == 5L
+            })
+        }
+    }
+
+    @Test
     fun `setRepeatDays applies value in normal range`() = runTest2 {
         val (vm, _, _) = harness(initial = emptySet())
         vm.setScheduleId("brand-new")

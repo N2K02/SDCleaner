@@ -53,6 +53,7 @@ class ScheduleItemViewModel @Inject constructor(
                 minute = initial?.minute,
                 repeatInterval = initial?.repeatInterval ?: Duration.ofDays(3),
                 intervalMinutes = initial?.intervalMinutes,
+                runOnce = initial?.runOnce ?: false,
                 initialDelayMinutes = initial?.initialDelayMinutes ?: 0,
             )
         }
@@ -67,6 +68,7 @@ class ScheduleItemViewModel @Inject constructor(
                 minute = d.minute,
                 repeatInterval = d.repeatInterval,
                 intervalMinutes = d.intervalMinutes,
+                runOnce = d.runOnce,
                 initialDelayMinutes = d.initialDelayMinutes,
                 canSave = !d.label.isNullOrBlank() && d.hour != null && d.minute != null,
                 isReady = true,
@@ -75,11 +77,17 @@ class ScheduleItemViewModel @Inject constructor(
         .safeStateIn(initialValue = State(), onError = { State(isReady = false) })
 
     fun setIntervalMode(enabled: Boolean) {
-        draft.update { it?.copy(intervalMinutes = if (enabled) (it.intervalMinutes ?: 60L) else null) }
+        draft.update { it?.copy(intervalMinutes = if (enabled) (it.intervalMinutes ?: 60L) else null, runOnce = false) }
+    }
+
+    fun setRunOnceMode() {
+        draft.update {
+            it?.copy(intervalMinutes = 1L, runOnce = true, initialDelayMinutes = it.initialDelayMinutes.coerceAtLeast(1))
+        }
     }
 
     fun setIntervalMinutes(minutes: Long) {
-        draft.update { it?.copy(intervalMinutes = minutes.coerceIn(15L, 30L * 24L * 60L)) }
+        draft.update { it?.copy(intervalMinutes = minutes.coerceIn(if (it.runOnce) 1L else 15L, 30L * 24L * 60L)) }
     }
 
     fun setInitialDelayMinutes(minutes: Long) {
@@ -160,6 +168,7 @@ class ScheduleItemViewModel @Inject constructor(
         val minute: Int?,
         val repeatInterval: Duration,
         val intervalMinutes: Long?,
+        val runOnce: Boolean,
         val initialDelayMinutes: Long,
     )
 
@@ -169,6 +178,7 @@ class ScheduleItemViewModel @Inject constructor(
         val minute: Int? = null,
         val repeatInterval: Duration = Duration.ofDays(3),
         val intervalMinutes: Long? = null,
+        val runOnce: Boolean = false,
         val initialDelayMinutes: Long = 0,
         val canSave: Boolean = false,
         val isReady: Boolean = false,

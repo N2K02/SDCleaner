@@ -1,5 +1,8 @@
 package eu.darken.sdmse.scheduler.ui.manager.create
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +22,10 @@ import androidx.compose.material.icons.twotone.AccessTime
 import androidx.compose.material.icons.twotone.Add
 import androidx.compose.material.icons.twotone.Remove
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -34,6 +41,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
@@ -132,10 +141,37 @@ internal fun ScheduleItemSheet(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp)
             .navigationBarsPadding()
             .imePadding(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        Spacer(Modifier.height(4.dp))
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.primaryContainer,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(
+                Modifier.background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.primaryContainer,
+                            MaterialTheme.colorScheme.secondaryContainer,
+                        ),
+                    ),
+                ).padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(Icons.TwoTone.AccessTime, contentDescription = null, modifier = Modifier.size(36.dp))
+                Text("Cleaning Scheduler", style = MaterialTheme.typography.headlineSmall)
+                Text(
+                    "Automatically clean your device on your schedule",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
         OutlinedTextField(
             value = state.label.orEmpty(),
             onValueChange = onLabelChanged,
@@ -143,61 +179,118 @@ internal fun ScheduleItemSheet(
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
             modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
         )
-
-        Spacer(modifier = Modifier.height(16.dp))
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text("Cleaning Scheduler", style = MaterialTheme.typography.titleLarge)
-                Text("Choose when automatic cleanup runs.", style = MaterialTheme.typography.bodySmall)
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    FilterChip(selected = state.runOnce, onClick = onRunOnceModeSelected, label = { Text("After X min") })
-                    FilterChip(selected = state.intervalMinutes != null && !state.runOnce, onClick = { onIntervalModeChanged(true) }, label = { Text("Repeat") })
-                    FilterChip(selected = state.intervalMinutes == null, onClick = { onIntervalModeChanged(false) }, label = { Text("At a time") })
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        val intervalMinutes = state.intervalMinutes
-        if (intervalMinutes != null) {
-            if (!state.runOnce) {
-            Text("Repeat interval", style = MaterialTheme.typography.titleMedium)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { onIntervalMinutesChanged(intervalMinutes - 15) }) {
-                    Icon(Icons.TwoTone.Remove, contentDescription = "Decrease interval")
-                }
-                OutlinedTextField(
-                    value = intervalMinutes.toString(),
-                    onValueChange = { it.toLongOrNull()?.let(onIntervalMinutesChanged) },
-                    label = { Text("Every (minutes)") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        Text("Run mode", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+        Card(
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                FilterChip(
+                    selected = state.runOnce,
+                    onClick = onRunOnceModeSelected,
+                    label = { Text("After X min", maxLines = 1) },
                     modifier = Modifier.weight(1f),
                 )
-                IconButton(onClick = { onIntervalMinutesChanged(intervalMinutes + 15) }) {
-                    Icon(Icons.TwoTone.Add, contentDescription = "Increase interval")
-                }
+                FilterChip(
+                    selected = state.intervalMinutes != null && !state.runOnce,
+                    onClick = { onIntervalModeChanged(true) },
+                    label = { Text("Repeat", maxLines = 1) },
+                    modifier = Modifier.weight(1f),
+                )
+                FilterChip(
+                    selected = state.intervalMinutes == null,
+                    onClick = { onIntervalModeChanged(false) },
+                    label = { Text("At a time", maxLines = 1) },
+                    modifier = Modifier.weight(1f),
+                )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(15L, 30L, 60L, 120L).forEach { minutes ->
-                    FilterChip(
-                        selected = state.intervalMinutes == minutes,
-                        onClick = { onIntervalMinutesChanged(minutes) },
-                        label = { Text("$minutes min") },
-                    )
-                }
-            }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
-                value = state.initialDelayMinutes.toString(),
-                onValueChange = { it.toLongOrNull()?.let(onInitialDelayChanged) },
-                label = { Text(if (state.runOnce) "Run after (minutes)" else "Start after (minutes)") },
-                supportingText = { Text(if (state.runOnce) "Run once, then disable this schedule." else "First run after enabling. Android may defer background work.") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
+        }
+        val intervalMinutes = state.intervalMinutes
+        if (intervalMinutes != null) {
+            Card(
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                 modifier = Modifier.fillMaxWidth(),
-            )
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (!state.runOnce) {
+                        Text("Repeat interval", style = MaterialTheme.typography.titleMedium)
+                        Text("Run cleaning repeatedly at a fixed interval.", style = MaterialTheme.typography.bodySmall)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { onIntervalMinutesChanged(intervalMinutes - 15) }) {
+                                Icon(Icons.TwoTone.Remove, contentDescription = "Decrease interval")
+                            }
+                            OutlinedTextField(
+                                value = intervalMinutes.toString(),
+                                onValueChange = { it.toLongOrNull()?.let(onIntervalMinutesChanged) },
+                                label = { Text("Every (minutes)") },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                textStyle = MaterialTheme.typography.titleLarge.copy(textAlign = TextAlign.Center),
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(14.dp),
+                            )
+                            IconButton(onClick = { onIntervalMinutesChanged(intervalMinutes + 15) }) {
+                                Icon(Icons.TwoTone.Add, contentDescription = "Increase interval")
+                            }
+                        }
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            listOf(15L, 30L, 60L, 120L).forEach { minutes ->
+                                FilterChip(
+                                    selected = intervalMinutes == minutes,
+                                    onClick = { onIntervalMinutesChanged(minutes) },
+                                    label = { Text("$minutes min", maxLines = 1) },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                        }
+                        HorizontalDivider()
+                    }
+                    if (!state.runOnce) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Start after (optional)", style = MaterialTheme.typography.titleMedium)
+                                Text("Wait before the first run.", style = MaterialTheme.typography.bodySmall)
+                            }
+                            Switch(
+                                checked = state.initialDelayMinutes > 0,
+                                onCheckedChange = { onInitialDelayChanged(if (it) 5L else 0L) },
+                            )
+                        }
+                    } else {
+                        Text("Run once after", style = MaterialTheme.typography.titleMedium)
+                        Text("Run cleaning once and then disable this schedule.", style = MaterialTheme.typography.bodySmall)
+                    }
+                    if (state.runOnce || state.initialDelayMinutes > 0) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { onInitialDelayChanged(state.initialDelayMinutes - 1) }) {
+                                Icon(Icons.TwoTone.Remove, contentDescription = "Decrease initial delay")
+                            }
+                            OutlinedTextField(
+                                value = state.initialDelayMinutes.toString(),
+                                onValueChange = { it.toLongOrNull()?.let(onInitialDelayChanged) },
+                                label = { Text("After (minutes)") },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                textStyle = MaterialTheme.typography.titleLarge.copy(textAlign = TextAlign.Center),
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(14.dp),
+                            )
+                            IconButton(onClick = { onInitialDelayChanged(state.initialDelayMinutes + 1) }) {
+                                Icon(Icons.TwoTone.Add, contentDescription = "Increase initial delay")
+                            }
+                        }
+                    }
+                }
+            }
         } else {
         Spacer(modifier = Modifier.height(8.dp))
         Row(
@@ -279,14 +372,28 @@ internal fun ScheduleItemSheet(
         }
 
         }
-        Spacer(modifier = Modifier.height(16.dp))
-        Row(
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+            shape = RoundedCornerShape(16.dp),
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
         ) {
-            Button(onClick = onSave, enabled = state.canSave) {
-                Text(stringResource(CommonR.string.general_save_action))
-            }
+            Text(
+                text = when {
+                    state.runOnce -> "Cleaning will run once after ${state.initialDelayMinutes} minutes."
+                    intervalMinutes != null -> "Cleaning will start after ${state.initialDelayMinutes} minutes and repeat every $intervalMinutes minutes."
+                    else -> "Cleaning will run at the selected time and repeat every ${state.repeatInterval.toDays()} days."
+                } + " Android battery restrictions may delay background execution.",
+                modifier = Modifier.padding(14.dp),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+        Button(
+            onClick = onSave,
+            enabled = state.canSave,
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            shape = RoundedCornerShape(28.dp),
+        ) {
+            Text(stringResource(CommonR.string.general_save_action), style = MaterialTheme.typography.titleMedium)
         }
         Spacer(modifier = Modifier.height(8.dp))
     }

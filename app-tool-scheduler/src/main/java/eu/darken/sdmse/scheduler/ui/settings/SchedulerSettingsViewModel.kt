@@ -5,7 +5,7 @@ import eu.darken.sdmse.common.WebpageTool
 import eu.darken.sdmse.common.coroutine.DispatcherProvider
 import eu.darken.sdmse.common.datastore.value
 import eu.darken.sdmse.common.debug.logging.logTag
-import eu.darken.sdmse.common.flow.combine
+import kotlinx.coroutines.flow.combine
 import eu.darken.sdmse.common.uix.ViewModel4
 import eu.darken.sdmse.scheduler.core.SchedulerSettings
 import kotlinx.coroutines.flow.StateFlow

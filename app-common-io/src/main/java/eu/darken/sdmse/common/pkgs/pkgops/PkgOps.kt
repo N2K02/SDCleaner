@@ -273,6 +273,40 @@ class PkgOps @Inject constructor(
         }
     }
 
+    /**
+     * Clear only the cache belonging to one installed package/user. This calls the existing
+     * privileged PackageManager cache API through Shizuku/ADB (or root when requested), and
+     * never clears application user data. No Accessibility permission is needed.
+     *
+     * The Boolean reflects the platform operation result; callers should independently verify
+     * observed cache-size changes before treating the cleanup as complete.
+     */
+    suspend fun clearCache(installId: InstallId, mode: Mode = Mode.AUTO): Boolean {
+        log(TAG, VERBOSE) { "clearCache($installId, $mode)" }
+        try {
+            if (mode == Mode.NORMAL) throw ModeUnavailableException("clearCache requires ROOT or ADB")
+
+            if (adbManager.canUseAdbNow() && (mode == Mode.AUTO || mode == Mode.ADB)) {
+                log(TAG) { "clearCache($installId, $mode->ADB)" }
+                return adbOps { it.clearCache(installId, dryRun = Bugs.isDryRun) }
+            }
+
+            if (rootManager.canUseRootNow() && (mode == Mode.AUTO || mode == Mode.ROOT)) {
+                log(TAG) { "clearCache($installId, $mode->ROOT)" }
+                return rootOps { it.clearCache(installId, dryRun = Bugs.isDryRun) }
+            }
+
+            throw ModeUnavailableException("Mode $mode is unavailable for clearCache")
+        } catch (e: Exception) {
+            if (e is ModeUnavailableException) {
+                log(TAG, DEBUG) { "clearCache($installId): mode $mode unavailable" }
+            } else {
+                log(TAG, WARN) { "clearCache($installId, $mode) failed: ${e.asLog()}" }
+            }
+            throw PkgOpsException(message = "clearCache($installId, $mode) failed", cause = e)
+        }
+    }
+
     suspend fun trimCaches(
         desiredBytes: Long,
         storageId: String? = null,

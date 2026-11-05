@@ -2,7 +2,10 @@ package eu.darken.sdmse.scheduler.ui.manager.create
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
@@ -215,31 +218,35 @@ internal fun ScheduleItemSheet(
             }
         }
         Text("Run mode", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-        Card(
-            shape = RoundedCornerShape(22.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 5.dp, vertical = 3.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.fillMaxWidth().padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                FilterChip(
+                SchedulerModeButton(
                     selected = state.runOnce,
+                    label = "After X minutes",
+                    icon = Icons.Rounded.Timer,
+                    modifier = Modifier.weight(1f),
                     onClick = onRunOnceModeSelected,
-                    label = { Text("After X minutes", maxLines = 2, style = MaterialTheme.typography.labelSmall) },
-                    modifier = Modifier.weight(1f),
                 )
-                FilterChip(
+                SchedulerModeButton(
                     selected = state.intervalMinutes != null && !state.runOnce,
+                    label = "Repeat every X minutes",
+                    icon = Icons.Rounded.AllInclusive,
+                    modifier = Modifier.weight(1f),
                     onClick = { onIntervalModeChanged(true) },
-                    label = { Text("Repeat every X minutes", maxLines = 2, style = MaterialTheme.typography.labelSmall) },
-                    modifier = Modifier.weight(1f),
                 )
-                FilterChip(
+                SchedulerModeButton(
                     selected = state.intervalMinutes == null,
-                    onClick = { onIntervalModeChanged(false) },
-                    label = { Text("At specific time", maxLines = 2, style = MaterialTheme.typography.labelSmall) },
+                    label = "At specific time",
+                    icon = Icons.Rounded.Event,
                     modifier = Modifier.weight(1f),
+                    onClick = { onIntervalModeChanged(false) },
                 )
             }
         }
@@ -267,7 +274,7 @@ internal fun ScheduleItemSheet(
                             IconButton(onClick = { onIntervalMinutesChanged(intervalMinutes - 15) }) {
                                 Icon(Icons.TwoTone.Remove, contentDescription = "Decrease interval")
                             }
-                            OutlinedTextField(
+                            CompactMinuteField(
                                 value = intervalText,
                                 onValueChange = { input ->
                                     if (input.matches(MINUTE_INPUT_REGEX)) {
@@ -276,19 +283,8 @@ internal fun ScheduleItemSheet(
                                             ?.let(onIntervalMinutesChanged)
                                     }
                                 },
-                                label = { Text("Every (minutes)") },
-                                singleLine = true,
-                                supportingText = null,
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Number,
-                                    imeAction = ImeAction.Done,
-                                ),
-                                keyboardActions = KeyboardActions(
-                                    onDone = { intervalText = intervalMinutes.toString() },
-                                ),
-                                textStyle = MaterialTheme.typography.titleLarge.copy(textAlign = TextAlign.Center),
+                                onDone = { intervalText = intervalMinutes.toString() },
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(14.dp),
                             )
                             IconButton(onClick = { onIntervalMinutesChanged(intervalMinutes + 15) }) {
                                 Icon(Icons.TwoTone.Add, contentDescription = "Increase interval")
@@ -338,7 +334,7 @@ internal fun ScheduleItemSheet(
                             IconButton(onClick = { onInitialDelayChanged(state.initialDelayMinutes - 1) }) {
                                 Icon(Icons.TwoTone.Remove, contentDescription = "Decrease initial delay")
                             }
-                            OutlinedTextField(
+                            CompactMinuteField(
                                 value = delayText,
                                 onValueChange = { input ->
                                     if (input.matches(MINUTE_INPUT_REGEX)) {
@@ -348,18 +344,8 @@ internal fun ScheduleItemSheet(
                                             ?.let(onInitialDelayChanged)
                                     }
                                 },
-                                label = { Text("After (minutes)") },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Number,
-                                    imeAction = ImeAction.Done,
-                                ),
-                                keyboardActions = KeyboardActions(
-                                    onDone = { delayText = state.initialDelayMinutes.toString() },
-                                ),
-                                textStyle = MaterialTheme.typography.titleLarge.copy(textAlign = TextAlign.Center),
+                                onDone = { delayText = state.initialDelayMinutes.toString() },
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(14.dp),
                             )
                             IconButton(onClick = { onInitialDelayChanged(state.initialDelayMinutes + 1) }) {
                                 Icon(Icons.TwoTone.Add, contentDescription = "Increase initial delay")
@@ -540,6 +526,62 @@ internal fun ScheduleItemSheet(
                 showTimePicker = false
             },
             onDismiss = { showTimePicker = false },
+        )
+    }
+}
+
+@Composable
+private fun SchedulerModeButton(
+    selected: Boolean,
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(13.dp),
+        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
+    ) {
+        Column(
+            Modifier.fillMaxWidth().heightIn(min = 60.dp).padding(horizontal = 3.dp, vertical = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Icon(icon, null, modifier = Modifier.size(20.dp),
+                tint = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(3.dp))
+            Text(label, maxLines = 2, textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.labelSmall,
+                color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
+        }
+    }
+}
+
+@Composable
+private fun CompactMinuteField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onDone: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier.height(44.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(10.dp)),
+        contentAlignment = Alignment.Center,
+    ) {
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            textStyle = MaterialTheme.typography.titleMedium.copy(
+                textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurface),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { onDone() }),
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }

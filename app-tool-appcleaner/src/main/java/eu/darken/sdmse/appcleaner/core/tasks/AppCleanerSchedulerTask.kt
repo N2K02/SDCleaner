@@ -1,6 +1,7 @@
 package eu.darken.sdmse.appcleaner.core.tasks
 
 import eu.darken.sdmse.appcleaner.R
+import eu.darken.sdmse.main.core.TaskResultWarnings
 import eu.darken.sdmse.common.ByteFormatter
 import eu.darken.sdmse.common.ca.caString
 import eu.darken.sdmse.common.files.APath
@@ -24,7 +25,13 @@ data class AppCleanerSchedulerTask(
         override val affectedCount: Int = affectedPaths.size,
         val stoppedEarly: AppCleanerTask.StopReason? = null,
         val skippedCount: Int = 0,
-    ) : Result, ReportDetails.AffectedSpace, ReportDetails.AffectedPaths {
+    ) : Result, ReportDetails.AffectedSpace, ReportDetails.AffectedPaths, TaskResultWarnings {
+        override val warningMessage: String? get() = when {
+            stoppedEarly != null -> "Stopped early: ${stoppedEarly.name}"
+            skippedCount > 0 -> "Skipped ${skippedCount} item(s)"
+            else -> null
+        }
+
 
         override val primaryInfo
             get() = caString {

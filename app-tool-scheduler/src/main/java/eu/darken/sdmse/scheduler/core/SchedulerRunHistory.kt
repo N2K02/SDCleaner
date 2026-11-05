@@ -97,10 +97,23 @@ class SchedulerRunHistory @Inject constructor(
                 file.openRead().bufferedReader().use { it.readText() })
         } catch (_: Exception) { emptyList() }
         val today = LocalDate.now()
-        internal.value = rows.filter {
+        val retained = rows.filter {
             runCatching { LocalDate.parse(it.day) }.getOrNull()
                 ?.let { d -> !d.isBefore(today.minusDays(29)) && !d.isAfter(today) } == true
         }.sortedByDescending { it.lastAt }
+        internal.value = retained
+        if (retained.size != rows.size) {
+            file.baseFile.parentFile?.mkdirs()
+            val output = file.startWrite()
+            try {
+                output.write(json.encodeToString(ListSerializer(SchedulerDailyRun.serializer()), retained)
+                    .toByteArray(Charsets.UTF_8))
+                file.finishWrite(output)
+            } catch (e: Exception) {
+                file.failWrite(output)
+                log(TAG) { "History pruning write failed: ${e.message}" }
+            }
+        }
         loaded = true
     }
 

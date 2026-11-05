@@ -27,6 +27,7 @@ import eu.darken.sdmse.common.root.canUseRootNow
 import eu.darken.sdmse.common.shell.ShellOps
 import eu.darken.sdmse.common.shell.ipc.ShellOpsCmd
 import eu.darken.sdmse.main.core.SDMTool
+import eu.darken.sdmse.main.core.TaskResultWarnings
 import eu.darken.sdmse.main.core.taskmanager.SchedulerTaskFactory
 import eu.darken.sdmse.stats.core.ReportDetails
 import eu.darken.sdmse.main.core.taskmanager.TaskSubmitter
@@ -95,9 +96,12 @@ class SchedulerWorker @AssistedInject constructor(
 
         // Use bounded ordinary WorkManager background jobs; no foreground promotion or notification.
         val schedule = getSchedule().also { currentSchedule = it }
+        startedAtMs = System.currentTimeMillis()
 
         if (runAttemptCount > 0) {
             log(TAG, WARN) { "Repeat execution attempt ($runAttemptCount) for $schedule" }
+            lastOutcome = RunOutcome.WARNING
+            lastDetails = listOf("WorkManager retried this schedule; previous execution may have been interrupted")
             // The next occurrence is appended as a dependent of this still RUNNING work (see `finally`).
             // Returning failure would make WorkManager fail the appended successor too,
             // permanently severing the recurring chain until the next app start re-arms it.
@@ -113,6 +117,8 @@ class SchedulerWorker @AssistedInject constructor(
                 val tool = item.task.type.toString()
                 when {
                     item.error != null -> "$tool: failed - ${item.error.javaClass.simpleName}"
+                    (item.result as? TaskResultWarnings)?.warningMessage != null ->
+                        "$tool: ${(item.result as TaskResultWarnings).warningMessage}"
                     item.result is ReportDetails.AffectedSpace ->
                         "$tool: freed ${(item.result as ReportDetails.AffectedSpace).affectedSpace} bytes"
                     item.result != null -> "$tool: completed"
@@ -120,10 +126,11 @@ class SchedulerWorker @AssistedInject constructor(
                 }
             }
             val failed = results.count { it.error != null || it.result == null }
+            val warned = results.any { (it.result as? TaskResultWarnings)?.warningMessage != null }
             lastOutcome = when {
                 lastError != null -> RunOutcome.WARNING
                 failed == results.size && results.isNotEmpty() -> RunOutcome.FAILED
-                failed > 0 -> RunOutcome.WARNING
+                failed > 0 || warned -> RunOutcome.WARNING
                 results.isEmpty() -> RunOutcome.WARNING
                 else -> RunOutcome.SUCCESS
             }

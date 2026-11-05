@@ -483,11 +483,10 @@ internal fun AppCleanerSettingsScreen(
 
 @Preview2
 @Composable
-private fun AppCleanerSettingsScreenPreviewAcsRequired() {
+private fun AppCleanerSettingsScreenPreviewAdbUnavailable() {
     PreviewWrapper {
         AppCleanerSettingsScreen(
             state = AppCleanerSettingsViewModel.State(
-                isAcsRequired = true,
                 isOtherUsersAvailable = true,
                 otherUsersGate = FeatureGateState.AVAILABLE,
                 isRunningAppsDetectionAvailable = true,
@@ -499,11 +498,10 @@ private fun AppCleanerSettingsScreenPreviewAcsRequired() {
 
 @Preview2
 @Composable
-private fun AppCleanerSettingsScreenPreviewAcsNotRequired() {
+private fun AppCleanerSettingsScreenPreviewAdbAvailable() {
     PreviewWrapper {
         AppCleanerSettingsScreen(
             state = AppCleanerSettingsViewModel.State(
-                isAcsRequired = false,
                 isOtherUsersAvailable = true,
                 otherUsersGate = FeatureGateState.AVAILABLE,
                 isRunningAppsDetectionAvailable = true,

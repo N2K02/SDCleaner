@@ -1,6 +1,8 @@
 package eu.darken.sdmse.scheduler.ui.manager.create
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +25,7 @@ import androidx.compose.material.icons.automirrored.twotone.ArrowBack
 import androidx.compose.material.icons.twotone.AccessTime
 import androidx.compose.material.icons.twotone.Add
 import androidx.compose.material.icons.twotone.Remove
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Surface
@@ -42,6 +45,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -145,6 +149,7 @@ internal fun ScheduleItemSheet(
     }
 
     var showTimePicker by remember { mutableStateOf(false) }
+    var showCleaningOptions by rememberSaveable { mutableStateOf(false) }
 
     var timeText by remember { mutableStateOf(formatTime(state.hour, state.minute)) }
     LaunchedEffect(state.hour, state.minute) {
@@ -172,9 +177,9 @@ internal fun ScheduleItemSheet(
             .padding(horizontal = 16.dp)
             .navigationBarsPadding()
             .imePadding(),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(2.dp))
         Surface(
             shape = RoundedCornerShape(24.dp),
             color = MaterialTheme.colorScheme.primaryContainer,
@@ -182,20 +187,15 @@ internal fun ScheduleItemSheet(
         ) {
             Column(
                 Modifier.background(
-                    Brush.horizontalGradient(
-                        listOf(
-                            MaterialTheme.colorScheme.primaryContainer,
-                            MaterialTheme.colorScheme.secondaryContainer,
-                        ),
-                    ),
-                ).padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                    Brush.horizontalGradient(listOf(Color(0xFF30224B), Color(0xFF7542BB))),
+                ).padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
-                Icon(Icons.TwoTone.AccessTime, contentDescription = null, modifier = Modifier.size(36.dp))
-                Text("Cleaning Scheduler", style = MaterialTheme.typography.headlineSmall)
+                Icon(Icons.Rounded.EventRepeat, contentDescription = null, modifier = Modifier.size(29.dp), tint = Color.White)
+                Text("Cleaning Scheduler", style = MaterialTheme.typography.titleLarge, color = Color.White)
                 Text(
                     "Automatically clean your device on your schedule",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall, color = Color(0xFFEBDFFF),
                 )
             }
         }
@@ -205,78 +205,40 @@ internal fun ScheduleItemSheet(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(Icons.TwoTone.AccessTime, contentDescription = null)
                 Spacer(Modifier.width(12.dp))
-                Text("Enable scheduler", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                Text("Enable scheduler", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                 Switch(checked = state.isEnabled, onCheckedChange = onEnabledChanged)
             }
         }
-        OutlinedTextField(
-            value = state.label.orEmpty(),
-            onValueChange = onLabelChanged,
-            label = { Text(stringResource(R.string.scheduler_schedule_name_label)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-        )
-        Text("What to clean", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-        Card(
-            shape = RoundedCornerShape(22.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
-                listOf(
-                    Triple("App cache", state.useAppCleaner, onAppCleanerChanged),
-                    Triple("Temporary & system files", state.useSystemCleaner, onSystemCleanerChanged),
-                    Triple("Obsolete files", state.useCorpseFinder, onCorpseFinderChanged),
-                ).forEach { (title, checked, onChange) ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                        Switch(checked = checked, onCheckedChange = onChange)
-                    }
-                }
-            }
-        }
-        if (state.isEnabled && !state.useAppCleaner && !state.useSystemCleaner && !state.useCorpseFinder) {
-            Text(
-                "Select at least one cleaning tool before enabling the scheduler.",
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
-            )
-        }
-        Text("Run mode", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+        Text("Run mode", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
         Card(
             shape = RoundedCornerShape(22.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 5.dp, vertical = 3.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 FilterChip(
                     selected = state.runOnce,
                     onClick = onRunOnceModeSelected,
-                    label = { Text("After X minutes", maxLines = 2) },
+                    label = { Text("After X minutes", maxLines = 2, style = MaterialTheme.typography.labelSmall) },
                     modifier = Modifier.weight(1f),
                 )
                 FilterChip(
                     selected = state.intervalMinutes != null && !state.runOnce,
                     onClick = { onIntervalModeChanged(true) },
-                    label = { Text("Repeat every X minutes", maxLines = 2) },
+                    label = { Text("Repeat every X minutes", maxLines = 2, style = MaterialTheme.typography.labelSmall) },
                     modifier = Modifier.weight(1f),
                 )
                 FilterChip(
                     selected = state.intervalMinutes == null,
                     onClick = { onIntervalModeChanged(false) },
-                    label = { Text("At specific time", maxLines = 2) },
+                    label = { Text("At specific time", maxLines = 2, style = MaterialTheme.typography.labelSmall) },
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -291,15 +253,15 @@ internal fun ScheduleItemSheet(
         LaunchedEffect(state.initialDelayMinutes) {
             delayText = state.initialDelayMinutes.toString()
         }
-        if (intervalMinutes != null) {
+        if (intervalMinutes != null && !state.runOnce) {
             Card(
-                shape = RoundedCornerShape(22.dp),
+                shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (!state.runOnce) {
-                        Text("Repeat interval", style = MaterialTheme.typography.titleMedium)
+                        Text("Repeat interval", style = MaterialTheme.typography.titleSmall)
                         Text("Run cleaning repeatedly at a fixed interval.", style = MaterialTheme.typography.bodySmall)
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(onClick = { onIntervalMinutesChanged(intervalMinutes - 15) }) {
@@ -316,7 +278,7 @@ internal fun ScheduleItemSheet(
                                 },
                                 label = { Text("Every (minutes)") },
                                 singleLine = true,
-                                supportingText = { Text("Minimum 15 minutes") },
+                                supportingText = null,
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = KeyboardType.Number,
                                     imeAction = ImeAction.Done,
@@ -345,12 +307,21 @@ internal fun ScheduleItemSheet(
                                 )
                             }
                         }
-                        HorizontalDivider()
                     }
+                }
+            }
+        }
+        if (intervalMinutes != null) {
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (!state.runOnce) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Start after (optional)", style = MaterialTheme.typography.titleMedium)
+                                Text("Start after (initial delay)", style = MaterialTheme.typography.titleSmall)
                                 Text("Wait before the first run.", style = MaterialTheme.typography.bodySmall)
                             }
                             Switch(
@@ -359,7 +330,7 @@ internal fun ScheduleItemSheet(
                             )
                         }
                     } else {
-                        Text("Run once after", style = MaterialTheme.typography.titleMedium)
+                        Text("Run once after", style = MaterialTheme.typography.titleSmall)
                         Text("Run cleaning once and then disable this schedule.", style = MaterialTheme.typography.bodySmall)
                     }
                     if (state.runOnce || state.initialDelayMinutes > 0) {
@@ -495,11 +466,67 @@ internal fun ScheduleItemSheet(
         }
         Button(
             onClick = onSave,
-            enabled = state.canSave && areMinuteFieldsValid(state, intervalText, delayText),
-            modifier = Modifier.fillMaxWidth().height(56.dp),
+            enabled = state.canSave && areMinuteFieldsValid(state, intervalText, delayText) &&
+                (state.intervalMinutes != null || parseTime(timeText)?.let {
+                    it.first == state.hour && it.second == state.minute
+                } == true),
+            modifier = Modifier.fillMaxWidth().height(52.dp),
             shape = RoundedCornerShape(28.dp),
         ) {
-            Text(stringResource(CommonR.string.general_save_action), style = MaterialTheme.typography.titleMedium)
+            Icon(Icons.Rounded.Check, null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(CommonR.string.general_save_action), style = MaterialTheme.typography.titleSmall)
+        }
+        TextButton(
+            onClick = { showCleaningOptions = !showCleaningOptions },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(if (showCleaningOptions) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("Cleaning options")
+        }
+        if (showCleaningOptions ||
+            (state.isEnabled && !state.useAppCleaner && !state.useSystemCleaner && !state.useCorpseFinder)) {
+            OutlinedTextField(
+                value = state.label.orEmpty(),
+                onValueChange = onLabelChanged,
+                label = { Text(stringResource(R.string.scheduler_schedule_name_label)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+            )
+            Text("What to clean", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            Card(
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                    listOf(
+                        Triple("App cache", state.useAppCleaner, onAppCleanerChanged),
+                        Triple("Temporary & system files", state.useSystemCleaner, onSystemCleanerChanged),
+                        Triple("Obsolete files", state.useCorpseFinder, onCorpseFinderChanged),
+                    ).forEach { (title, checked, onChange) ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                            Switch(checked = checked, onCheckedChange = onChange)
+                        }
+                    }
+                }
+            }
+            if (state.isEnabled && !state.useAppCleaner && !state.useSystemCleaner && !state.useCorpseFinder) {
+                Text(
+                    "Select at least one cleaning tool before enabling the scheduler.",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+    
         }
         Spacer(modifier = Modifier.height(8.dp))
     }

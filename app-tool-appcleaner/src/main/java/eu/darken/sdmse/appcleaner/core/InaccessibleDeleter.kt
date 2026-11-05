@@ -41,6 +41,7 @@ import eu.darken.sdmse.main.core.GeneralSettings
 import eu.darken.sdmse.setup.SetupBinding
 import eu.darken.sdmse.setup.SetupModule
 import eu.darken.sdmse.setup.isComplete
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -188,6 +189,53 @@ class InaccessibleDeleter @Inject constructor(
                     true
                 }
             }
+            .toMutableList()
+
+        // Targeted cleaning never uses the global trim, so it used to require Accessibility
+        // even when Shizuku was connected. Prefer the existing privileged per-app cache API
+        // before opening Android Settings. Only touch allowed, current-user, non-system targets.
+        if (adbManager.canUseAdbNow()) {
+            val adbCandidates = remainingTargets.filter { !it.pkg.isSystemApp }
+            if (adbCandidates.isNotEmpty()) {
+                log(TAG, INFO) { "Attempting Shizuku/ADB cache-only clear for ${adbCandidates.size} apps" }
+                updateProgressPrimary(eu.darken.sdmse.appcleaner.R.string.appcleaner_progress_shizuku_deleting_caches)
+                updateProgressCount(Progress.Count.Percent(adbCandidates.size))
+                try {
+                    adbCandidates.forEach { junk ->
+                        currentCoroutineContext().ensureActive()
+                        try {
+                            val id = junk.identifier
+                            // This baseline is from the post-trim/pre-ACS re-query above, so
+                            // a per-app clear is only credited with the space it really freed.
+                            val baseline = baselines[id] ?: junk.inaccessibleCache!!.totalSize
+                            val issued = pkgOps.clearCache(id, mode = PkgOps.Mode.ADB)
+                            if (issued && verifyAdbCacheClear(junk, baseline)) {
+                                log(TAG, INFO) { "Verified ADB cache-only clear: $id" }
+                                successTargets.add(id)
+                            } else {
+                                log(TAG, WARN) { "ADB cache-only clear unverified or declined for $id; allowing Accessibility fallback" }
+                            }
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            currentCoroutineContext().ensureActive()
+                            // Device firmware can reject cache clearing for a particular package.
+                            // Do not abort the batch: Accessibility may still be able to clear it.
+                            log(TAG, WARN) { "ADB per-app clear failed for ${junk.identifier}: ${e.asLog()}" }
+                        } finally {
+                            increaseProgress()
+                        }
+                    }
+                } catch (e: CancellationException) {
+                    // The previous packages may have been cleared before the user cancelled.
+                    // Forward those partial successes rather than losing them with the exception.
+                    onPartialResult(buildResult(successTargets, failedTargets))
+                    throw e
+                }
+                remainingTargets.removeAll { it.identifier in successTargets }
+                updateProgressCount(Progress.Count.Indeterminate())
+            }
+        }
 
         // `null` = never asked, `false` = declined. Neither can be turned into a prompt from here:
         // the submitter throws instead of asking, so the stage can only fail. Skip it and let the
@@ -320,6 +368,23 @@ class InaccessibleDeleter @Inject constructor(
         }
 
         return buildResult(successTargets, failedTargets, freedBytes, skippedNoConsent)
+    }
+
+    /** A privileged API can report success before StorageStatsManager reflects the change. */
+    private suspend fun verifyAdbCacheClear(junk: AppJunk, baselineBytes: Long): Boolean {
+        if (baselineBytes <= 0L) return false
+        var confirmed = false
+        withTimeoutOrNull(ADB_PER_APP_VERIFY_TIMEOUT) {
+            while (!confirmed) {
+                val measured = inaccessibleCacheProvider.determineCache(junk.pkg)?.totalSize
+                if (measured != null && measured < baselineBytes) {
+                    confirmed = true
+                } else {
+                    delay(300)
+                }
+            }
+        }
+        return confirmed
     }
 
     /**
@@ -681,6 +746,9 @@ class InaccessibleDeleter @Inject constructor(
 
     companion object {
         private val TAG = logTag("AppCleaner", "Deleter", "Inaccessible")
+
+        /** Bound the observation time per app when Shizuku's package-manager call succeeds. */
+        private val ADB_PER_APP_VERIFY_TIMEOUT = 2.seconds
 
         /** Wall-clock budget for waiting on StorageStatsManager to catch up after a trim. */
         private val SYSTEM_RECHECK_TIMEOUT = 10.seconds

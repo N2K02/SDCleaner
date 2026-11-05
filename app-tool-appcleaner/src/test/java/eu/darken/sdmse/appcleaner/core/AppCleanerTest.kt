@@ -20,7 +20,7 @@ import eu.darken.sdmse.automation.core.errors.ScreenUnavailableException
 import eu.darken.sdmse.appcleaner.ui.preview.previewExpendables
 import eu.darken.sdmse.appcleaner.ui.preview.previewInstalled
 import eu.darken.sdmse.common.JUnitLogger
-import eu.darken.sdmse.common.adb.AdbManager
+import eu.darken.sdmse.common.adb.local.DirectAdb
 import eu.darken.sdmse.common.debug.logging.Logging
 import eu.darken.sdmse.common.files.APath
 import eu.darken.sdmse.common.files.FileType
@@ -165,8 +165,8 @@ class AppCleanerTest : BaseTest() {
         val rootManager = mockk<RootManager>().apply {
             every { this@apply.useRoot } returns flowOf(useRoot)
         }
-        val adbManager = mockk<AdbManager>().apply {
-            every { this@apply.useAdb } returns flowOf(useAdb)
+        val directAdb = mockk<DirectAdb>().apply {
+            every { status } returns MutableStateFlow(DirectAdb.Status(connected = useAdb))
         }
         val exclusionManager = mockk<ExclusionManager>().apply {
             every { exclusions } returns flowOf(emptyList())
@@ -198,7 +198,7 @@ class AppCleanerTest : BaseTest() {
             pkgOps = pkgOps,
             usageStatsSetupModule = usageStatsSetup,
             rootManager = rootManager,
-            adbManager = adbManager,
+            directAdb = directAdb,
             shellOps = shellOps,
             filterFactories = emptySet(),
             appInventorySetupModule = inventorySetup,
@@ -649,8 +649,8 @@ class AppCleanerTest : BaseTest() {
         val rootManager = mockk<RootManager>().apply {
             every { useRoot } returns flowOf(false)
         }
-        val adbManager = mockk<AdbManager>().apply {
-            every { useAdb } returns flowOf(false)
+        val directAdb = mockk<DirectAdb>().apply {
+            every { status } returns MutableStateFlow(DirectAdb.Status())
         }
         val inventorySetup = mockk<SetupModule>().apply {
             every { state } returns flowOf(currentState(complete = true))
@@ -668,7 +668,7 @@ class AppCleanerTest : BaseTest() {
             pkgOps = pkgOps,
             usageStatsSetupModule = usageStatsSetup,
             rootManager = rootManager,
-            adbManager = adbManager,
+            directAdb = directAdb,
             shellOps = shellOps,
             filterFactories = filterFactories,
             appInventorySetupModule = inventorySetup,

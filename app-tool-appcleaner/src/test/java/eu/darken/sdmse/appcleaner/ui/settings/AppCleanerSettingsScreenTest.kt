@@ -73,25 +73,10 @@ class AppCleanerSettingsScreenTest : BaseComposeRobolectricTest() {
     }
 
     @Test
-    fun `acs section is hidden when isAcsRequired is false`() {
+    fun `inaccessible cache controls remain available without Accessibility`() {
         composeRule.setSettingsScreen(
-            AppCleanerSettingsViewModel.State(isAcsRequired = false),
+            AppCleanerSettingsViewModel.State(isInaccessibleCacheAvailable = true),
         )
-
-        // The acs-only row's title — "Include inaccessible caches" or similar. The exact resolved
-        // string is R.string.appcleaner_include_inaccessible_label; we check that the visible
-        // settings list has no node matching the title when acs is not required.
-        // (Settings text strings can be long — we check for the substring used elsewhere.)
-        composeRule.onAllNodesWithText("Include inaccessible caches")
-            .fetchSemanticsNodes().size shouldBe 0
-    }
-
-    @Test
-    fun `acs section appears when isAcsRequired is true`() {
-        composeRule.setSettingsScreen(
-            AppCleanerSettingsViewModel.State(isAcsRequired = true, isInaccessibleCacheAvailable = true),
-        )
-
         composeRule.scrollToText("Include inaccessible caches")
         composeRule.onNodeWithText("Include inaccessible caches").assertExists()
     }

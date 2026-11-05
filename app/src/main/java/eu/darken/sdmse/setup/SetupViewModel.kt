@@ -8,6 +8,7 @@ import androidx.lifecycle.SavedStateHandle
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import eu.darken.sdmse.common.WebpageTool
+import eu.darken.sdmse.common.device.DeviceDetective
 import eu.darken.sdmse.common.coroutine.DispatcherProvider
 import eu.darken.sdmse.common.debug.logging.Logging.Priority.WARN
 import eu.darken.sdmse.common.debug.logging.log
@@ -51,6 +52,7 @@ class SetupViewModel @Inject constructor(
     private val safSetupModule: SAFSetupModule,
     private val webpageTool: WebpageTool,
     private val inventorySetupModule: InventorySetupModule,
+    private val deviceDetective: DeviceDetective,
 ) : ViewModel4(dispatcherProvider, TAG) {
 
     // Options are driven from the Host via setScreenOptions() (the SetupRoute entry forwards the

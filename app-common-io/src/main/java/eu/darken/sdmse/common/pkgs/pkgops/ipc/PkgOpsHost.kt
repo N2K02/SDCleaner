@@ -38,6 +38,18 @@ import java.lang.Thread.sleep
 import javax.inject.Inject
 
 
+/**
+ * Only run the cache-only pm variant. Validate the package before it reaches the command shell;
+ * it must never be able to inject a second command or drop the --cache-only flag.
+ */
+internal fun cacheOnlyClearCommand(packageName: String, handleId: Int): String {
+    require(handleId >= 0) { "Invalid Android user ID" }
+    require(packageName.matches(Regex("[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+"))) {
+        "Invalid package name"
+    }
+    return "pm clear --user $handleId --cache-only $packageName"
+}
+
 class PkgOpsHost @Inject constructor(
     @ApplicationContext private val context: Context,
     private val sharedShell: SharedShell,
@@ -109,7 +121,23 @@ class PkgOpsHost @Inject constructor(
             sleep(100)
             true
         } else {
-            runBlocking { pm.deleteApplicationCacheFilesAsUser(packageName, handleId) }
+            // Android/OEM builds can reject the hidden binder API when the helper runs as shell.
+            // The public package-manager shell command executes the same *cache-only* operation.
+            // Never fall back to plain "pm clear": that would delete the user's app data.
+            val clearedByApi = try {
+                runBlocking { pm.deleteApplicationCacheFilesAsUser(packageName, handleId) }
+            } catch (e: Exception) {
+                log(TAG, VERBOSE) { "Cache-only API unavailable for $packageName, trying pm shell: ${e.asLog()}" }
+                false
+            }
+            if (clearedByApi) true else {
+                val cmd = cacheOnlyClearCommand(packageName, handleId)
+                val shellResult = runBlocking {
+                    sharedShell.useRes { FlowCmd(cmd).execute(it) }
+                }
+                log(TAG, VERBOSE) { "Cache-only pm shell result for $packageName: ${shellResult.isSuccessful}" }
+                shellResult.isSuccessful
+            }
         }
     } catch (e: Exception) {
         log(TAG, ERROR) { "clearCache(packageName=$packageName, handleId=$handleId) failed: ${e.asLog()}" }

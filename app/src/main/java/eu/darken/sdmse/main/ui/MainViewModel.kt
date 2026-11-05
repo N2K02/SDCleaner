@@ -19,6 +19,7 @@ import eu.darken.sdmse.common.uix.ViewModel4
 import eu.darken.sdmse.common.upgrade.UpgradeRepo
 import eu.darken.sdmse.common.upgrade.isProForUi
 import eu.darken.sdmse.main.core.GeneralSettings
+import eu.darken.sdmse.common.adb.local.DirectAdb
 import eu.darken.sdmse.main.core.shortcuts.OneTapCleaner
 import eu.darken.sdmse.main.core.themeState
 import eu.darken.sdmse.main.core.themeStateBlocking
@@ -51,6 +52,7 @@ class MainViewModel @Inject constructor(
     private val oneTapCleaner: OneTapCleaner,
     private val appScope: AppCoroutineScope,
     private val sessions: eu.darken.sdmse.common.debug.recorder.core.DebugLogSessionManager,
+    private val directAdb: DirectAdb,
 
 ) : ViewModel4(dispatcherProvider = dispatcherProvider, tag = TAG) {
 
@@ -69,8 +71,9 @@ class MainViewModel @Inject constructor(
                     awaitIdle = { taskManager.state.first { it.isIdle }; Unit },
                     stopRecording = { sessions.forceStopRecording(); Unit },
                     stopHost = {
+                        // Stop privileged ADB shell before the process is terminated.
+                        directAdb.disconnect()
                         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
-                            eu.darken.sdmse.automation.core.AutomationService.instance?.disableSelf()
                             onStopped()
                         }
                     },

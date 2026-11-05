@@ -299,7 +299,7 @@ class MainActivity : ComponentActivity() {
                 if (quitDialog) {
                     SdmConfirmDialog(
                         title = "Quit SDCleaner?",
-                        message = "Active cleaning will stop. Schedules resume on the next launch. Accessibility access will need to be enabled again for automated app cleaning.",
+                        message = "Active cleaning and ADB connections will stop. Schedules resume on the next launch.",
                         onDismissRequest = { quitDialog = false },
                         positive = SdmDialogAction(label = "Quit", onClick = {
                             quitDialog = false

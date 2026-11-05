@@ -134,6 +134,7 @@ class MainActivity : ComponentActivity() {
             val themeState by vm.themeState.collectAsStateWithLifecycle()
 
             SdmSeTheme(state = themeState) {
+                eu.darken.sdmse.cleaner.SDCleanerTheme {
                 // Update window background to match current theme
                 val backgroundColor = MaterialTheme.colorScheme.background
                 LaunchedEffect(backgroundColor) {
@@ -187,6 +188,7 @@ class MainActivity : ComponentActivity() {
                             ),
                         )
                     }
+                }
                 }
             }
         }

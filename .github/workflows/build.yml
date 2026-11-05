@@ -98,6 +98,15 @@ jobs:
           set -euo pipefail
           variant=Release
           [[ "$GITHUB_EVENT_NAME" != "pull_request" ]] || variant=Debug
+          # Release APKs are re-signed with the project's encrypted release key below.
+          # AGP also validates its intermediate signing config; initialize the temporary
+          # debug keystore in fresh CI runners so that validation does not fail first.
+          if [[ "$variant" == "Release" && ! -f "$HOME/.android/debug.keystore" ]]; then
+            mkdir -p "$HOME/.android"
+            keytool -genkeypair -v -keystore "$HOME/.android/debug.keystore" \
+              -storepass android -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 365 -dname "CN=Android Debug,O=Android,C=US"
+          fi
           ./gradlew --no-daemon "assembleFoss$variant" -PappVersion="$VERSION" -PappVersionCode="$VERSION_CODE" -PappVersionSuffix="$VERSION_SUFFIX"
           APK=$(find "app/build/outputs/apk/foss/${variant,,}" -name '*.apk' -type f | head -1)
           test -n "$APK"

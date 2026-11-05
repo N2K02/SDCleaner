@@ -41,19 +41,27 @@ class CleaningQuickSettingsViewModel @Inject constructor(
         State(cache, temp, obsolete, emptyFolders)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), State())
 
-    fun setCacheEnabled(enabled: Boolean) = viewModelScope.launch {
+    fun setCacheEnabled(enabled: Boolean) {
+        viewModelScope.launch {
         appCleaner.filterDefaultCachesPublicEnabled.value(enabled)
+        }
     }
 
-    fun setTempEnabled(enabled: Boolean) = viewModelScope.launch {
+    fun setTempEnabled(enabled: Boolean) {
+        viewModelScope.launch {
         systemCleaner.filterTempFilesEnabled.value(enabled)
+        }
     }
 
-    fun setObsoleteEnabled(enabled: Boolean) = viewModelScope.launch {
+    fun setObsoleteEnabled(enabled: Boolean) {
+        viewModelScope.launch {
         corpseFinder.filterPublicDataEnabled.value(enabled)
+        }
     }
 
-    fun setEmptyFoldersEnabled(enabled: Boolean) = viewModelScope.launch {
+    fun setEmptyFoldersEnabled(enabled: Boolean) {
+        viewModelScope.launch {
         systemCleaner.filterEmptyDirectoriesEnabled.value(enabled)
+        }
     }
 }

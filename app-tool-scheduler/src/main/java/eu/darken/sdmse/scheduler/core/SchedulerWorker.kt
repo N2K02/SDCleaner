@@ -67,6 +67,9 @@ class SchedulerWorker @AssistedInject constructor(
     private val scheduleId: ScheduleId
         get() = inputData.getString(INPUT_SCHEDULE_ID) as ScheduleId
 
+    private val isManual: Boolean
+        get() = inputData.getBoolean(INPUT_MANUAL, false)
+
     private suspend fun getSchedule(): Schedule {
         return schedulerManager.getSchedule(scheduleId) ?: throw IllegalStateException("Schedule not found $scheduleId")
     }
@@ -142,7 +145,7 @@ class SchedulerWorker @AssistedInject constructor(
         }
 
         try {
-            schedulerManager.updateExecutedNow(scheduleId)
+            schedulerManager.updateExecutedNow(scheduleId, manual = isManual)
         } catch (e: Exception) {
             // On cancellation (e.g. schedule disabled) the schedule must not be re-armed
             if (e is CancellationException) throw e
@@ -157,7 +160,7 @@ class SchedulerWorker @AssistedInject constructor(
         }
 
         try {
-            schedulerManager.reschedule(scheduleId)
+            if (!isManual) schedulerManager.reschedule(scheduleId)
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             log(TAG, ERROR) { "Failed to reschedule (error=$finishedWithError): ${e.asLog()}" }
@@ -223,6 +226,7 @@ class SchedulerWorker @AssistedInject constructor(
 
     companion object {
         const val INPUT_SCHEDULE_ID = "scheduler.worker.input.scheduleid"
+        const val INPUT_MANUAL = "scheduler.worker.input.manual"
         val TAG = logTag("Scheduler", "Worker")
     }
 }

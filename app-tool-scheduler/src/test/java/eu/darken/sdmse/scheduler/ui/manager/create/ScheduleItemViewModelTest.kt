@@ -124,6 +124,141 @@ class ScheduleItemViewModelTest : BaseTest() {
     }
 
     @Test
+    fun `switching from run once to repeating restores a valid interval`() = runTest2 {
+        val (vm, _, _) = harness(initial = emptySet())
+        vm.setScheduleId("new")
+        advanceUntilIdle()
+
+        vm.setRunOnceMode()
+        advanceUntilIdle()
+        vm.state.first().runOnce shouldBe true
+        vm.state.first().intervalMinutes shouldBe 1L
+
+        vm.setIntervalMode(true)
+        advanceUntilIdle()
+        vm.state.first().runOnce shouldBe false
+        vm.state.first().intervalMinutes shouldBe 60L
+    }
+
+    @Test
+    fun `repeating intervals clamp below fifteen minutes`() = runTest2 {
+        val (vm, _, _) = harness(initial = emptySet())
+        vm.setScheduleId("new")
+        advanceUntilIdle()
+        vm.setIntervalMode(true)
+        vm.setIntervalMinutes(1)
+        advanceUntilIdle()
+        vm.state.first().intervalMinutes shouldBe 15L
+    }
+
+    @Test
+    fun `saving a delayed one time cleanup preserves its mode`() = runTest2 {
+        val (vm, manager, _) = harness(initial = emptySet())
+        vm.setScheduleId("new")
+        advanceUntilIdle()
+        vm.updateLabel("One-off")
+        vm.setRunOnceMode()
+        vm.setInitialDelayMinutes(5)
+        advanceUntilIdle()
+
+        vm.state.first().canSave shouldBe true
+        vm.saveSchedule()
+        advanceUntilIdle()
+        coVerify(exactly = 1) {
+            manager.saveSchedule(match {
+                it.id == "new" && it.runOnce && it.intervalMinutes == 1L && it.initialDelayMinutes == 5L
+            })
+        }
+    }
+
+    @Test
+    fun `new editor has useful interval defaults but stays disabled until user enables it`() = runTest2 {
+        val (vm, _, _) = harness(initial = emptySet())
+        vm.setScheduleId("new")
+        advanceUntilIdle()
+
+        val state = vm.state.first()
+        state.label shouldBe "Scheduled cleanup"
+        state.intervalMinutes shouldBe 60L
+        state.initialDelayMinutes shouldBe 5L
+        state.useAppCleaner shouldBe true
+        state.isEnabled shouldBe false
+        state.canSave shouldBe true
+    }
+
+    @Test
+    fun `enabling a schedule persists a real worker anchor and selected cleaners`() = runTest2 {
+        val (vm, manager, _) = harness(initial = emptySet())
+        vm.setScheduleId("new")
+        advanceUntilIdle()
+        vm.setEnabled(true)
+        advanceUntilIdle()
+
+        vm.saveSchedule()
+        advanceUntilIdle()
+        coVerify(exactly = 1) {
+            manager.saveSchedule(match { it.id == "new" && it.isEnabled && it.useAppCleaner &&
+                it.intervalMinutes == 60L && it.initialDelayMinutes == 5L })
+        }
+    }
+
+    @Test
+    fun `enabled schedule without cleaning tools cannot be saved`() = runTest2 {
+        val (vm, manager, _) = harness(initial = emptySet())
+        vm.setScheduleId("new")
+        advanceUntilIdle()
+        vm.setAppCleanerEnabled(false)
+        vm.setEnabled(true)
+        advanceUntilIdle()
+
+        vm.state.first().canSave shouldBe false
+        vm.saveSchedule()
+        advanceUntilIdle()
+        coVerify(exactly = 0) { manager.saveSchedule(any()) }
+    }
+
+    @Test
+    fun `editing an already enabled schedule keeps it enabled and updates its interval`() = runTest2 {
+        val enabled = existingSchedule.copy(
+            scheduledAt = java.time.Instant.parse("2026-01-01T00:00:00Z"),
+            intervalMinutes = 30,
+            useSystemCleaner = true,
+        )
+        val (vm, manager, _) = harness(initial = setOf(enabled))
+        vm.setScheduleId(enabled.id)
+        advanceUntilIdle()
+        vm.setIntervalMinutes(60)
+        advanceUntilIdle()
+        vm.saveSchedule()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            manager.saveSchedule(match { it.id == enabled.id && it.isEnabled &&
+                it.intervalMinutes == 60L && it.scheduledAt != enabled.scheduledAt && it.useSystemCleaner })
+        }
+    }
+
+    @Test
+    fun `invalid partial minute entry blocks saving`() {
+        val repeating = ScheduleItemViewModel.State(intervalMinutes = 60, initialDelayMinutes = 0)
+        areMinuteFieldsValid(repeating, intervalText = "1", delayText = "0") shouldBe false
+        areMinuteFieldsValid(repeating, intervalText = "", delayText = "0") shouldBe false
+        areMinuteFieldsValid(repeating, intervalText = "15", delayText = "0") shouldBe true
+
+        val delayed = repeating.copy(initialDelayMinutes = 5)
+        areMinuteFieldsValid(delayed, intervalText = "60", delayText = "") shouldBe false
+        areMinuteFieldsValid(delayed, intervalText = "60", delayText = "5") shouldBe true
+
+        val oneTime = repeating.copy(intervalMinutes = 1, runOnce = true, initialDelayMinutes = 5)
+        areMinuteFieldsValid(oneTime, intervalText = "1", delayText = "") shouldBe false
+        areMinuteFieldsValid(oneTime, intervalText = "1", delayText = "0") shouldBe false
+        areMinuteFieldsValid(oneTime, intervalText = "1", delayText = "5") shouldBe true
+
+        val clockTime = repeating.copy(intervalMinutes = null)
+        areMinuteFieldsValid(clockTime, intervalText = "", delayText = "") shouldBe true
+    }
+
+    @Test
     fun `setRepeatDays applies value in normal range`() = runTest2 {
         val (vm, _, _) = harness(initial = emptySet())
         vm.setScheduleId("brand-new")

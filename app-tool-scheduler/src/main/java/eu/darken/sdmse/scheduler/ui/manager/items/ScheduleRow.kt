@@ -16,7 +16,9 @@ import androidx.compose.material.icons.twotone.Cancel
 import androidx.compose.material.icons.twotone.Edit
 import androidx.compose.material.icons.twotone.AccessTime
 import androidx.compose.material.icons.twotone.History
+import androidx.compose.material.icons.twotone.PlayArrow
 import androidx.compose.material3.Card
+import androidx.compose.material3.Surface
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -50,6 +52,7 @@ internal fun ScheduleRow(
     schedule: Schedule,
     showCommands: Boolean,
     onEdit: () -> Unit,
+    onRunNow: () -> Unit = {},
     onToggle: () -> Unit,
     onRemove: () -> Unit,
     onToggleCorpseFinder: () -> Unit,
@@ -62,7 +65,7 @@ internal fun ScheduleRow(
     val now = Instant.now()
     val formatter = remember { DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT) }
     val days = schedule.repeatInterval.toDays().toInt()
-    val daysText = pluralStringResource(R.plurals.scheduler_schedule_repeat_x_days, days, days)
+    val daysText = if (schedule.runOnce) "Run once after ${schedule.initialDelayMinutes} minutes" else if (schedule.intervalMinutes != null) "Every ${schedule.intervalMinutes} minutes" else pluralStringResource(R.plurals.scheduler_schedule_repeat_x_days, days, days)
     val timeText = "%02d:%02d".format(schedule.hour, schedule.minute)
 
     val nextEtaText: String? = remember(
@@ -70,6 +73,10 @@ internal fun ScheduleRow(
         schedule.hour,
         schedule.minute,
         schedule.repeatInterval,
+        schedule.intervalMinutes,
+        schedule.initialDelayMinutes,
+        schedule.runOnce,
+        schedule.executedAt,
         schedule.userZone,
     ) {
         if (schedule.scheduledAt == null) return@remember null
@@ -85,24 +92,48 @@ internal fun ScheduleRow(
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.TwoTone.Alarm,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                )
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                ) {
+                    Icon(
+                        Icons.TwoTone.Alarm,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(10.dp).size(24.dp),
+                    )
+                }
                 Spacer(modifier = Modifier.width(8.dp))
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = schedule.label.ifBlank { stringResource(R.string.scheduler_schedule_default_name) },
                         style = MaterialTheme.typography.titleMedium,
                     )
                     Text(
-                        text = stringResource(R.string.scheduler_current_schedule_x_at_x, daysText, timeText),
+                        text = if (schedule.intervalMinutes != null) {
+                            if (schedule.runOnce) daysText else "$daysText · First run after ${schedule.initialDelayMinutes} min"
+                        } else stringResource(R.string.scheduler_current_schedule_x_at_x, daysText, timeText),
                         style = MaterialTheme.typography.titleSmall,
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = if (isEnabled) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                ) {
+                    Text(
+                        text = when {
+                            isEnabled -> "Enabled"
+                            schedule.runOnce && schedule.executedAt != null -> "Completed"
+                            else -> "Paused"
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                     )
                 }
             }
@@ -190,6 +221,15 @@ internal fun ScheduleRow(
             }
 
             Spacer(modifier = Modifier.padding(vertical = 4.dp))
+            OutlinedButton(
+                onClick = onRunNow,
+                enabled = schedule.useCorpseFinder || schedule.useSystemCleaner || schedule.useAppCleaner,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.TwoTone.PlayArrow, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Run now")
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

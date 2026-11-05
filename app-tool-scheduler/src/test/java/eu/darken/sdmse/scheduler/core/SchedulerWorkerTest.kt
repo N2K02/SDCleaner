@@ -153,6 +153,21 @@ class SchedulerWorkerTest : BaseTest() {
     }
 
     @Test
+    fun `manual cleanup records execution without rescheduling`() = runTest {
+        every { params.inputData } returns workDataOf(
+            SchedulerWorker.INPUT_SCHEDULE_ID to scheduleId,
+            SchedulerWorker.INPUT_MANUAL to true,
+        )
+        coEvery { schedulerManager.updateExecutedNow(scheduleId, manual = true) } returns mockk()
+
+        val result = createWorker().doWork()
+
+        result.shouldBeInstanceOf<ListenableWorker.Result.Success>()
+        coVerify(exactly = 1) { schedulerManager.updateExecutedNow(scheduleId, manual = true) }
+        coVerify(exactly = 0) { schedulerManager.reschedule(any()) }
+    }
+
+    @Test
     fun `cancellation does not re-arm the schedule`() = runTest {
         // e.g. the user disabled the schedule, which cancels the running worker
         coEvery { schedulerManager.updateExecutedNow(scheduleId) } throws CancellationException("cancelled")

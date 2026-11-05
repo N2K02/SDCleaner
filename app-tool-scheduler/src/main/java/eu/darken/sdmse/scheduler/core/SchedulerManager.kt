@@ -58,24 +58,32 @@ class SchedulerManager @Inject constructor(
             .catch { log(TAG, ERROR) { "Failed to save schedules: ${it.asLog()}" } }
             .launchIn(appScope)
 
-        // Check if the enabled state of any schedule changed
+        // Reconcile both enabled state AND timing changes. A changed interval must replace queued
+        // WorkManager requests; checking only isScheduled() leaves the old ETA in place.
         internalState.flow
             .withPrevious()
-            .filter { (oldState, newState) ->
-                if (oldState == null) return@filter true
-                val oldMap = oldState.schedules.associateBy { it.id }
-                val newMap = newState.schedules.associateBy { it.id }
-
-                for ((id, newItem) in newMap) {
-                    val oldItem = oldMap[id] ?: return@filter true
-                    if (oldItem.scheduledAt != newItem.scheduledAt) return@filter true
+            .onEach { (oldState, newState) ->
+                val oldById = oldState?.schedules?.associateBy { it.id }.orEmpty()
+                val newById = newState.schedules.associateBy { it.id }
+                oldById.values.filter { it.id !in newById }.forEach { it.cancel() }
+                newState.schedules.forEach { current ->
+                    val previous = oldById[current.id]
+                    when {
+                        previous == null -> current.checkSchedulingState()
+                        previous.scheduledAt != current.scheduledAt ||
+                            previous.intervalMinutes != current.intervalMinutes ||
+                            previous.runOnce != current.runOnce ||
+                            previous.initialDelayMinutes != current.initialDelayMinutes ||
+                            previous.repeatInterval != current.repeatInterval ||
+                            previous.hour != current.hour ||
+                            previous.minute != current.minute ||
+                            previous.userZone != current.userZone -> {
+                            current.cancel()
+                            if (current.isEnabled) current.schedule(reschedule = false)
+                        }
+                        else -> current.checkSchedulingState()
+                    }
                 }
-                return@filter false
-            }
-            .map { it.second }
-            .onEach { newState ->
-                log(TAG, INFO) { "Scheduler data changed, re-checking states." }
-                newState.schedules.forEach { it.checkSchedulingState() }
             }
             .launchIn(appScope)
 
@@ -117,9 +125,29 @@ class SchedulerManager @Inject constructor(
         if (isScheduled()) log(TAG, WARN) { "Failed to cancel $this" }
     }
 
+    /**
+     * A user-requested cleanup runs in its own unique work chain, without replacing the
+     * next automatic occurrence. KEEP prevents duplicate taps from starting extra cleanups.
+     */
+    suspend fun runNow(id: ScheduleId) {
+        val schedule = getSchedule(id) ?: return
+        val request = OneTimeWorkRequestBuilder<SchedulerWorker>()
+            .setInputData(workDataOf(
+                SchedulerWorker.INPUT_SCHEDULE_ID to schedule.id,
+                SchedulerWorker.INPUT_MANUAL to true,
+            ))
+            .build()
+        workManager.enqueueUniqueWork(
+            "worker-schedule-manual-$id",
+            ExistingWorkPolicy.KEEP,
+            request,
+        ).await()
+    }
+
     suspend fun reschedule(id: ScheduleId) {
         log(TAG, INFO) { "Rescheduling $id" }
-        getSchedule(id)!!.schedule(reschedule = true)
+        val schedule = getSchedule(id) ?: return
+        if (schedule.isEnabled && !schedule.runOnce) schedule.schedule(reschedule = true)
     }
 
     private suspend fun Schedule.schedule(reschedule: Boolean) {
@@ -233,7 +261,7 @@ class SchedulerManager @Inject constructor(
         copy(schedules = this.schedules.minus(target).toSet())
     }
 
-    suspend fun updateExecutedNow(id: ScheduleId) = internalState.updateBlocking {
+    suspend fun updateExecutedNow(id: ScheduleId, manual: Boolean = false) = internalState.updateBlocking {
         log(TAG) { "updateExecutedNow(): $id" }
         val target = this.schedules.singleOrNull { it.id == id }
         if (target == null) {
@@ -241,7 +269,7 @@ class SchedulerManager @Inject constructor(
             return@updateBlocking this
         }
 
-        val updatedTarget = target.copy(executedAt = Instant.now())
+        val updatedTarget = target.afterExecution(at = Instant.now(), manual = manual)
 
         copy(schedules = this.schedules.minus(target).plus(updatedTarget).toSet())
     }

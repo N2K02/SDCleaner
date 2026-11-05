@@ -27,7 +27,29 @@ if gh release view "$TAG" --repo "$TARGET" >/dev/null 2>&1; then
   echo "::error::Release tag already exists; refusing to overwrite an APK"
   exit 1
 fi
-gh release create "$TAG" "$APK" --repo "$TARGET" --target main --title "$APP $VERSION ($CHANNEL)" --notes-file release-notes.md --latest=false
+# GitHub sometimes responds with a transient HTTP 5xx during release creation.
+# Retry only retryable failures; do not blindly retry after an ambiguous success.
+for attempt in 1 2 3 4 5; do
+  if output=$(gh release create "$TAG" "$APK" --repo "$TARGET" --target main --title "$APP $VERSION ($CHANNEL)" --notes-file release-notes.md --latest=false 2>&1); then
+    printf '%s\n' "$output"
+    break
+  fi
+  if gh release view "$TAG" --repo "$TARGET" >/dev/null 2>&1; then
+    echo "::error::Release exists after a failed create response; refusing to overwrite or duplicate its APK." >&2
+    exit 1
+  fi
+  if ! grep -Eqi 'HTTP (429|5[0-9][0-9])|timed out|connection reset|EOF' <<<"$output"; then
+    printf '%s\n' "$output" >&2
+    exit 1
+  fi
+  if [[ "$attempt" -eq 5 ]]; then
+    printf '%s\n' "$output" >&2
+    echo "::error::Public release publishing failed after five transient-error attempts" >&2
+    exit 1
+  fi
+  echo "::warning::Transient GitHub publishing failure; retrying attempt $((attempt+1))/5"
+  sleep "$((attempt * 3))"
+done
 URL="https://github.com/$TARGET/releases/download/$TAG/$APK"
 NOTES=$( { grep '^- ' release-notes.md || true; } | head -10 | sed 's/^- //' | jq -R -s 'split("\n") | map(select(length > 0))')
 jq -n --arg channel "$CHANNEL" --arg tag "$TAG" --arg versionName "$VERSION_NAME" --arg apkName "$APK" --arg apkUrl "$URL" --arg pageUrl "https://github.com/$TARGET/releases/tag/$TAG" --arg sha256 "$SHA" --argjson versionCode "$VERSION_CODE" --argjson apkSize "$SIZE" --argjson notes "$NOTES" '{channel:$channel,tag:$tag,versionName:$versionName,versionCode:$versionCode,apkName:$apkName,apkUrl:$apkUrl,apkSize:$apkSize,sha256:$sha256,pageUrl:$pageUrl,notes:$notes}' > manifest.json

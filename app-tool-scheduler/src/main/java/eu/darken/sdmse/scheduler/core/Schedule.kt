@@ -22,6 +22,9 @@ data class Schedule(
     @SerialName("minute") val minute: Int = 0,
     @SerialName("label") val label: String = "",
     @SerialName("repeatInterval") val repeatInterval: Duration = Duration.ofDays(3),
+    @SerialName("intervalMinutes") val intervalMinutes: Long? = null,
+    @SerialName("initialDelayMinutes") val initialDelayMinutes: Long = 0,
+    @SerialName("runOnce") val runOnce: Boolean = false,
     @SerialName("userZone") val userZone: String? = null,
     @SerialName("corpsefinderEnabled") val useCorpseFinder: Boolean = false,
     @SerialName("systemcleanerEnabled") val useSystemCleaner: Boolean = false,
@@ -31,6 +34,12 @@ data class Schedule(
 ) {
     val isEnabled: Boolean
         get() = scheduledAt != null
+
+    /** A manual cleanup must not consume a pending one-time schedule. */
+    internal fun afterExecution(at: Instant, manual: Boolean): Schedule = copy(
+        executedAt = at,
+        scheduledAt = if (runOnce && !manual) null else scheduledAt,
+    )
 
     // A zero/negative/sub-day interval (possible via hand-edited backup restores) would make the
     // plusDays stepping in the calc functions below spin forever; the scheduler's real minimum is 1 day.
@@ -58,6 +67,7 @@ data class Schedule(
     internal fun calcFirstExecutionAt(
         zone: ZoneId = resolveZone()
     ): Instant? {
+        if (intervalMinutes != null) return scheduledAt?.plus(Duration.ofMinutes(initialDelayMinutes.coerceAtLeast(0)))
         val targetToday = calcTargetTime(zone) ?: return null
         val scheduledAtZoned = scheduledAt!!.atZone(zone)
         val intervalDays = intervalDaysSafe
@@ -78,6 +88,25 @@ data class Schedule(
         zone: ZoneId = resolveZone(),
     ): Duration? {
         if (scheduledAt == null) return null
+
+        if (intervalMinutes != null) {
+            if (runOnce) return Duration.between(now, scheduledAt.plus(Duration.ofMinutes(initialDelayMinutes.coerceAtLeast(1))))
+                .coerceAtLeast(Duration.ZERO)
+            val step = Duration.ofMinutes(intervalMinutes.coerceAtLeast(15))
+            val anchor = scheduledAt.plus(Duration.ofMinutes(initialDelayMinutes.coerceAtLeast(0)))
+            val first = if (anchor.isAfter(now)) anchor else {
+                val elapsed = Duration.between(anchor, now).toMillis()
+                // A just-enabled schedule with no initial delay must start immediately,
+                // not silently wait an entire interval because of scheduling overhead.
+                if (!reschedule && elapsed < 30_000L) anchor
+                else anchor.plus(step.multipliedBy(elapsed / step.toMillis() + 1))
+            }
+            // If a worker has just completed, don't trigger a catch-up run immediately.
+            val next = if (reschedule && Duration.between(now, first) < Duration.ofMinutes(3)) {
+                first.plus(step)
+            } else first
+            return Duration.between(now, next).coerceAtLeast(Duration.ZERO)
+        }
 
         val intervalDays = intervalDaysSafe
 

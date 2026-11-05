@@ -16,6 +16,7 @@ import eu.darken.sdmse.common.areas.DataAreaManager
 import eu.darken.sdmse.common.coroutine.DispatcherProvider
 import eu.darken.sdmse.common.datastore.DataStoreValue
 import eu.darken.sdmse.common.pkgs.toPkgId
+import eu.darken.sdmse.common.pkgs.PackageEventListener
 import eu.darken.sdmse.common.root.RootManager
 import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.longs.shouldBeGreaterThanOrEqual
@@ -60,6 +61,7 @@ class ShizukuSetupModuleTest : BaseTest() {
     private val packageManager: PackageManager = mockk()
     private val adbSettings: AdbSettings = mockk()
     private val shizukuManager: ShizukuManager = mockk()
+    private val packageEvents: PackageEventListener = mockk()
     private val dataAreaManager: DataAreaManager = mockk(relaxed = true)
     private val rootManager: RootManager = mockk()
 
@@ -98,6 +100,7 @@ class ShizukuSetupModuleTest : BaseTest() {
             DataStoreValue.Updated(old = old, new = new)
         }
 
+        every { packageEvents.events } returns emptyFlow()
         every { shizukuManager.adbLink } returns linkFlow
         every { shizukuManager.connectionChanges } returns connectionChanges
         every { shizukuManager.permissionChanges } returns emptyFlow()
@@ -120,6 +123,7 @@ class ShizukuSetupModuleTest : BaseTest() {
         coEvery { shizukuManager.activeManagerIds(any()) } returns setOf(shizukuPkg)
         coEvery { shizukuManager.priorityBlockedManagerId(any()) } returns null
         coEvery { shizukuManager.activeBackend() } returns AdbBackend.SHIZUKU
+        coEvery { shizukuManager.isInstalled() } returns true
         coEvery { shizukuManager.isGranted() } returns true
         coEvery { shizukuManager.requestPermission() } returns AdbPermission.GRANTED
         coEvery { shizukuManager.getServiceState() } coAnswers { probeCount++; ShizukuServiceState.Available }
@@ -142,6 +146,7 @@ class ShizukuSetupModuleTest : BaseTest() {
         adbSettings,
         shizukuManager,
         dataAreaManager,
+        packageEvents,
         rootManager,
     )
 
@@ -300,6 +305,79 @@ class ShizukuSetupModuleTest : BaseTest() {
         resultWith(ShizukuServiceState.Failed).ourService shouldBe false
     }
 
+    @Test fun `absent manager never probes even when an old opt-in exists`() = runTest {
+        useShizukuFlow.value = true
+        coEvery { shizukuManager.availability() } returns AdbAvailability.NotInstalled
+        coEvery { shizukuManager.getManagerId(any()) } returns null
+        val results = mutableListOf<ShizukuSetupModule.Result>()
+        val mod = module(moduleScope = backgroundScope)
+        backgroundScope.launch { mod.state.filterIsInstance<ShizukuSetupModule.Result>().collect { results += it } }
+        runCurrent()
+
+        results.last().isInstalled shouldBe false
+        results.last().isComplete shouldBe true
+        results.last().isChecking shouldBe false
+        useShizukuFlow.value shouldBe true
+        coVerify(exactly = 0) { shizukuManager.getServiceState() }
+        coVerify(exactly = 0) { shizukuManager.requestPermission() }
+    }
+
+    @Test fun `a stale configure action cannot enable a removed manager`() = runTest {
+        useShizukuFlow.value = null
+        coEvery { shizukuManager.isInstalled() } returns false
+        val mod = module(moduleScope = backgroundScope)
+        mod.toggleUseShizuku(true)
+        mod.grantAccess()
+
+        useShizukuFlow.value shouldBe null
+        coVerify(exactly = 0) { useShizukuValue.update(any()) }
+        coVerify(exactly = 0) { shizukuManager.requestPermission() }
+        coVerify(exactly = 0) { shizukuManager.getServiceState() }
+    }
+
+    @Test fun `ignoring a detected manager records the choice without requesting access`() = runTest {
+        useShizukuFlow.value = null
+        val mod = module(moduleScope = backgroundScope)
+        mod.toggleUseShizuku(false)
+
+        useShizukuFlow.value shouldBe false
+        coVerify(exactly = 0) { shizukuManager.requestPermission() }
+        coVerify(exactly = 0) { shizukuManager.getServiceState() }
+    }
+
+    @Test fun `package events refresh the optional offer without opting in`() = runTest {
+        val changes = MutableSharedFlow<PackageEventListener.Event>()
+        every { packageEvents.events } returns changes
+        useShizukuFlow.value = null
+        var installed = false
+        coEvery { shizukuManager.availability() } answers {
+            if (installed) AdbAvailability.Installed(AdbBackend.SHIZUKU, shizukuPkg.name, connected = false)
+            else AdbAvailability.NotInstalled
+        }
+        coEvery { shizukuManager.getManagerId(any()) } answers { if (installed) shizukuPkg else null }
+        val results = mutableListOf<ShizukuSetupModule.Result>()
+        val mod = module(moduleScope = backgroundScope)
+        backgroundScope.launch { mod.state.filterIsInstance<ShizukuSetupModule.Result>().collect { results += it } }
+        runCurrent()
+        results.last().isInstalled shouldBe false
+        results.last().isComplete shouldBe true
+
+        installed = true
+        changes.emit(PackageEventListener.Event.PackageInstalled(shizukuPkg))
+        runCurrent()
+        results.last().isInstalled shouldBe true
+        results.last().useShizuku shouldBe null
+        results.last().isComplete shouldBe false
+
+        installed = false
+        changes.emit(PackageEventListener.Event.PackageRemoved(shizukuPkg))
+        runCurrent()
+        results.last().isInstalled shouldBe false
+        results.last().isComplete shouldBe true
+        coVerify(exactly = 0) { shizukuManager.getServiceState() }
+        coVerify(exactly = 0) { shizukuManager.requestPermission() }
+    }
+
     @Test fun `isComplete truth table across every service outcome`() {
         fun complete(
             useShizuku: Boolean?,
@@ -325,8 +403,10 @@ class ShizukuSetupModuleTest : BaseTest() {
         complete(true, state = ShizukuServiceState.Unknown) shouldBe false
         complete(true, state = ShizukuServiceState.NotChecked) shouldBe false
 
-        // Wants Shizuku but it isn't installed stays incomplete, even when nothing failed.
-        complete(true, isInstalled = false, state = ShizukuServiceState.Available) shouldBe false
+        // Absence is settled for every saved choice, without changing that choice.
+        complete(true, isInstalled = false) shouldBe true
+        complete(false, isInstalled = false) shouldBe true
+        complete(null, isInstalled = false) shouldBe true
 
         // An incompatible manager keeps the card up, it needs an update on one side.
         complete(true, managerTooOld = true, state = ShizukuServiceState.Unknown) shouldBe false

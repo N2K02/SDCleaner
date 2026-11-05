@@ -1,10 +1,14 @@
 package eu.darken.sdmse.scheduler.ui.manager.create
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
@@ -15,9 +19,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.twotone.ArrowBack
 import androidx.compose.material.icons.twotone.AccessTime
 import androidx.compose.material.icons.twotone.Add
 import androidx.compose.material.icons.twotone.Remove
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
@@ -32,6 +43,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
@@ -43,6 +56,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.darken.sdmse.common.R as CommonR
+import eu.darken.sdmse.common.compose.layout.SdmScaffold
+import eu.darken.sdmse.common.compose.layout.SdmBrandTopAppBar
 import eu.darken.sdmse.common.compose.preview.Preview2
 import eu.darken.sdmse.common.compose.preview.PreviewWrapper
 import eu.darken.sdmse.common.error.ErrorEventHandler
@@ -62,15 +77,38 @@ fun ScheduleItemSheetHost(
 
     LaunchedEffect(scheduleId) { vm.setScheduleId(scheduleId) }
 
-    ScheduleItemSheet(
-        stateSource = vm.state,
-        onLabelChanged = vm::updateLabel,
-        onTimePicked = vm::updateTime,
-        onIncreaseDays = vm::increaseDays,
-        onDecreaseDays = vm::decreaseDays,
-        onRepeatDaysChanged = vm::setRepeatDays,
-        onSave = vm::saveSchedule,
-    )
+    SdmScaffold(
+        topBar = {
+            SdmBrandTopAppBar(
+                title = { Text("Scheduler") },
+                navigationIcon = {
+                    IconButton(onClick = vm::navUp) {
+                        Icon(Icons.AutoMirrored.TwoTone.ArrowBack, contentDescription = "Back")
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding)) {
+            ScheduleItemSheet(
+                stateSource = vm.state,
+                onLabelChanged = vm::updateLabel,
+                onTimePicked = vm::updateTime,
+                onIncreaseDays = vm::increaseDays,
+                onDecreaseDays = vm::decreaseDays,
+                onRepeatDaysChanged = vm::setRepeatDays,
+                onIntervalModeChanged = vm::setIntervalMode,
+                onRunOnceModeSelected = vm::setRunOnceMode,
+                onIntervalMinutesChanged = vm::setIntervalMinutes,
+                onInitialDelayChanged = vm::setInitialDelayMinutes,
+                onEnabledChanged = vm::setEnabled,
+                onAppCleanerChanged = vm::setAppCleanerEnabled,
+                onSystemCleanerChanged = vm::setSystemCleanerEnabled,
+                onCorpseFinderChanged = vm::setCorpseFinderEnabled,
+                onSave = vm::saveSchedule,
+            )
+        }
+    }
 }
 
 @Composable
@@ -81,6 +119,14 @@ internal fun ScheduleItemSheet(
     onIncreaseDays: () -> Unit = {},
     onDecreaseDays: () -> Unit = {},
     onRepeatDaysChanged: (Int) -> Unit = {},
+    onIntervalModeChanged: (Boolean) -> Unit = {},
+    onRunOnceModeSelected: () -> Unit = {},
+    onIntervalMinutesChanged: (Long) -> Unit = {},
+    onInitialDelayChanged: (Long) -> Unit = {},
+    onEnabledChanged: (Boolean) -> Unit = {},
+    onAppCleanerChanged: (Boolean) -> Unit = {},
+    onSystemCleanerChanged: (Boolean) -> Unit = {},
+    onCorpseFinderChanged: (Boolean) -> Unit = {},
     onSave: () -> Unit = {},
 ) {
     val state by stateSource.collectAsStateWithLifecycle(initialValue = ScheduleItemViewModel.State())
@@ -122,10 +168,52 @@ internal fun ScheduleItemSheet(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp)
             .navigationBarsPadding()
             .imePadding(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        Spacer(Modifier.height(4.dp))
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.primaryContainer,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(
+                Modifier.background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.primaryContainer,
+                            MaterialTheme.colorScheme.secondaryContainer,
+                        ),
+                    ),
+                ).padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(Icons.TwoTone.AccessTime, contentDescription = null, modifier = Modifier.size(36.dp))
+                Text("Cleaning Scheduler", style = MaterialTheme.typography.headlineSmall)
+                Text(
+                    "Automatically clean your device on your schedule",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.TwoTone.AccessTime, contentDescription = null)
+                Spacer(Modifier.width(12.dp))
+                Text("Enable scheduler", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                Switch(checked = state.isEnabled, onCheckedChange = onEnabledChanged)
+            }
+        }
         OutlinedTextField(
             value = state.label.orEmpty(),
             onValueChange = onLabelChanged,
@@ -133,8 +221,183 @@ internal fun ScheduleItemSheet(
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
             modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
         )
-
+        Text("What to clean", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+        Card(
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                listOf(
+                    Triple("App cache", state.useAppCleaner, onAppCleanerChanged),
+                    Triple("Temporary & system files", state.useSystemCleaner, onSystemCleanerChanged),
+                    Triple("Obsolete files", state.useCorpseFinder, onCorpseFinderChanged),
+                ).forEach { (title, checked, onChange) ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                        Switch(checked = checked, onCheckedChange = onChange)
+                    }
+                }
+            }
+        }
+        if (state.isEnabled && !state.useAppCleaner && !state.useSystemCleaner && !state.useCorpseFinder) {
+            Text(
+                "Select at least one cleaning tool before enabling the scheduler.",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+        Text("Run mode", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+        Card(
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                FilterChip(
+                    selected = state.runOnce,
+                    onClick = onRunOnceModeSelected,
+                    label = { Text("After X minutes", maxLines = 2) },
+                    modifier = Modifier.weight(1f),
+                )
+                FilterChip(
+                    selected = state.intervalMinutes != null && !state.runOnce,
+                    onClick = { onIntervalModeChanged(true) },
+                    label = { Text("Repeat every X minutes", maxLines = 2) },
+                    modifier = Modifier.weight(1f),
+                )
+                FilterChip(
+                    selected = state.intervalMinutes == null,
+                    onClick = { onIntervalModeChanged(false) },
+                    label = { Text("At specific time", maxLines = 2) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+        val intervalMinutes = state.intervalMinutes
+        // Keep partially entered numbers in the text field; avoid clamping the first digit.
+        var intervalText by remember { mutableStateOf(intervalMinutes?.toString().orEmpty()) }
+        LaunchedEffect(intervalMinutes) {
+            intervalText = intervalMinutes?.toString().orEmpty()
+        }
+        var delayText by remember { mutableStateOf(state.initialDelayMinutes.toString()) }
+        LaunchedEffect(state.initialDelayMinutes) {
+            delayText = state.initialDelayMinutes.toString()
+        }
+        if (intervalMinutes != null) {
+            Card(
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (!state.runOnce) {
+                        Text("Repeat interval", style = MaterialTheme.typography.titleMedium)
+                        Text("Run cleaning repeatedly at a fixed interval.", style = MaterialTheme.typography.bodySmall)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { onIntervalMinutesChanged(intervalMinutes - 15) }) {
+                                Icon(Icons.TwoTone.Remove, contentDescription = "Decrease interval")
+                            }
+                            OutlinedTextField(
+                                value = intervalText,
+                                onValueChange = { input ->
+                                    if (input.matches(MINUTE_INPUT_REGEX)) {
+                                        intervalText = input
+                                        input.toLongOrNull()?.takeIf { it in 15L..43_200L }
+                                            ?.let(onIntervalMinutesChanged)
+                                    }
+                                },
+                                label = { Text("Every (minutes)") },
+                                singleLine = true,
+                                supportingText = { Text("Minimum 15 minutes") },
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Number,
+                                    imeAction = ImeAction.Done,
+                                ),
+                                keyboardActions = KeyboardActions(
+                                    onDone = { intervalText = intervalMinutes.toString() },
+                                ),
+                                textStyle = MaterialTheme.typography.titleLarge.copy(textAlign = TextAlign.Center),
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(14.dp),
+                            )
+                            IconButton(onClick = { onIntervalMinutesChanged(intervalMinutes + 15) }) {
+                                Icon(Icons.TwoTone.Add, contentDescription = "Increase interval")
+                            }
+                        }
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            listOf(15L, 30L, 60L, 120L).forEach { minutes ->
+                                FilterChip(
+                                    selected = intervalMinutes == minutes,
+                                    onClick = { onIntervalMinutesChanged(minutes) },
+                                    label = { Text("$minutes min", maxLines = 1) },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                        }
+                        HorizontalDivider()
+                    }
+                    if (!state.runOnce) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Start after (optional)", style = MaterialTheme.typography.titleMedium)
+                                Text("Wait before the first run.", style = MaterialTheme.typography.bodySmall)
+                            }
+                            Switch(
+                                checked = state.initialDelayMinutes > 0,
+                                onCheckedChange = { onInitialDelayChanged(if (it) 5L else 0L) },
+                            )
+                        }
+                    } else {
+                        Text("Run once after", style = MaterialTheme.typography.titleMedium)
+                        Text("Run cleaning once and then disable this schedule.", style = MaterialTheme.typography.bodySmall)
+                    }
+                    if (state.runOnce || state.initialDelayMinutes > 0) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { onInitialDelayChanged(state.initialDelayMinutes - 1) }) {
+                                Icon(Icons.TwoTone.Remove, contentDescription = "Decrease initial delay")
+                            }
+                            OutlinedTextField(
+                                value = delayText,
+                                onValueChange = { input ->
+                                    if (input.matches(MINUTE_INPUT_REGEX)) {
+                                        delayText = input
+                                        val minimum = if (state.runOnce) 1L else 0L
+                                        input.toLongOrNull()?.takeIf { it in minimum..43_200L }
+                                            ?.let(onInitialDelayChanged)
+                                    }
+                                },
+                                label = { Text("After (minutes)") },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Number,
+                                    imeAction = ImeAction.Done,
+                                ),
+                                keyboardActions = KeyboardActions(
+                                    onDone = { delayText = state.initialDelayMinutes.toString() },
+                                ),
+                                textStyle = MaterialTheme.typography.titleLarge.copy(textAlign = TextAlign.Center),
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(14.dp),
+                            )
+                            IconButton(onClick = { onInitialDelayChanged(state.initialDelayMinutes + 1) }) {
+                                Icon(Icons.TwoTone.Add, contentDescription = "Increase initial delay")
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
         Spacer(modifier = Modifier.height(8.dp))
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -214,14 +477,29 @@ internal fun ScheduleItemSheet(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-        Row(
+        }
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+            shape = RoundedCornerShape(16.dp),
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
         ) {
-            Button(onClick = onSave, enabled = state.canSave) {
-                Text(stringResource(CommonR.string.general_save_action))
-            }
+            Text(
+                text = when {
+                    state.runOnce -> "Cleaning will run once after ${state.initialDelayMinutes} minutes."
+                    intervalMinutes != null -> "Cleaning will ${if (state.initialDelayMinutes > 0) "start after ${state.initialDelayMinutes} minutes and then " else ""}repeat every $intervalMinutes minutes."
+                    else -> "Cleaning will run at the selected time and repeat every ${state.repeatInterval.toDays()} days."
+                } + " Android battery restrictions may delay background execution.",
+                modifier = Modifier.padding(14.dp),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+        Button(
+            onClick = onSave,
+            enabled = state.canSave && areMinuteFieldsValid(state, intervalText, delayText),
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            shape = RoundedCornerShape(28.dp),
+        ) {
+            Text(stringResource(CommonR.string.general_save_action), style = MaterialTheme.typography.titleMedium)
         }
         Spacer(modifier = Modifier.height(8.dp))
     }
@@ -239,6 +517,22 @@ internal fun ScheduleItemSheet(
     }
 }
 
+/** Invalid or partially typed minute values must not silently save the previous valid value. */
+internal fun areMinuteFieldsValid(
+    state: ScheduleItemViewModel.State,
+    intervalText: String,
+    delayText: String,
+): Boolean = when {
+    state.intervalMinutes == null -> true
+    state.runOnce -> delayText.toLongOrNull()?.let { it in 1L..43_200L } == true
+    else -> {
+        val intervalValid = intervalText.toLongOrNull()?.let { it in 15L..43_200L } == true
+        val delayValid = state.initialDelayMinutes == 0L ||
+            delayText.toLongOrNull()?.let { it in 1L..43_200L } == true
+        intervalValid && delayValid
+    }
+}
+
 private fun formatTime(hour: Int?, minute: Int?): String {
     if (hour == null || minute == null) return ""
     return "%02d:%02d".format(hour, minute)
@@ -246,6 +540,7 @@ private fun formatTime(hour: Int?, minute: Int?): String {
 
 private val TIME_INPUT_REGEX = Regex("^(\\d{1,2}):(\\d{2})$")
 private val DAYS_INPUT_REGEX = Regex("^\\d{1,2}$")
+private val MINUTE_INPUT_REGEX = Regex("^\\d{0,5}$")
 
 private fun parseTime(text: String): Pair<Int, Int>? {
     val match = TIME_INPUT_REGEX.matchEntire(text.trim()) ?: return null

@@ -139,7 +139,6 @@ class AppCleaner @Inject constructor(
             isRunningAppsDetectionAvailable = usageState.isComplete || useRoot || useAdb,
             isOtherUsersAvailable = useRoot,
             isInaccessibleCacheAvailable = usageState.isComplete || useRoot || useAdb,
-            isAcsRequired = false
         )
     }.replayingShare(appScope)
 
@@ -582,7 +581,7 @@ class AppCleaner @Inject constructor(
         val isOtherUsersAvailable: Boolean,
         val isRunningAppsDetectionAvailable: Boolean,
         val isInaccessibleCacheAvailable: Boolean,
-        val isAcsRequired: Boolean,
+
     ) : SDMTool.State
 
     data class Data(

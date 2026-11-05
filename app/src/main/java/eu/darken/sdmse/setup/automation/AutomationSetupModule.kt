@@ -188,7 +188,6 @@ class AutomationSetupModule @Inject constructor(
 
     @Module @InstallIn(SingletonComponent::class)
     abstract class DIM {
-        @Binds @IntoSet abstract fun mod(mod: AutomationSetupModule): SetupModule
         @Binds @SetupBinding(SetupModule.Type.AUTOMATION) abstract fun named(mod: AutomationSetupModule): SetupModule
     }
 

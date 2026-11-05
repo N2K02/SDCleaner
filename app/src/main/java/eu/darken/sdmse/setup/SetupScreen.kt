@@ -62,16 +62,12 @@ import eu.darken.sdmse.common.error.ErrorEventHandler
 import eu.darken.sdmse.common.navigation.NavigationEventHandler
 import eu.darken.sdmse.common.permissions.Permission
 import eu.darken.sdmse.common.compose.tour.LocalGuidedTourController
-import eu.darken.sdmse.setup.automation.AutomationSetupCard
-import eu.darken.sdmse.setup.automation.AutomationSetupCardItem
 import eu.darken.sdmse.setup.inventory.InventorySetupCard
 import eu.darken.sdmse.setup.inventory.InventorySetupCardItem
 import eu.darken.sdmse.setup.notification.NotificationSetupCard
 import eu.darken.sdmse.setup.notification.NotificationSetupCardItem
 import eu.darken.sdmse.setup.saf.SAFSetupCard
 import eu.darken.sdmse.setup.saf.SAFSetupCardItem
-import eu.darken.sdmse.setup.shizuku.ShizukuSetupCard
-import eu.darken.sdmse.setup.shizuku.ShizukuSetupCardItem
 import eu.darken.sdmse.setup.storage.StorageSetupCard
 import eu.darken.sdmse.setup.storage.StorageSetupCardItem
 import eu.darken.sdmse.setup.tour.SetupTour
@@ -436,10 +432,8 @@ private fun SetupCardDispatch(
         is SetupLoadingCardItem -> SetupLoadingCard(item, modifier)
         is SAFSetupCardItem -> SAFSetupCard(item, modifier)
         is StorageSetupCardItem -> StorageSetupCard(item, modifier)
-        is ShizukuSetupCardItem -> ShizukuSetupCard(item, modifier)
         is NotificationSetupCardItem -> NotificationSetupCard(item, modifier)
         is UsageStatsSetupCardItem -> UsageStatsSetupCard(item, modifier)
-        is AutomationSetupCardItem -> AutomationSetupCard(item, modifier)
         is InventorySetupCardItem -> InventorySetupCard(item, modifier)
         else -> {
             // Loud in debug so a newly-added SetupCardItem without a branch is caught immediately;

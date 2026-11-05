@@ -259,7 +259,6 @@ internal fun AppCleanerSettingsScreen(
                     onClick = { showAgeDialog = true },
                 )
             }
-            if (state.isAcsRequired) {
                 item {
                     SettingsBadgedSwitchItem(
                         icon = Icons.TwoTone.FolderOff,
@@ -282,7 +281,6 @@ internal fun AppCleanerSettingsScreen(
                         gate = if (state.isInaccessibleCacheAvailable) null else SettingGate.SetupRequired,
                     )
                 }
-            }
 
             item { SettingsCategoryHeader(text = stringResource(CommonR.string.settings_category_filter_generic)) }
             item {

@@ -267,38 +267,44 @@ private fun CleanerToolTile(item: ToolDashboardCardItem, modifier: Modifier = Mo
         else -> return
     }
     Card(
-        modifier = modifier.height(202.dp),
-        shape = RoundedCornerShape(20.dp),
+        modifier = modifier.height(154.dp),
+        shape = RoundedCornerShape(18.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f)),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
         Column(
-            Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 9.dp),
+            horizontalAlignment = Alignment.Start,
             verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.primaryContainer,
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Icon(
-                    icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(7.dp).size(25.dp),
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                ) {
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(6.dp).size(20.dp),
+                    )
+                }
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
                 )
             }
-            Text(
-                title,
-                style = MaterialTheme.typography.titleSmall,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-            )
             Text(
                 description,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -309,7 +315,7 @@ private fun CleanerToolTile(item: ToolDashboardCardItem, modifier: Modifier = Mo
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                     OutlinedButton(
                         onClick = item.onCancel,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp),
                     ) {
                         Icon(Icons.Rounded.Close, null, Modifier.size(16.dp))
@@ -320,21 +326,21 @@ private fun CleanerToolTile(item: ToolDashboardCardItem, modifier: Modifier = Mo
                 CleanerTileAction.REVIEW_AND_CLEAN -> {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Button(
                             onClick = item.onViewDetails,
                             modifier = Modifier.weight(1f).heightIn(min = 42.dp),
-                            contentPadding = PaddingValues(horizontal = 5.dp),
-                            shape = RoundedCornerShape(13.dp),
+                            contentPadding = PaddingValues(horizontal = 3.dp),
+                            shape = RoundedCornerShape(12.dp),
                         ) {
                             Text("Review", style = MaterialTheme.typography.labelMedium)
                         }
                         OutlinedButton(
                             onClick = { item.onDelete?.invoke() },
                             modifier = Modifier.weight(1f).heightIn(min = 42.dp),
-                            contentPadding = PaddingValues(horizontal = 5.dp),
-                            shape = RoundedCornerShape(13.dp),
+                            contentPadding = PaddingValues(horizontal = 3.dp),
+                            shape = RoundedCornerShape(12.dp),
                         ) {
                             Text("Clean", style = MaterialTheme.typography.labelMedium)
                         }
@@ -345,7 +351,7 @@ private fun CleanerToolTile(item: ToolDashboardCardItem, modifier: Modifier = Mo
                         onClick = item.onScan,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp),
-                        shape = RoundedCornerShape(13.dp),
+                        shape = RoundedCornerShape(12.dp),
                     ) {
                         Icon(Icons.Rounded.Search, null, Modifier.size(17.dp))
                         Spacer(Modifier.width(6.dp))

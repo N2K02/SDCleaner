@@ -220,6 +220,24 @@ private fun DeviceStorageCard(
     }
 }
 
+/**
+ * One explicit tap target per action; do not trigger cleanup by tapping a card.
+ * When results exist, Review remains the primary path and Clean uses the existing
+ * tool callback (including its own confirmation flow).
+ */
+internal enum class CleanerTileAction { INITIALIZING, CANCEL, REVIEW_AND_CLEAN, SCAN }
+
+internal fun cleanerTileAction(
+    initializing: Boolean,
+    scanning: Boolean,
+    canClean: Boolean,
+): CleanerTileAction = when {
+    scanning -> CleanerTileAction.CANCEL
+    initializing -> CleanerTileAction.INITIALIZING
+    canClean -> CleanerTileAction.REVIEW_AND_CLEAN
+    else -> CleanerTileAction.SCAN
+}
+
 @Composable
 private fun CleanerToolTile(item: ToolDashboardCardItem, modifier: Modifier = Modifier) {
     val title: String
@@ -249,15 +267,7 @@ private fun CleanerToolTile(item: ToolDashboardCardItem, modifier: Modifier = Mo
         else -> return
     }
     Card(
-        onClick = {
-            when {
-                item.progress != null -> item.onCancel()
-                item.onDelete != null -> item.onViewDetails()
-                else -> item.onScan()
-            }
-        },
-        enabled = !item.isInitializing,
-        modifier = modifier.height(184.dp),
+        modifier = modifier.height(202.dp),
         shape = RoundedCornerShape(20.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f)),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
@@ -293,28 +303,53 @@ private fun CleanerToolTile(item: ToolDashboardCardItem, modifier: Modifier = Mo
                 overflow = TextOverflow.Ellipsis,
             )
             Spacer(Modifier.weight(1f))
-            if (item.progress != null || item.isInitializing) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            } else {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                ) {
-                    Text(
-                        if (item.onDelete != null) "Review" else "Scan",
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.labelMedium,
-                    )
-                    Icon(Icons.Rounded.ChevronRight, null, Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.primary)
-                    if (item.onDelete != null) {
-                        Spacer(Modifier.width(5.dp))
-                        TextButton(
-                            onClick = { item.onDelete.invoke() },
+            when (cleanerTileAction(item.isInitializing, item.progress != null, item.onDelete != null)) {
+                CleanerTileAction.INITIALIZING -> LinearProgressIndicator(Modifier.fillMaxWidth())
+                CleanerTileAction.CANCEL -> {
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    OutlinedButton(
+                        onClick = item.onCancel,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                    ) {
+                        Icon(Icons.Rounded.Close, null, Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Cancel", style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+                CleanerTileAction.REVIEW_AND_CLEAN -> {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Button(
+                            onClick = item.onViewDetails,
+                            modifier = Modifier.weight(1f).heightIn(min = 42.dp),
                             contentPadding = PaddingValues(horizontal = 5.dp),
+                            shape = RoundedCornerShape(13.dp),
+                        ) {
+                            Text("Review", style = MaterialTheme.typography.labelMedium)
+                        }
+                        OutlinedButton(
+                            onClick = { item.onDelete?.invoke() },
+                            modifier = Modifier.weight(1f).heightIn(min = 42.dp),
+                            contentPadding = PaddingValues(horizontal = 5.dp),
+                            shape = RoundedCornerShape(13.dp),
                         ) {
                             Text("Clean", style = MaterialTheme.typography.labelMedium)
                         }
+                    }
+                }
+                CleanerTileAction.SCAN -> {
+                    Button(
+                        onClick = item.onScan,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                        shape = RoundedCornerShape(13.dp),
+                    ) {
+                        Icon(Icons.Rounded.Search, null, Modifier.size(17.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Scan", style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }

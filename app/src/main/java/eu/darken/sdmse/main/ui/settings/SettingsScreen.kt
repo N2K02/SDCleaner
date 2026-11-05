@@ -22,7 +22,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.n2k02.updater.*
 import eu.darken.sdmse.cleaner.CleanerUpdater
-import eu.darken.sdmse.common.BuildConfigWrap
+import androidx.compose.ui.platform.LocalContext
 import eu.darken.sdmse.common.compose.layout.SdmBrandTopAppBar
 import eu.darken.sdmse.common.compose.settings.SettingsPreferenceItem
 import eu.darken.sdmse.common.navigation.LocalNavigationController
@@ -112,10 +112,6 @@ fun SettingsScreenHost() {
         }
         CompactSettingsLink("Backup & restore", "Save or restore configuration", Icons.Rounded.SettingsBackupRestore) {
             nav.goTo(BackupRestoreRoute)
-        }
-        HorizontalDivider(Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
-        CompactSettingsLink("Diagnostics", "App and device information", Icons.Rounded.BugReport) {
-            nav.goTo(CleanerSettingsRoute("diagnostics"))
         }
     }
 }
@@ -326,16 +322,52 @@ private fun CompactSettingsLink(
     }
 }
 
+internal fun cleanerSettingsTitle(section: String): String? = when (section) {
+    "appearance" -> "Appearance"
+    "tools" -> "Cleaning tools"
+    "updates" -> "Updates"
+    "about" -> "About"
+    else -> null
+}
+
+/** Display the version actually installed on the device, not upstream BuildConfigWrap metadata. */
+internal fun formatInstalledVersion(versionName: String?, versionCode: Long): String {
+    val name = versionName?.trim()?.takeIf { it.isNotEmpty() } ?: "Unknown"
+    return "Version $name ($versionCode)"
+}
+
+@Suppress("DEPRECATION")
+@Composable
+private fun InstalledAppAbout() {
+    val context = LocalContext.current
+    val version = remember(context) {
+        runCatching {
+            val installed = context.packageManager.getPackageInfo(context.packageName, 0)
+            val code = if (android.os.Build.VERSION.SDK_INT >= 28) {
+                installed.longVersionCode
+            } else {
+                installed.versionCode.toLong()
+            }
+            formatInstalledVersion(installed.versionName, code)
+        }.getOrElse { "Version unavailable" }
+    }
+    ListItem(headlineContent = { Text("SDCleaner") }, supportingContent = { Text(version) })
+    ListItem(
+        headlineContent = { Text("Android ${android.os.Build.VERSION.RELEASE}") },
+        supportingContent = { Text("${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}") },
+    )
+}
+
 @Composable
 fun CleanerSettingsScreenHost(section: String) {
-    val nav = requireNotNull(LocalNavigationController.current)
-    val title = when (section) {
-        "appearance" -> "Appearance"
-        "tools" -> "Cleaning tools"
-        "updates" -> "Updates"
-        "about" -> "About"
-        else -> "Diagnostics"
+    val title = cleanerSettingsTitle(section)
+    // Saved back stacks from older builds may still contain "diagnostics".
+    // Navigate those users to real Settings rather than recreating a removed page.
+    if (title == null) {
+        SettingsScreenHost()
+        return
     }
+    val nav = requireNotNull(LocalNavigationController.current)
     SettingsPage(title) {
         when (section) {
             "updates" -> {
@@ -351,15 +383,7 @@ fun CleanerSettingsScreenHost(section: String) {
                 SettingsPreferenceItem(title = "Duplicate files", subtitle = "Find redundant copies for review", icon = Icons.Rounded.ContentCopy, onClick = { nav.goTo(DeduplicatorSettingsRoute) })
             }
             "appearance" -> AppearanceSettings()
-            "about" -> {
-                ListItem(headlineContent = { Text("SDCleaner") }, supportingContent = { Text(BuildConfigWrap.VERSION_DESCRIPTION) })
-                ListItem(headlineContent = { Text("Android ${android.os.Build.VERSION.RELEASE}") }, supportingContent = { Text("${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}") })
-            }
-            else -> {
-                ListItem(headlineContent = { Text("SDCleaner") }, supportingContent = { Text(BuildConfigWrap.VERSION_DESCRIPTION) })
-                ListItem(headlineContent = { Text("Android ${android.os.Build.VERSION.RELEASE}") }, supportingContent = { Text("${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}") })
-                Text("Cleaning results depend on the access granted in Permissions & setup. Review scan results before deleting files.", Modifier.padding(24.dp))
-            }
+            "about" -> InstalledAppAbout()
         }
     }
 }
@@ -385,7 +409,7 @@ private fun SettingsHeader(title: String, root: Boolean = false) {
                 "Cleaning tools" -> Icons.Rounded.CleaningServices
                 "Updates" -> Icons.Rounded.SystemUpdate
                 "About" -> Icons.Rounded.Info
-                else -> Icons.Rounded.BugReport
+                else -> Icons.Rounded.Settings
             }, "Back")
         }
     })

@@ -47,8 +47,6 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 fun SettingsScreenHost() {
     val nav = requireNotNull(LocalNavigationController.current)
     val status by CleanerUpdater.controller.status.collectAsState()
-    val schedulerVm: SchedulerManagerViewModel = hiltViewModel()
-    val schedulerState by schedulerVm.state.collectAsStateWithLifecycle()
     val quickVm: CleaningQuickSettingsViewModel = hiltViewModel()
     val quickState by quickVm.state.collectAsStateWithLifecycle()
 
@@ -70,10 +68,9 @@ fun SettingsScreenHost() {
             quickState.emptyFolders, quickVm::setEmptyFoldersEnabled, onClick = { nav.goTo(SystemCleanerSettingsRoute) })
 
         Spacer(Modifier.height(6.dp))
-        SchedulerOverviewCard(
-            schedules = schedulerState.schedules,
-            onClick = { nav.goTo(SchedulerManagerRoute) },
-        )
+        CompactSettingsLink("Scheduler", "Schedules, next run, history and results", Icons.Rounded.EventRepeat) {
+            nav.goTo(SchedulerManagerRoute)
+        }
         CompactSettingsLink("Cleaning rules", "Customize what to clean", Icons.Rounded.Tune) {
             nav.goTo(CleanerSettingsRoute("tools"))
         }

@@ -29,6 +29,8 @@ import eu.darken.sdmse.main.core.taskmanager.SchedulerAppCleanerAdvisor
 import eu.darken.sdmse.scheduler.R
 import eu.darken.sdmse.scheduler.core.Schedule
 import eu.darken.sdmse.scheduler.core.ScheduleId
+import eu.darken.sdmse.scheduler.core.SchedulerDailyRun
+import eu.darken.sdmse.scheduler.core.SchedulerRunHistory
 import eu.darken.sdmse.scheduler.core.SchedulerManager
 import eu.darken.sdmse.scheduler.core.SchedulerSettings
 import eu.darken.sdmse.scheduler.ui.ScheduleItemRoute
@@ -64,6 +66,7 @@ class SchedulerManagerViewModel @Inject constructor(
     private val batteryHelper: BatteryHelper,
     private val webpageTool: WebpageTool,
     private val shellOps: ShellOps,
+    private val runHistory: SchedulerRunHistory,
 ) : ViewModel4(dispatcherProvider, tag = TAG) {
 
     val events = SingleEventFlow<Event>()
@@ -168,7 +171,7 @@ class SchedulerManagerViewModel @Inject constructor(
             showCommands = showCommands,
             isLoading = false,
         )
-    }.safeStateIn(
+    }.combine(runHistory.history) { current, daily -> current.copy(history = daily) }.safeStateIn(
         initialValue = State(),
         onError = { State(isLoading = false) },
     )
@@ -340,6 +343,7 @@ class SchedulerManagerViewModel @Inject constructor(
 
     data class State(
         val schedules: List<Schedule> = emptyList(),
+        val history: List<SchedulerDailyRun> = emptyList(),
         val showAlarmHint: Boolean = false,
         val showBatteryHint: Boolean = false,
         val acsScreenLockedRisk: AcsScheduleRisk = AcsScheduleRisk.NONE,

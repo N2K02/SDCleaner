@@ -56,6 +56,11 @@ import eu.darken.sdmse.main.core.taskmanager.AcsScheduleRisk
 import eu.darken.sdmse.scheduler.R
 import eu.darken.sdmse.scheduler.core.Schedule
 import eu.darken.sdmse.scheduler.core.ScheduleId
+import eu.darken.sdmse.scheduler.core.RunOutcome
+import eu.darken.sdmse.scheduler.core.SchedulerDailyRun
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import eu.darken.sdmse.scheduler.ui.manager.items.AcsScreenLockedHintRow
 import eu.darken.sdmse.scheduler.ui.manager.items.AlarmHintRow
 import eu.darken.sdmse.scheduler.ui.manager.items.BatteryHintRow
@@ -275,8 +280,33 @@ private fun ScheduleListContent(
                         "${state.schedules.count { it.isEnabled }} active · ${state.schedules.size} total schedules",
                         style = MaterialTheme.typography.labelLarge,
                     )
+                    val next = state.schedules.filter { it.isEnabled }.mapNotNull { schedule ->
+                        schedule.calcExecutionEta(Instant.now(), reschedule = false)
+                            ?.let { schedule.label to Instant.now().plus(it) }
+                    }.minByOrNull { it.second }
+                    Text(
+                        "Next run: " + (next?.let { "${it.first.ifBlank { "Schedule" }} · " +
+                            it.second.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("MMM d, HH:mm")) }
+                            ?: "Not scheduled"),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text("Runs stay in the app. No scheduler alerts; each schedule keeps one daily summary for 30 days.",
+                        style = MaterialTheme.typography.bodySmall)
+
                 }
             }
+        }
+        item("scheduler-history-title") {
+            Text("Recent runs", style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
+        }
+        if (state.history.isEmpty()) {
+            item("scheduler-history-empty") {
+                Text("No scheduled runs recorded yet", modifier = Modifier.padding(horizontal = 20.dp))
+            }
+        }
+        items(state.history, key = { "history-${it.scheduleId}-${it.day}" }) { run ->
+            SchedulerHistoryRow(run, Modifier.padding(horizontal = 16.dp))
         }
         if (state.showBatteryHint) {
             item("battery") {
@@ -422,3 +452,31 @@ private fun SchedulerManagerScreenWithAcsSystemAppsHintPreview() {
     }
 }
 
+
+@Composable
+private fun SchedulerHistoryRow(run: SchedulerDailyRun, modifier: Modifier = Modifier) {
+    var expanded by remember { mutableStateOf(false) }
+    val localTime = Instant.ofEpochMilli(run.lastAt).atZone(ZoneId.systemDefault())
+        .format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+    val outcome = when (run.lastOutcome) {
+        RunOutcome.SUCCESS -> "Success"
+        RunOutcome.WARNING -> "Warning"
+        RunOutcome.FAILED -> "Failed"
+    }
+    Card(onClick = { expanded = !expanded }, modifier = modifier.fillMaxWidth()) {
+        androidx.compose.foundation.layout.Column(Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("${run.label} · ${run.day}", style = MaterialTheme.typography.titleSmall)
+            Text("$outcome · Last run $localTime · ${run.executions} run(s)",
+                style = MaterialTheme.typography.bodyMedium)
+            Text("${run.successes} success · ${run.warnings} warning · ${run.failures} failed",
+                style = MaterialTheme.typography.bodySmall)
+            if (expanded) {
+                Text("Duration: ${run.lastDurationMs} ms · ${if (run.lastManual) "Manual" else "Automatic"}",
+                    style = MaterialTheme.typography.bodySmall)
+                run.lastDetails.forEach { line -> Text(line, style = MaterialTheme.typography.bodySmall) }
+                run.lastError?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            }
+        }
+    }
+}

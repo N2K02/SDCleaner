@@ -496,7 +496,7 @@ class AppCleaner @Inject constructor(
         // Everything that can suspend or fail is resolved before save(), otherwise a cancel between
         // a durable exclusion and the state rewrite would leave stale data and no undo handle.
         val snapshot = internalData.value!!
-        val canUseAdb = adbManager.canUseAdbNow()
+        val canUseAdb = directAdb.status.value.connected
 
         val saved = exclusionManager.save(exclusions)
 

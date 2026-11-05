@@ -27,6 +27,7 @@ import eu.darken.sdmse.common.shell.ShellOps
 import eu.darken.sdmse.common.shell.ipc.ShellOpsCmd
 import eu.darken.sdmse.main.core.SDMTool
 import eu.darken.sdmse.main.core.taskmanager.SchedulerTaskFactory
+import eu.darken.sdmse.stats.core.ReportDetails
 import eu.darken.sdmse.main.core.taskmanager.TaskSubmitter
 import eu.darken.sdmse.setup.SetupHealerSource
 import kotlinx.coroutines.CancellationException
@@ -54,6 +55,7 @@ class SchedulerWorker @AssistedInject constructor(
     private val rootManager: RootManager,
     private val adbManager: AdbManager,
     private val shellOps: ShellOps,
+    private val runHistory: SchedulerRunHistory,
 ) : CoroutineWorker(context, params) {
 
     init {
@@ -63,6 +65,10 @@ class SchedulerWorker @AssistedInject constructor(
     private val workerScope = CoroutineScope(dispatcherProvider.Default + SupervisorJob())
     private var finishedWithError = false
     private var currentSchedule: Schedule? = null
+    private var startedAtMs: Long? = null
+    private var lastOutcome = RunOutcome.WARNING
+    private var lastDetails: List<String> = emptyList()
+    private var lastError: String? = null
 
     private val scheduleId: ScheduleId
         get() = inputData.getString(INPUT_SCHEDULE_ID) as ScheduleId
@@ -86,14 +92,7 @@ class SchedulerWorker @AssistedInject constructor(
     override suspend fun doWork(): Result = try {
         log(TAG, VERBOSE) { "Executing $inputData now (runAttemptCount=$runAttemptCount)" }
 
-        try {
-            log(TAG) { "Declaring as foreground task" }
-            setForeground(getForegroundInfo())
-            log(TAG, INFO) { "Foreground state declared!" }
-        } catch (e: IllegalStateException) {
-            log(TAG, ERROR) { "Can't execute in foreground: ${e.asLog()}" }
-        }
-
+        // Use bounded ordinary WorkManager background jobs; no foreground promotion or notification.
         val schedule = getSchedule().also { currentSchedule = it }
 
         if (runAttemptCount > 0) {
@@ -107,14 +106,25 @@ class SchedulerWorker @AssistedInject constructor(
             log(TAG, INFO) { "Executing schedule $schedule" }
             Bugs.leaveBreadCrumb("Executing schedule")
 
-            try {
-                setForeground(schedulerNotifications.getForegroundInfo(schedule))
-            } catch (e: IllegalStateException) {
-                log(TAG, ERROR) { "Can't update foreground info, falling back to notifyState: ${e.asLog()}" }
-                schedulerNotifications.notifyState(schedule)
+            startedAtMs = start
+            val results = doDoWork(schedule)
+            lastDetails = results.map { item ->
+                val tool = item.task.type.toString()
+                when {
+                    item.error != null -> "$tool: failed - ${item.error.javaClass.simpleName}"
+                    item.result is ReportDetails.AffectedSpace ->
+                        "$tool: freed ${(item.result as ReportDetails.AffectedSpace).affectedSpace} bytes"
+                    item.result != null -> "$tool: completed"
+                    else -> "$tool: no result"
+                }
             }
-
-            doDoWork(schedule)
+            val failed = results.count { it.error != null || it.result == null }
+            lastOutcome = when {
+                failed == results.size && results.isNotEmpty() -> RunOutcome.FAILED
+                failed > 0 -> RunOutcome.WARNING
+                results.isEmpty() -> RunOutcome.WARNING
+                else -> RunOutcome.SUCCESS
+            }
 
             val duration = System.currentTimeMillis() - start
             log(TAG, INFO) { "Execution finished after ${duration}ms: $schedule" }
@@ -126,7 +136,8 @@ class SchedulerWorker @AssistedInject constructor(
             log(TAG, ERROR) { "Execution failed: ${e.asLog()}" }
             finishedWithError = true
             try {
-                schedulerNotifications.notifyError(scheduleId)
+                lastOutcome = RunOutcome.FAILED
+            lastError = e.javaClass.simpleName + ": " + (e.message ?: "Unknown error")
             } catch (e2: Exception) {
                 log(TAG, ERROR) { "Failed to notify about error (error=$e): ${e2.asLog()}" }
             }
@@ -134,6 +145,8 @@ class SchedulerWorker @AssistedInject constructor(
             // Not Result.failure(...), that would sever the recurring chain, see above.
             Result.success(inputData)
         } else {
+            lastOutcome = RunOutcome.WARNING
+            lastError = "Cancelled"
             Result.success()
         }
     } finally {
@@ -142,6 +155,20 @@ class SchedulerWorker @AssistedInject constructor(
             workerScope.cancel("Worker finished (withError?=$finishedWithError).")
         } catch (e: Exception) {
             log(TAG, ERROR) { "Failed to cancel worker scope (error=$finishedWithError): ${e.asLog()}" }
+        }
+
+        try {
+            currentSchedule?.let { schedule ->
+                startedAtMs?.let { started ->
+                    // Record before rescheduling, even if individual tools failed.
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                        runHistory.record(schedule, started, System.currentTimeMillis(),
+                            lastOutcome, lastDetails, lastError, isManual)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            log(TAG, ERROR) { "Failed to persist scheduler history: ${e.asLog()}" }
         }
 
         try {
@@ -167,7 +194,7 @@ class SchedulerWorker @AssistedInject constructor(
         }
     }
 
-    private suspend fun doDoWork(schedule: Schedule) {
+    private suspend fun doDoWork(schedule: Schedule): Set<SchedulerNotifications.Results> {
         val enabledTools = buildSet {
             if (schedule.useCorpseFinder) add(SDMTool.Type.CORPSEFINDER)
             if (schedule.useSystemCleaner) add(SDMTool.Type.SYSTEMCLEANER)
@@ -207,7 +234,6 @@ class SchedulerWorker @AssistedInject constructor(
 
         log(TAG) { "Waiting for jobs to complete: $taskJobs" }
         val taskResults = taskJobs.awaitAll().toSet()
-        schedulerNotifications.notifyResult(schedule.id, taskResults)
         log(TAG) { "All task jobs have finished." }
 
         schedule.commandsAfterSchedule.takeIf { it.isNotEmpty() }?.let { cmds ->
@@ -221,7 +247,12 @@ class SchedulerWorker @AssistedInject constructor(
             }
             val result = shellOps.execute(ShellOpsCmd(cmds = cmds), shellOpsMode)
             log(TAG, INFO) { "Post-schedule ShellOps result: $result" }
+            if (!result.isSuccess) {
+                lastOutcome = RunOutcome.WARNING
+                lastDetails = lastDetails + "Post-schedule command failed"
+            }
         }
+        return taskResults
     }
 
     companion object {

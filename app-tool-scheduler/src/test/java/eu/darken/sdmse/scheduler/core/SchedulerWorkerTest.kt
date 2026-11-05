@@ -45,6 +45,7 @@ class SchedulerWorkerTest : BaseTest() {
     private val rootManager = mockk<RootManager>(relaxed = true)
     private val adbManager = mockk<AdbManager>(relaxed = true)
     private val shellOps = mockk<ShellOps>(relaxed = true)
+    private val runHistory = mockk<SchedulerRunHistory>(relaxed = true)
 
     private fun <T> immediateFuture(value: T): ListenableFuture<T> = object : ListenableFuture<T> {
         override fun addListener(listener: Runnable, executor: Executor) = executor.execute(listener)
@@ -87,6 +88,7 @@ class SchedulerWorkerTest : BaseTest() {
         rootManager = rootManager,
         adbManager = adbManager,
         shellOps = shellOps,
+        runHistory = runHistory,
     )
 
     @Test
@@ -111,18 +113,18 @@ class SchedulerWorkerTest : BaseTest() {
     }
 
     @Test
-    fun `execution error notifies but must not fail the appended successor`() = runTest {
+    fun `execution error is quiet and must not fail the appended successor`() = runTest {
         coEvery { schedulerTaskFactory.createTasks(scheduleId, emptySet()) } throws RuntimeException("factory broken")
 
         val result = createWorker().doWork()
 
         result.shouldBeInstanceOf<ListenableWorker.Result.Success>()
-        coVerify { schedulerNotifications.notifyError(scheduleId) }
+        coVerify(exactly = 0) { schedulerNotifications.notifyError(any()) }
         coVerify { schedulerManager.reschedule(scheduleId) }
     }
 
     @Test
-    fun `failing error notification must not fail the appended successor either`() = runTest {
+    fun `notification channel failure must not block scheduler success`() = runTest {
         coEvery { schedulerTaskFactory.createTasks(scheduleId, emptySet()) } throws RuntimeException("factory broken")
         every { schedulerNotifications.notifyError(scheduleId) } throws RuntimeException("notifications broken")
 

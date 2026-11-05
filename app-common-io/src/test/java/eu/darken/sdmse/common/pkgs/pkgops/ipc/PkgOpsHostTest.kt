@@ -11,6 +11,7 @@ import eu.darken.sdmse.common.pkgs.toPkgId
 import eu.darken.sdmse.common.shell.SharedShell
 import eu.darken.sdmse.common.user.UserHandle2
 import io.kotest.assertions.throwables.shouldThrow
+import io.kotest.matchers.shouldBe
 import io.mockk.coEvery
 import io.mockk.mockk
 import io.mockk.unmockkAll
@@ -76,4 +77,25 @@ class PkgOpsHostTest : BaseTest() {
             )
         }
     }
+    @Test
+    fun `cache-only command is user-scoped and never uses plain pm clear`() {
+        cacheOnlyClearCommand("com.example.app", 0) shouldBe
+            "pm clear --user 0 --cache-only com.example.app"
+        cacheOnlyClearCommand("com.example.work", 10) shouldBe
+            "pm clear --user 10 --cache-only com.example.work"
+    }
+
+    @Test
+    fun `invalid package names and user IDs cannot inject shell commands`() {
+        shouldThrow<IllegalArgumentException> {
+            cacheOnlyClearCommand("com.example.app; pm clear com.example.other", 0)
+        }
+        shouldThrow<IllegalArgumentException> {
+            cacheOnlyClearCommand("com.example.app", -1)
+        }
+        shouldThrow<IllegalArgumentException> {
+            cacheOnlyClearCommand("not a package", 0)
+        }
+    }
+
 }

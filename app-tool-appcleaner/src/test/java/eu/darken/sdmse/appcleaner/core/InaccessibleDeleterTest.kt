@@ -91,6 +91,7 @@ class InaccessibleDeleterTest : BaseTest() {
 
         coEvery { userManager.currentUser() } returns testUser
         every { adbManager.useAdb } returns flowOf(false)
+        coEvery { pkgOps.clearCache(any(), any()) } returns false
         // Default: no package is flagged as having no settings. Individual tests override as needed.
         coEvery { noSettingsDetector.getUnreachableReason(any()) } returns null
         // Default: consent granted, so useAutomation=true actually reaches the ACS stage.
@@ -1290,7 +1291,7 @@ class InaccessibleDeleterTest : BaseTest() {
     }
 
     @Test
-    fun `skipped targets exclude what ADB already cleared or failed`() = runTest {
+    fun `ADB keeps successful clears and reports remaining failures without an overlay`() = runTest {
         // An ADB failure is a real per-app error and stays one. Reporting it as skipped as well
         // would let the run advertise "automation not permitted" for an app that failed elsewhere.
         val cleared = createAppJunk("com.example.adbcleared", cacheSize = 100000)
@@ -1316,12 +1317,13 @@ class InaccessibleDeleterTest : BaseTest() {
 
         result.succesful shouldContain cleared.identifier
         result.failed shouldContainKey adbFailed.identifier
-        result.skippedNoConsent shouldBe setOf(untouched.identifier)
+        result.skippedNoConsent shouldBe emptySet()
+        result.failed shouldContainKey untouched.identifier
         coVerify(exactly = 0) { automationManager.submit(any()) }
     }
 
     @Test
-    fun `a targeted delete without consent is skipped, the ADB trim never runs for it`() = runTest {
+    fun `targeted ADB failure without Accessibility consent is reported without an overlay`() = runTest {
         // targetPkgs makes isAllApps false, so the bulk trim is out and the accessibility stage is
         // the only mechanism this run had.
         val junk = createAppJunk("com.example.targeted", cacheSize = 100000)
@@ -1338,9 +1340,146 @@ class InaccessibleDeleterTest : BaseTest() {
             isBackground = false,
         )
 
-        result.skippedNoConsent shouldBe setOf(junk.identifier)
+        result.skippedNoConsent shouldBe emptySet()
         result.succesful shouldBe emptySet()
+        result.failed shouldContainKey junk.identifier
         coVerify(exactly = 0) { pkgOps.trimCaches(any(), any(), any()) }
         coVerify(exactly = 0) { automationManager.submit(any()) }
     }
+
+    // Privileged per-app cache deletion is attempted before Accessibility.
+
+    @Test
+    fun `targeted cache clearing uses Shizuku without global trim or Accessibility`() = runTest {
+        val junk = createAppJunk("com.example.targetedadb", cacheSize = 100000)
+        every { adbManager.useAdb } returns flowOf(true)
+        coEvery { pkgOps.clearCache(junk.identifier, PkgOps.Mode.ADB) } returns true
+        scriptCacheSizes(junk to listOf(100000L, 0L))
+        setAcsConsent(null)
+        val result = deleter.deleteInaccessible(
+            snapshot = createSnapshot(junk), targetPkgs = setOf(junk.identifier),
+            useAutomation = true, isBackground = true,
+        )
+        result.succesful shouldContain junk.identifier
+        result.failed.shouldBeEmpty()
+        result.skippedNoConsent shouldBe emptySet()
+        result.freedBytes[junk.identifier] shouldBe 100000L
+        coVerify(exactly = 1) { pkgOps.clearCache(junk.identifier, PkgOps.Mode.ADB) }
+        coVerify(exactly = 0) { pkgOps.trimCaches(any(), any(), any()) }
+        coVerify(exactly = 0) { automationManager.submit(any()) }
+    }
+
+    @Test
+    fun `a delayed stats update is observed before crediting ADB cleanup`() = runTest {
+        val junk = createAppJunk("com.example.delayedadb", cacheSize = 100000)
+        every { adbManager.useAdb } returns flowOf(true)
+        coEvery { pkgOps.clearCache(junk.identifier, PkgOps.Mode.ADB) } returns true
+        scriptCacheSizes(junk to listOf(100000L, 100000L, 100000L, 25000L))
+        val result = deleter.deleteInaccessible(
+            snapshot = createSnapshot(junk), targetPkgs = setOf(junk.identifier),
+            useAutomation = true, isBackground = false,
+        )
+        result.succesful shouldContain junk.identifier
+        result.freedBytes[junk.identifier] shouldBe 75000L
+        coVerify(exactly = 0) { automationManager.submit(any()) }
+    }
+
+    @Test
+    fun `ADB returning success without freeing space does not count as cleaned`() = runTest {
+        val junk = createAppJunk("com.example.stubbornadb", cacheSize = 100000)
+        every { adbManager.useAdb } returns flowOf(true)
+        coEvery { pkgOps.clearCache(junk.identifier, PkgOps.Mode.ADB) } returns true
+        scriptCacheSizes(junk to listOf(100000L))
+        val result = deleter.deleteInaccessible(
+            snapshot = createSnapshot(junk), targetPkgs = setOf(junk.identifier),
+            useAutomation = false, isBackground = true,
+        )
+        result.succesful shouldNotContain junk.identifier
+        result.freedBytes shouldNotContainKey junk.identifier
+        result.failed shouldContainKey junk.identifier
+        coVerify(exactly = 0) { automationManager.submit(any()) }
+    }
+
+    @Test
+    fun `unchanged ADB cache never triggers an Accessibility overlay even with consent`() = runTest {
+        val junk = createAppJunk("com.example.acsfallback", cacheSize = 100000)
+        every { adbManager.useAdb } returns flowOf(true)
+        coEvery { pkgOps.clearCache(junk.identifier, PkgOps.Mode.ADB) } returns true
+        scriptCacheSizes(junk to listOf(100000L))
+        acsClears(junk)
+        val result = deleter.deleteInaccessible(
+            snapshot = createSnapshot(junk), targetPkgs = setOf(junk.identifier),
+            useAutomation = true, isBackground = false,
+        )
+        result.succesful shouldNotContain junk.identifier
+        result.failed shouldContainKey junk.identifier
+        coVerify(exactly = 0) { automationManager.submit(any()) }
+    }
+
+    @Test
+    fun `privileged cache failure never launches Accessibility overlay`() = runTest {
+        val junk = createAppJunk("com.example.adbdenied", cacheSize = 100000)
+        every { adbManager.useAdb } returns flowOf(true)
+        coEvery { pkgOps.clearCache(junk.identifier, PkgOps.Mode.ADB) } throws
+            SecurityException("Not permitted")
+        scriptCacheSizes(junk to listOf(100000L, 0L))
+        acsClears(junk)
+        val result = deleter.deleteInaccessible(
+            snapshot = createSnapshot(junk), targetPkgs = setOf(junk.identifier),
+            useAutomation = true, isBackground = false,
+        )
+        result.succesful shouldNotContain junk.identifier
+        result.failed shouldContainKey junk.identifier
+        coVerify(exactly = 0) { automationManager.submit(any()) }
+    }
+
+    @Test
+    fun `unavailable Shizuku skips privileged calls but system apps are cache-only candidates`() = runTest {
+        val regular = createAppJunk("com.example.noadb", cacheSize = 100000)
+        scriptCacheSizes(regular to listOf(100000L))
+        deleter.deleteInaccessible(
+            snapshot = createSnapshot(regular), targetPkgs = setOf(regular.identifier),
+            useAutomation = false, isBackground = true,
+        )
+        coVerify(exactly = 0) { pkgOps.clearCache(any(), any()) }
+
+        val system = createAppJunk("com.example.system", cacheSize = 100000, isSystemApp = true)
+        every { adbManager.useAdb } returns flowOf(true)
+        scriptCacheSizes(system to listOf(100000L))
+        deleter.deleteInaccessible(
+            snapshot = createSnapshot(system), targetPkgs = setOf(system.identifier),
+            useAutomation = false, isBackground = true,
+        )
+        coVerify(exactly = 1) { pkgOps.clearCache(system.identifier, PkgOps.Mode.ADB) }
+        coVerify(exactly = 0) { automationManager.submit(any()) }
+    }
+
+    @Test
+    fun `cancellation during privileged batch preserves earlier verified results`() = runTest {
+        val first = createAppJunk("com.example.first", cacheSize = 100000)
+        val second = createAppJunk("com.example.second", cacheSize = 100000)
+        val third = createAppJunk("com.example.third", cacheSize = 100000)
+        every { adbManager.useAdb } returns flowOf(true)
+        scriptCacheSizes(
+            first to listOf(100000L, 0L),
+            second to listOf(100000L),
+            third to listOf(100000L),
+        )
+        coEvery { pkgOps.clearCache(first.identifier, PkgOps.Mode.ADB) } returns true
+        coEvery { pkgOps.clearCache(second.identifier, PkgOps.Mode.ADB) } throws
+            CancellationException("Stop cleaning")
+        val partials = mutableListOf<InaccessibleDeleter.InaccDelResult>()
+        shouldThrow<CancellationException> {
+            deleter.deleteInaccessible(
+                snapshot = createSnapshot(first, second, third),
+                targetPkgs = setOf(first.identifier, second.identifier, third.identifier),
+                useAutomation = true, isBackground = false,
+                onPartialResult = { partials.add(it) },
+            )
+        }
+        partials.last().succesful shouldContain first.identifier
+        coVerify(exactly = 0) { pkgOps.clearCache(third.identifier, PkgOps.Mode.ADB) }
+        coVerify(exactly = 0) { automationManager.submit(any()) }
+    }
+
 }

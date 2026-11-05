@@ -51,7 +51,8 @@ class TaskWorker @AssistedInject constructor(
         return taskWorkerNotifications.getForegroundInfo(state)
     }
 
-    override suspend fun doWork(): Result = try {
+    override suspend fun doWork(): Result {
+        return try {
         val start = System.currentTimeMillis()
         log(TAG, VERBOSE) { "Executing $inputData now (runAttemptCount=$runAttemptCount)" }
 
@@ -94,6 +95,7 @@ class TaskWorker @AssistedInject constructor(
     } finally {
         notificationManager.cancel(TaskWorkerNotifications.NOTIFICATION_ID)
         this.workerScope.cancel("Worker finished (withError?=$finishedWithError).")
+        }
     }
 
     private suspend fun doDoWork() {

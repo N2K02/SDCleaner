@@ -1,6 +1,12 @@
 package eu.darken.sdmse.main.ui.settings
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -45,80 +51,80 @@ fun SettingsScreenHost() {
     val schedulerState by schedulerVm.state.collectAsStateWithLifecycle()
     val quickVm: CleaningQuickSettingsViewModel = hiltViewModel()
     val quickState by quickVm.state.collectAsStateWithLifecycle()
+
     SettingsPage("Settings", root = true) {
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(4.dp))
         Text(
             "Cleaning",
-            style = MaterialTheme.typography.labelLarge,
+            style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 24.dp, bottom = 8.dp),
+            modifier = Modifier.padding(start = 24.dp, bottom = 4.dp, top = 4.dp),
         )
-        CleanerQuickAction(
-            title = "Cache cleanup",
-            description = "Scan public app cache files",
-            icon = Icons.Rounded.DeleteSweep,
-            checked = quickState.cache,
-            onToggle = quickVm::setCacheEnabled,
-            onClick = { nav.goTo(AppCleanerSettingsRoute) },
-        )
-        CleanerQuickAction(
-            title = "Temp files",
-            description = "Remove temporary files",
-            icon = Icons.Rounded.Description,
-            checked = quickState.temp,
-            onToggle = quickVm::setTempEnabled,
-            onClick = { nav.goTo(SystemCleanerSettingsRoute) },
-        )
-        CleanerQuickAction(
-            title = "Obsolete files",
-            description = "Scan leftover public app data",
-            icon = Icons.Rounded.FolderDelete,
-            checked = quickState.obsolete,
-            onToggle = quickVm::setObsoleteEnabled,
-            onClick = { nav.goTo(CorpseFinderSettingsRoute) },
-        )
-        CleanerQuickAction(
-            title = "Empty folders",
-            description = "Remove empty directories",
-            icon = Icons.Rounded.FolderOpen,
-            checked = quickState.emptyFolders,
-            onToggle = quickVm::setEmptyFoldersEnabled,
-            onClick = { nav.goTo(SystemCleanerSettingsRoute) },
-        )
-        Spacer(Modifier.height(12.dp))
+        CleanerQuickAction("Cache cleanup", "Remove public app cache files", Icons.Rounded.DeleteSweep,
+            quickState.cache, quickVm::setCacheEnabled, onClick = { nav.goTo(AppCleanerSettingsRoute) })
+        CleanerQuickAction("Temp files", "Remove temporary files", Icons.Rounded.Description,
+            quickState.temp, quickVm::setTempEnabled, onClick = { nav.goTo(SystemCleanerSettingsRoute) })
+        CleanerQuickAction("Obsolete files", "Remove leftover public app data", Icons.Rounded.FolderDelete,
+            quickState.obsolete, quickVm::setObsoleteEnabled, onClick = { nav.goTo(CorpseFinderSettingsRoute) })
+        CleanerQuickAction("Empty folders", "Remove empty directories", Icons.Rounded.FolderOpen,
+            quickState.emptyFolders, quickVm::setEmptyFoldersEnabled, onClick = { nav.goTo(SystemCleanerSettingsRoute) })
+
+        Spacer(Modifier.height(6.dp))
         SchedulerOverviewCard(
             schedules = schedulerState.schedules,
             onClick = { nav.goTo(SchedulerManagerRoute) },
         )
-        SettingsPreferenceItem(title = "Cleaning rules", subtitle = "Configure additional cleaning tools", icon = Icons.Rounded.Tune,
-            onClick = { nav.goTo(CleanerSettingsRoute("tools")) })
-        SettingsPreferenceItem(title = "Excluded files & apps", subtitle = "Protect items from scheduled cleaning", icon = Icons.Rounded.FolderOff,
-            onClick = { nav.goTo(ExclusionsListRoute) })
-        HorizontalDivider(Modifier.padding(horizontal = 24.dp, vertical = 14.dp))
+        CompactSettingsLink("Cleaning rules", "Customize what to clean", Icons.Rounded.Tune) {
+            nav.goTo(CleanerSettingsRoute("tools"))
+        }
+        CompactSettingsLink("Excluded folders", "Folders to keep (skip cleaning)", Icons.Rounded.FolderOff) {
+            nav.goTo(ExclusionsListRoute)
+        }
+        HorizontalDivider(Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
         Text(
-            "APP",
-            style = MaterialTheme.typography.labelLarge,
+            "App",
+            style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 24.dp, bottom = 8.dp),
+            modifier = Modifier.padding(start = 24.dp, bottom = 4.dp),
         )
-        SettingsPreferenceItem(title = "Appearance", subtitle = "System, light, or dark theme", icon = Icons.Rounded.Palette,
-            onClick = { nav.goTo(CleanerSettingsRoute("appearance")) })
-        SettingsPreferenceItem(title = "Permissions & setup", subtitle = "Review access needed by cleaning tools", icon = Icons.Rounded.Security,
-            onClick = { nav.goTo(SetupRoute(options = SetupScreenOptions(showCompleted = true))) })
-        SettingsPreferenceItem(title = "Backup & restore", subtitle = "Save or restore your cleaning configuration", icon = Icons.Rounded.SettingsBackupRestore,
-            onClick = { nav.goTo(BackupRestoreRoute) })
-        HorizontalDivider(Modifier.padding(horizontal = 24.dp, vertical = 14.dp))
-        SettingsPreferenceItem(title = "Diagnostics", subtitle = "App and device information", icon = Icons.Rounded.BugReport,
-            onClick = { nav.goTo(CleanerSettingsRoute("diagnostics")) })
-        ListItem(
-            headlineContent = { Text("About & updates") },
-            supportingContent = { Text(if (status.hasPendingUpdate()) "A new update is available" else BuildConfigWrap.VERSION_DESCRIPTION) },
-            leadingContent = { Icon(Icons.Rounded.SystemUpdate, null) },
-            trailingContent = { N2K02UpdateBadge(status) },
-            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 3.dp).clip(RoundedCornerShape(20.dp)).clickable { nav.goTo(CleanerSettingsRoute("updates")) },
+        CompactSettingsLink("About", "App info and version", Icons.Rounded.Info) {
+            nav.goTo(CleanerSettingsRoute("about"))
+        }
+        CompactSettingsLink(
+            "Updates",
+            if (status.hasPendingUpdate()) "A new update is available" else "Check for app updates",
+            Icons.Rounded.SystemUpdate,
+            trailing = { N2K02UpdateBadge(status) },
+        ) { nav.goTo(CleanerSettingsRoute("updates")) }
+
+        HorizontalDivider(Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+        Text(
+            "Advanced",
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 24.dp, bottom = 4.dp),
         )
+        CompactSettingsLink("Appearance", "System, light, or dark theme", Icons.Rounded.Palette) {
+            nav.goTo(CleanerSettingsRoute("appearance"))
+        }
+        CompactSettingsLink("Permissions & setup", "Access needed by cleaning tools", Icons.Rounded.Security) {
+            nav.goTo(SetupRoute(options = SetupScreenOptions(showCompleted = true)))
+        }
+        CompactSettingsLink("Backup & restore", "Save or restore configuration", Icons.Rounded.SettingsBackupRestore) {
+            nav.goTo(BackupRestoreRoute)
+        }
+        HorizontalDivider(Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+        CompactSettingsLink("Diagnostics", "App and device information", Icons.Rounded.BugReport) {
+            nav.goTo(CleanerSettingsRoute("diagnostics"))
+        }
     }
+}
+
+internal fun scheduleOverviewMode(schedule: Schedule?): String = when {
+    schedule == null -> "No active schedule"
+    schedule.runOnce -> "Once after ${schedule.initialDelayMinutes} min"
+    schedule.intervalMinutes != null -> "Repeat every ${schedule.intervalMinutes} min"
+    else -> "At ${schedule.hour.toString().padStart(2, '0')}:${schedule.minute.toString().padStart(2, '0')}"
 }
 
 @Composable
@@ -138,70 +144,104 @@ private fun SchedulerOverviewCard(
     }
     val next = enabled.mapNotNull { schedule ->
         runCatching {
-            schedule.calcExecutionEta(now, reschedule = false)
-                ?.let { schedule to it }
+            schedule.calcExecutionEta(now, reschedule = false)?.let { schedule to it }
         }.getOrNull()
     }.minByOrNull { it.second }
+    val selected = next?.first ?: enabled.firstOrNull()
+    val nextMinutes = next?.second?.seconds?.coerceAtLeast(0L)?.let { (it + 59L) / 60L }
     val statusLabel = when {
         enabled.isNotEmpty() -> "Enabled"
         schedules.isNotEmpty() -> "Paused"
         else -> "Not configured"
     }
+
     Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-        shape = RoundedCornerShape(24.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f)),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
     ) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        Column(
+            Modifier
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.primaryContainer,
+                            MaterialTheme.colorScheme.secondaryContainer,
+                        ),
+                    ),
+                )
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
                 ) {
                     Icon(
                         Icons.Rounded.EventRepeat,
                         null,
-                        modifier = Modifier.padding(12.dp).size(28.dp),
+                        modifier = Modifier.padding(9.dp).size(26.dp),
                         tint = MaterialTheme.colorScheme.primary,
                     )
                 }
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Scheduler", style = MaterialTheme.typography.titleLarge)
+                    Text("Scheduler", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "Automate cleaning at a set time or repeat every X minutes",
+                        "Automate cleaning after a delay or repeat every X minutes",
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
+                Spacer(Modifier.width(6.dp))
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = if (enabled.isNotEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
+                    color = if (enabled.isNotEmpty()) Color(0xFF68DF83)
+                    else MaterialTheme.colorScheme.surfaceContainerHigh,
                 ) {
                     Text(
                         statusLabel,
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (enabled.isNotEmpty()) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        color = if (enabled.isNotEmpty()) Color(0xFF14251A)
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
                     )
                 }
+                Icon(Icons.Rounded.ChevronRight, null, modifier = Modifier.size(19.dp))
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
-            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Schedule, null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(7.dp))
-                val text = when {
-                    next != null -> {
-                        val mins = (next.second.toMinutes() + if (next.second.seconds % 60L != 0L) 1L else 0L)
-                        "Next run in ${mins.coerceAtLeast(0)} min"
-                    }
-                    enabled.isEmpty() -> "No active cleanups"
-                    else -> "Waiting for next cleanup"
-                }
-                Text(text, style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
-                Text("${enabled.size} active", style = MaterialTheme.typography.labelMedium)
-                Spacer(Modifier.width(6.dp))
-                Icon(Icons.Rounded.ChevronRight, null, modifier = Modifier.size(20.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.30f))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                Icon(Icons.Rounded.Schedule, null, modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.primary)
+                Text(
+                    scheduleOverviewMode(selected),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.weight(1f),
+                )
+                Box(
+                    Modifier.width(1.dp).height(16.dp)
+                        .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+                )
+                Text(
+                    when {
+                        nextMinutes != null -> "Starts in ${nextMinutes} min"
+                        enabled.isNotEmpty() -> "Waiting for next run"
+                        else -> "Inactive"
+                    },
+                    maxLines = 1,
+                    style = MaterialTheme.typography.labelSmall,
+                )
             }
         }
     }
@@ -212,36 +252,76 @@ private fun CleanerQuickAction(
     title: String,
     description: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
-    checked: Boolean? = null,
-    onToggle: ((Boolean) -> Unit)? = null,
+    checked: Boolean,
+    onToggle: (Boolean) -> Unit,
     onClick: () -> Unit,
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 3.dp),
+        color = Color.Transparent,
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 1.dp),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp)
+                .padding(horizontal = 10.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.secondaryContainer,
-            ) {
-                Icon(icon, null, Modifier.padding(10.dp).size(22.dp))
+            Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    modifier = Modifier.padding(8.dp).size(20.dp),
+                )
             }
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                Text(description, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis)
             }
-            if (checked != null && onToggle != null) {
-                Switch(checked = checked, onCheckedChange = onToggle)
-            } else {
-                Icon(Icons.Rounded.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.width(6.dp))
+            Switch(
+                checked = checked,
+                onCheckedChange = onToggle,
+                modifier = Modifier,
+            )
+        }
+    }
+}
+
+@Composable
+private fun CompactSettingsLink(
+    title: String,
+    description: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    trailing: (@Composable () -> Unit)? = null,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        color = Color.Transparent,
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 1.dp),
+    ) {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 52.dp)
+                .padding(horizontal = 11.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                Icon(icon, null, Modifier.padding(8.dp).size(20.dp))
             }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                Text(description, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (trailing != null) trailing()
+            Spacer(Modifier.width(4.dp))
+            Icon(Icons.Rounded.ChevronRight, null, modifier = Modifier.size(19.dp))
         }
     }
 }
@@ -252,7 +332,8 @@ fun CleanerSettingsScreenHost(section: String) {
     val title = when (section) {
         "appearance" -> "Appearance"
         "tools" -> "Cleaning tools"
-        "updates" -> "About & updates"
+        "updates" -> "Updates"
+        "about" -> "About"
         else -> "Diagnostics"
     }
     SettingsPage(title) {
@@ -270,6 +351,10 @@ fun CleanerSettingsScreenHost(section: String) {
                 SettingsPreferenceItem(title = "Duplicate files", subtitle = "Find redundant copies for review", icon = Icons.Rounded.ContentCopy, onClick = { nav.goTo(DeduplicatorSettingsRoute) })
             }
             "appearance" -> AppearanceSettings()
+            "about" -> {
+                ListItem(headlineContent = { Text("SDCleaner") }, supportingContent = { Text(BuildConfigWrap.VERSION_DESCRIPTION) })
+                ListItem(headlineContent = { Text("Android ${android.os.Build.VERSION.RELEASE}") }, supportingContent = { Text("${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}") })
+            }
             else -> {
                 ListItem(headlineContent = { Text("SDCleaner") }, supportingContent = { Text(BuildConfigWrap.VERSION_DESCRIPTION) })
                 ListItem(headlineContent = { Text("Android ${android.os.Build.VERSION.RELEASE}") }, supportingContent = { Text("${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}") })
@@ -298,7 +383,8 @@ private fun SettingsHeader(title: String, root: Boolean = false) {
             Icon(when (title) {
                 "Appearance" -> Icons.Rounded.Palette
                 "Cleaning tools" -> Icons.Rounded.CleaningServices
-                "About & updates" -> Icons.Rounded.SystemUpdate
+                "Updates" -> Icons.Rounded.SystemUpdate
+                "About" -> Icons.Rounded.Info
                 else -> Icons.Rounded.BugReport
             }, "Back")
         }
@@ -309,7 +395,7 @@ private fun SettingsHeader(title: String, root: Boolean = false) {
 private fun SettingsPage(title: String, root: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
     Scaffold(topBar = { SettingsHeader(title, root) }) { padding ->
         androidx.compose.foundation.rememberScrollState().let { scroll ->
-            Column(Modifier.fillMaxSize().padding(padding).then(Modifier.verticalScroll(scroll)).padding(bottom = 24.dp), content = content)
+            Column(Modifier.fillMaxSize().padding(padding).then(Modifier.verticalScroll(scroll)).padding(bottom = 12.dp), content = content)
         }
     }
 }

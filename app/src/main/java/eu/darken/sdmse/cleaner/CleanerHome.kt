@@ -1,17 +1,7 @@
 package eu.darken.sdmse.cleaner
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,6 +13,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.darken.sdmse.common.compose.layout.SdmBrandTopAppBar
 import eu.darken.sdmse.main.core.SDMTool
@@ -32,7 +24,7 @@ import eu.darken.sdmse.main.ui.dashboard.cards.*
 import java.time.Instant
 import kotlinx.coroutines.delay
 
-/** Main screen mirrors the new violet Settings and Scheduler UI, without changing cleaning actions. */
+/** Compact Home matching the Settings mock, with the same real tool actions. */
 @Composable
 internal fun CleanerHome(
     listState: DashboardViewModel.ListState?,
@@ -45,6 +37,8 @@ internal fun CleanerHome(
         BottomBarState.Action.WORKING_CANCELABLE,
     )
     val visible = listState?.items?.filter(::isCleanerHomeItem).orEmpty()
+        .sortedBy(::cleanerHomePriority)
+
     Scaffold(
         topBar = {
             SdmBrandTopAppBar(
@@ -58,19 +52,19 @@ internal fun CleanerHome(
             contentPadding = PaddingValues(
                 start = 16.dp,
                 end = 16.dp,
-                top = padding.calculateTopPadding() + 12.dp,
-                bottom = padding.calculateBottomPadding() + 24.dp,
+                top = padding.calculateTopPadding() + 6.dp,
+                bottom = padding.calculateBottomPadding() + 16.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             item(key = "cleaner-hero") {
-                CleanerHomeHero(bottomBarState = bottomBarState, busy = busy, onMainAction = onMainAction)
+                CleanerHomeHero(bottomBarState, busy, onMainAction)
             }
             item(key = "cleaner-section") {
                 Text(
-                    "Cleaning tools",
-                    modifier = Modifier.padding(top = 8.dp, start = 4.dp),
-                    style = MaterialTheme.typography.titleMedium,
+                    "Cleaning",
+                    modifier = Modifier.padding(start = 6.dp, top = 3.dp),
+                    style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
@@ -85,59 +79,64 @@ internal fun CleanerHome(
     }
 }
 
+internal fun cleanerHomePriority(item: DashboardItem): Int = when (item) {
+    is ToolDashboardCardItem -> when (item.toolType) {
+        SDMTool.Type.SYSTEMCLEANER -> 0
+        SDMTool.Type.APPCLEANER -> 1
+        SDMTool.Type.CORPSEFINDER -> 2
+        SDMTool.Type.DEDUPLICATOR -> 3
+        else -> 50
+    }
+    is SchedulerDashboardCardItem -> 4
+    else -> 10
+}
+
 @Composable
 private fun CleanerHomeHero(
-    bottomBarState: BottomBarState?,
+    state: BottomBarState?,
     busy: Boolean,
     onMainAction: () -> Unit,
 ) {
-    val purple = Color(0xFF7540BF)
     Surface(
-        shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.primaryContainer,
         modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        color = MaterialTheme.colorScheme.primaryContainer,
     ) {
         Column(
-            modifier = Modifier
-                .background(Brush.linearGradient(listOf(Color(0xFF3A275A), purple)))
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            Modifier.background(
+                Brush.horizontalGradient(listOf(Color(0xFF32234D), Color(0xFF7245B5))),
+            ).padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.AutoAwesome, null, tint = Color.White, modifier = Modifier.size(28.dp))
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text("Your cleaner dashboard", color = Color.White, style = MaterialTheme.typography.titleLarge)
-                    Text("Keep your device clutter-free", color = Color(0xFFE6D6FF), style = MaterialTheme.typography.bodyMedium)
+                Icon(Icons.Rounded.AutoAwesome, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("SDCleaner", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                    Text(
+                        if (busy) "Cleanup in progress"
+                        else if (state?.isReady == true) "Ready to clean"
+                        else "Preparing cleaner…",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFE9D9FC),
+                    )
                 }
             }
-            Text(
-                if (busy) "Cleaning in progress"
-                else if (bottomBarState?.isReady == true) "Ready for your next cleanup"
-                else "Preparing your cleaning tools",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFFF0E4FF),
-            )
             Button(
                 onClick = onMainAction,
-                enabled = bottomBarState?.isReady == true &&
-                    bottomBarState.actionState != BottomBarState.Action.WORKING,
+                enabled = state?.isReady == true && state.actionState != BottomBarState.Action.WORKING,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFE2C5FF),
+                    containerColor = Color(0xFFE6CEFF),
                     contentColor = Color(0xFF2B1644),
                 ),
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape = RoundedCornerShape(26.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp),
+                shape = RoundedCornerShape(22.dp),
             ) {
-                if (busy) {
-                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                    Spacer(Modifier.width(8.dp))
-                } else {
-                    Icon(Icons.Rounded.CleaningServices, null, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                }
+                if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                else Icon(Icons.Rounded.CleaningServices, null, Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
                 Text(
-                    when (bottomBarState?.actionState) {
+                    when (state?.actionState) {
                         BottomBarState.Action.DELETE -> "Review & clean"
                         BottomBarState.Action.ONECLICK -> "Clean now"
                         BottomBarState.Action.WORKING_CANCELABLE -> "Stop cleaning"
@@ -155,97 +154,98 @@ private fun CleanerHomeHero(
 private fun CleanerHomeToolCard(item: ToolDashboardCardItem) {
     val title: String
     val description: String
-    val icon: androidx.compose.ui.graphics.vector.ImageVector
+    val icon: ImageVector
     when (item.toolType) {
         SDMTool.Type.SYSTEMCLEANER -> {
             title = "System Cleaner"
-            description = "Temporary files, empty folders and system junk"
+            description = "Temp files, empty folders and system junk"
             icon = Icons.Rounded.CleaningServices
         }
         SDMTool.Type.APPCLEANER -> {
             title = "App Cleaner"
-            description = "Free space from application cache"
+            description = "Free space from application caches"
             icon = Icons.Rounded.Apps
         }
         SDMTool.Type.CORPSEFINDER -> {
             title = "Obsolete files"
-            description = "Leftover data from uninstalled apps"
+            description = "Leftover files from removed apps"
             icon = Icons.Rounded.FolderDelete
         }
         SDMTool.Type.DEDUPLICATOR -> {
             title = "Duplicate files"
-            description = "Find and review identical copies"
+            description = "Review and remove identical copies"
             icon = Icons.Rounded.ContentCopy
         }
         else -> return
     }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(19.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                ) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
                     Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        modifier = Modifier.padding(12.dp).size(24.dp),
+                        icon, null,
+                        Modifier.padding(9.dp).size(20.dp),
                         tint = MaterialTheme.colorScheme.primary,
                     )
                 }
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(11.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(title, style = MaterialTheme.typography.titleMedium)
+                    Text(title, style = MaterialTheme.typography.titleSmall)
                     Text(
                         description,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
-            }
-            if (item.isInitializing || item.progress != null) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            } else if (item.result != null) {
-                Text(
-                    "Scan results available — review before deleting.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.End,
-            ) {
-                if (item.progress != null) {
-                    OutlinedButton(onClick = item.onCancel) {
-                        Icon(Icons.Rounded.Stop, null, Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Cancel")
-                    }
-                } else {
-                    if (item.onDelete != null) {
-                        TextButton(onClick = item.onViewDetails) {
-                            Text("Details")
-                        }
-                        TextButton(onClick = { item.onDelete.invoke() }) {
-                            Icon(Icons.Rounded.DeleteOutline, null, Modifier.size(18.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Clean")
-                        }
-                    }
-                    Button(
+                Spacer(Modifier.width(7.dp))
+                when {
+                    item.progress != null -> OutlinedButton(
+                        onClick = item.onCancel,
+                        modifier = Modifier.heightIn(min = 40.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp),
+                    ) { Text("Cancel") }
+                    else -> Button(
                         onClick = item.onScan,
                         enabled = !item.isInitializing,
-                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.heightIn(min = 40.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp),
                     ) {
-                        Icon(Icons.Rounded.FolderOpen, null, Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
+                        Icon(Icons.Rounded.FolderOpen, null, Modifier.size(17.dp))
+                        Spacer(Modifier.width(4.dp))
                         Text("Scan")
+                    }
+                }
+            }
+            if (item.progress != null || item.isInitializing) {
+                Spacer(Modifier.height(6.dp))
+                LinearProgressIndicator(Modifier.fillMaxWidth())
+            } else if (item.result != null) {
+                Spacer(Modifier.height(5.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "Results available",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (item.onDelete != null) {
+                        TextButton(onClick = item.onViewDetails, contentPadding = PaddingValues(horizontal = 8.dp)) {
+                            Text("Details")
+                        }
+                        TextButton(onClick = { item.onDelete.invoke() },
+                            contentPadding = PaddingValues(horizontal = 8.dp)) {
+                            Text("Clean")
+                        }
                     }
                 }
             }
@@ -263,66 +263,58 @@ private fun CleanerHomeScheduleCard(item: SchedulerDashboardCardItem) {
         }
     }
     val enabled = item.schedulerState.schedules.filter { it.isEnabled }
-    val next = enabled.mapNotNull { schedule ->
-        runCatching { schedule.calcExecutionEta(now, reschedule = false) }.getOrNull()
-    }.minOrNull()
-    val minutes = next?.let { (it.seconds.coerceAtLeast(0L) + 59L) / 60L }
+    val nextMinutes = enabled.mapNotNull {
+        runCatching { it.calcExecutionEta(now, reschedule = false) }.getOrNull()
+    }.minOrNull()?.seconds?.coerceAtLeast(0L)?.let { (it + 59L) / 60L }
+
     Card(
         onClick = item.onManageClicked,
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(20.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+        ),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
     ) {
         Column(
-            Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            Modifier
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.secondaryContainer),
+                    ),
+                ).padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
-                    shape = RoundedCornerShape(16.dp),
-                ) {
-                    Icon(Icons.Rounded.EventRepeat, null, Modifier.padding(12.dp).size(26.dp),
-                        tint = MaterialTheme.colorScheme.primary)
-                }
-                Spacer(Modifier.width(12.dp))
+                Icon(Icons.Rounded.EventRepeat, null, Modifier.size(29.dp),
+                    tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Cleaning Scheduler", style = MaterialTheme.typography.titleLarge)
-                    Text(
-                        "Automate cleaning every X minutes or at a set time",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+                    Text("Scheduler", style = MaterialTheme.typography.titleMedium)
+                    Text("Automatic cleanup", style = MaterialTheme.typography.bodySmall)
                 }
-                Surface(
-                    shape = RoundedCornerShape(40.dp),
-                    color = if (enabled.isNotEmpty()) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.surfaceContainerHigh,
-                ) {
+                Surface(shape = RoundedCornerShape(30.dp),
+                    color = if (enabled.isNotEmpty()) Color(0xFF68DF83)
+                    else MaterialTheme.colorScheme.surfaceContainerHigh) {
                     Text(
                         if (enabled.isNotEmpty()) "Enabled" else "Paused",
-                        color = if (enabled.isNotEmpty()) MaterialTheme.colorScheme.onPrimary
-                        else MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        color = if (enabled.isNotEmpty()) Color(0xFF14251A) else MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
                     )
                 }
+                Icon(Icons.Rounded.ChevronRight, null, Modifier.size(18.dp))
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Schedule, null, Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    when {
-                        item.isInitializing -> "Checking schedule…"
-                        minutes != null -> "Next cleanup in $minutes min"
-                        enabled.isEmpty() -> "No active schedule"
-                        else -> "Waiting for next cleanup"
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.weight(1f),
-                )
-                Icon(Icons.Rounded.ChevronRight, "Manage scheduler")
-            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
+            Text(
+                when {
+                    item.isInitializing -> "Checking schedule…"
+                    nextMinutes != null -> "Next run in $nextMinutes min"
+                    else -> "No active cleanup"
+                },
+                style = MaterialTheme.typography.labelSmall,
+            )
         }
     }
 }

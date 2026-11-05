@@ -283,9 +283,9 @@ class MainActivity : ComponentActivity() {
                     },
                 )
                 }
-                if (backStack.any { it == DashboardRoute || it == eu.darken.sdmse.main.ui.navigation.SettingsRoute }) {
+                if (backStack.lastOrNull() == DashboardRoute || backStack.lastOrNull() == eu.darken.sdmse.main.ui.navigation.SettingsRoute) {
                     eu.darken.sdmse.cleaner.CleanerNavigation(
-                        settings = backStack.any { it == eu.darken.sdmse.main.ui.navigation.SettingsRoute },
+                        settings = backStack.lastOrNull() == eu.darken.sdmse.main.ui.navigation.SettingsRoute,
                         onHome = { backStack.clear(); backStack.add(DashboardRoute) },
                         onSettings = {
                             backStack.clear()

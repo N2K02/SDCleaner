@@ -56,6 +56,7 @@ import eu.darken.sdmse.common.user.UserManager2
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.plus
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -297,6 +298,8 @@ class PkgOps @Inject constructor(
             }
 
             throw ModeUnavailableException("Mode $mode is unavailable for clearCache")
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             if (e is ModeUnavailableException) {
                 log(TAG, DEBUG) { "clearCache($installId): mode $mode unavailable" }

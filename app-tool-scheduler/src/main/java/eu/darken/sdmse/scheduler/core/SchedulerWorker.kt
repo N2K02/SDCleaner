@@ -9,6 +9,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import eu.darken.sdmse.common.adb.AdbManager
 import eu.darken.sdmse.common.adb.canUseAdbNow
+import eu.darken.sdmse.common.adb.local.DirectAdb
 import eu.darken.sdmse.common.coroutine.DispatcherProvider
 import eu.darken.sdmse.common.debug.Bugs
 import eu.darken.sdmse.common.debug.logging.Logging.Priority.ERROR
@@ -120,6 +121,7 @@ class SchedulerWorker @AssistedInject constructor(
             }
             val failed = results.count { it.error != null || it.result == null }
             lastOutcome = when {
+                lastError != null -> RunOutcome.WARNING
                 failed == results.size && results.isNotEmpty() -> RunOutcome.FAILED
                 failed > 0 -> RunOutcome.WARNING
                 results.isEmpty() -> RunOutcome.WARNING
@@ -135,12 +137,8 @@ class SchedulerWorker @AssistedInject constructor(
         if (e !is CancellationException) {
             log(TAG, ERROR) { "Execution failed: ${e.asLog()}" }
             finishedWithError = true
-            try {
-                lastOutcome = RunOutcome.FAILED
+            lastOutcome = RunOutcome.FAILED
             lastError = e.javaClass.simpleName + ": " + (e.message ?: "Unknown error")
-            } catch (e2: Exception) {
-                log(TAG, ERROR) { "Failed to notify about error (error=$e): ${e2.asLog()}" }
-            }
 
             // Not Result.failure(...), that would sever the recurring chain, see above.
             Result.success(inputData)
@@ -248,8 +246,8 @@ class SchedulerWorker @AssistedInject constructor(
             val result = shellOps.execute(ShellOpsCmd(cmds = cmds), shellOpsMode)
             log(TAG, INFO) { "Post-schedule ShellOps result: $result" }
             if (!result.isSuccess) {
+                lastError = "Post-schedule command failed"
                 lastOutcome = RunOutcome.WARNING
-                lastDetails = lastDetails + "Post-schedule command failed"
             }
         }
         return taskResults

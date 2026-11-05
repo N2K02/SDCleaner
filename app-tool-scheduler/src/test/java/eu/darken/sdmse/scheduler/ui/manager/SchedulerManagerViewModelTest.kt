@@ -6,12 +6,12 @@ import eu.darken.sdmse.common.WebpageTool
 import eu.darken.sdmse.common.adb.AdbManager
 import eu.darken.sdmse.common.root.RootManager
 import eu.darken.sdmse.common.shell.ShellOps
-import eu.darken.sdmse.common.upgrade.UpgradeRepo
 import eu.darken.sdmse.main.core.GeneralSettings
 import eu.darken.sdmse.main.core.taskmanager.AcsScheduleRisk
 import eu.darken.sdmse.main.core.taskmanager.SchedulerAppCleanerAdvisor
 import eu.darken.sdmse.scheduler.core.Schedule
 import eu.darken.sdmse.scheduler.core.SchedulerManager
+import eu.darken.sdmse.scheduler.core.SchedulerRunHistory
 import eu.darken.sdmse.scheduler.core.SchedulerSettings
 import io.kotest.matchers.shouldBe
 import io.mockk.every
@@ -70,7 +70,6 @@ class SchedulerManagerViewModelTest : BaseTest() {
             appCleanerAdvisor = mockk<SchedulerAppCleanerAdvisor>().apply {
                 every { acsScheduleRisk } returns flowOf(AcsScheduleRisk.NONE)
             },
-            upgradeRepo = mockk<UpgradeRepo>(relaxed = true),
             rootManager = mockk<RootManager>().apply { every { this@apply.useRoot } returns rootFlow },
             adbManager = mockk<AdbManager>().apply { every { this@apply.useAdb } returns adbFlow },
             batteryHelper = mockk<BatteryHelper>().apply {
@@ -78,6 +77,9 @@ class SchedulerManagerViewModelTest : BaseTest() {
             },
             webpageTool = mockk<WebpageTool>(relaxed = true),
             shellOps = mockk<ShellOps>(relaxed = true),
+            runHistory = mockk<SchedulerRunHistory>().apply {
+                every { history } returns MutableStateFlow(emptyList())
+            },
         )
         backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) { vm.state.collect { } }
         return Harness(vm, rootFlow, adbFlow, schedules)

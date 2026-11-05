@@ -220,6 +220,7 @@ internal fun AppCleanerSettingsScreen(
             modifier = Modifier.fillMaxSize(),
             contentPadding = paddingValues,
         ) {
+            item { DirectAdbSettingsCard() }
             item {
                 SettingsSwitchItem(
                     icon = Icons.TwoTone.Apps,

@@ -94,9 +94,9 @@ class MainActivity : ComponentActivity() {
         // Set initial window background to prevent white/black flash before Compose theme loads
         window.decorView.setBackgroundColor(
             if (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES) {
-                0xFF0F1510.toInt() // Dark background matching SdmSeColorsGreen
+                0xFF101419.toInt() // Neutral SDCleaner dark background
             } else {
-                0xFFF5FBF3.toInt() // Light background matching SdmSeColorsGreen
+                0xFFF7F9FC.toInt() // Neutral SDCleaner light background
             }
         )
 

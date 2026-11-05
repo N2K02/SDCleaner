@@ -1,5 +1,9 @@
 package eu.darken.sdmse.cleaner
 
+import android.os.Environment
+import android.os.StatFs
+import android.text.format.Formatter
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.darken.sdmse.common.compose.layout.SdmBrandTopAppBar
@@ -24,7 +30,28 @@ import eu.darken.sdmse.main.ui.dashboard.cards.*
 import java.time.Instant
 import kotlinx.coroutines.delay
 
-/** Compact Home matching the Settings mock, with the same real tool actions. */
+/** A real storage reading; never display invented percentages or storage amounts. */
+internal data class StorageUsage(
+    val totalBytes: Long,
+    val usedBytes: Long,
+    val freeBytes: Long,
+) {
+    val fractionUsed: Float get() = usedBytes.toDouble().div(totalBytes).toFloat()
+    val percentUsed: Int get() = (fractionUsed * 100).toInt()
+}
+
+internal fun calculateStorageUsage(totalBytes: Long, freeBytes: Long): StorageUsage? {
+    if (totalBytes <= 0L) return null
+    val safeFree = freeBytes.coerceIn(0L, totalBytes)
+    return StorageUsage(totalBytes, totalBytes - safeFree, safeFree)
+}
+
+private fun readDeviceStorage(): StorageUsage? = runCatching {
+    val stats = StatFs(Environment.getDataDirectory().absolutePath)
+    calculateStorageUsage(stats.totalBytes, stats.availableBytes)
+}.getOrNull()
+
+/** Home uses live DashboardViewModel tool actions and never deletes without existing confirmation. */
 @Composable
 internal fun CleanerHome(
     listState: DashboardViewModel.ListState?,
@@ -37,7 +64,11 @@ internal fun CleanerHome(
         BottomBarState.Action.WORKING_CANCELABLE,
     )
     val visible = listState?.items?.filter(::isCleanerHomeItem).orEmpty()
-        .sortedBy(::cleanerHomePriority)
+    val tools = visible.filterIsInstance<ToolDashboardCardItem>().sortedBy(::cleanerHomePriority)
+    val scheduler = visible.filterIsInstance<SchedulerDashboardCardItem>().firstOrNull()
+    val otherCards = visible.filterNot {
+        it is ToolDashboardCardItem || it is SchedulerDashboardCardItem
+    }
 
     Scaffold(
         topBar = {
@@ -52,28 +83,32 @@ internal fun CleanerHome(
             contentPadding = PaddingValues(
                 start = 16.dp,
                 end = 16.dp,
-                top = padding.calculateTopPadding() + 6.dp,
-                bottom = padding.calculateBottomPadding() + 16.dp,
+                top = padding.calculateTopPadding() + 10.dp,
+                bottom = padding.calculateBottomPadding() + 18.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            item(key = "cleaner-hero") {
-                CleanerHomeHero(bottomBarState, busy, onMainAction)
+            item(key = "storage-overview") {
+                DeviceStorageCard(bottomBarState, busy, onMainAction)
             }
-            item(key = "cleaner-section") {
+            item(key = "cleaning-title") {
                 Text(
-                    "Cleaning",
-                    modifier = Modifier.padding(start = 6.dp, top = 3.dp),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
+                    "Cleaning tools",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(start = 3.dp, top = 2.dp),
                 )
             }
-            items(visible, key = { it.stableId }) { item ->
-                when (item) {
-                    is ToolDashboardCardItem -> CleanerHomeToolCard(item)
-                    is SchedulerDashboardCardItem -> CleanerHomeScheduleCard(item)
-                    else -> DashboardListCard(item = item)
+            items(tools.chunked(2), key = { pair -> "tools-${pair.first().stableId}" }) { pair ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    pair.forEach { item ->
+                        CleanerToolTile(item, modifier = Modifier.weight(1f))
+                    }
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
                 }
+            }
+            scheduler?.let { item(key = "scheduler") { CleanerHomeScheduleCard(it) } }
+            items(otherCards, key = { "other-${it.stableId}" }) { item ->
+                DashboardListCard(item = item)
             }
         }
     }
@@ -83,8 +118,8 @@ internal fun cleanerHomePriority(item: DashboardItem): Int = when (item) {
     is ToolDashboardCardItem -> when (item.toolType) {
         SDMTool.Type.SYSTEMCLEANER -> 0
         SDMTool.Type.APPCLEANER -> 1
-        SDMTool.Type.CORPSEFINDER -> 2
-        SDMTool.Type.DEDUPLICATOR -> 3
+        SDMTool.Type.DEDUPLICATOR -> 2
+        SDMTool.Type.CORPSEFINDER -> 3
         else -> 50
     }
     is SchedulerDashboardCardItem -> 4
@@ -92,55 +127,90 @@ internal fun cleanerHomePriority(item: DashboardItem): Int = when (item) {
 }
 
 @Composable
-private fun CleanerHomeHero(
+private fun DeviceStorageCard(
     state: BottomBarState?,
     busy: Boolean,
     onMainAction: () -> Unit,
 ) {
-    Surface(
+    val context = LocalContext.current
+    // Re-read when the cleaning action enters or exits WORKING so freed space is reflected.
+    val usage = remember(busy) { readDeviceStorage() }
+    Card(
+        shape = RoundedCornerShape(24.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        color = MaterialTheme.colorScheme.primaryContainer,
     ) {
         Column(
             Modifier.background(
-                Brush.horizontalGradient(listOf(Color(0xFF32234D), Color(0xFF7245B5))),
-            ).padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+                Brush.horizontalGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.surfaceContainer,
+                        MaterialTheme.colorScheme.surfaceContainerHigh,
+                    ),
+                ),
+            ).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.AutoAwesome, null, tint = Color.White, modifier = Modifier.size(24.dp))
-                Spacer(Modifier.width(10.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("SDCleaner", style = MaterialTheme.typography.titleMedium, color = Color.White)
-                    Text(
-                        if (busy) "Cleanup in progress"
-                        else if (state?.isReady == true) "Ready to clean"
-                        else "Preparing cleaner…",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFE9D9FC),
+                Box(Modifier.size(88.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(
+                        progress = { usage?.fractionUsed ?: 0f },
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.outlineVariant,
+                        strokeWidth = 7.dp,
+                        modifier = Modifier.size(82.dp),
                     )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            usage?.let { "${it.percentUsed}%" } ?: "—",
+                            style = MaterialTheme.typography.titleLarge,
+                        )
+                        Text("Used", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+                Spacer(Modifier.width(16.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Device storage", style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        usage?.let {
+                            "${Formatter.formatShortFileSize(context, it.usedBytes)} of " +
+                                "${Formatter.formatShortFileSize(context, it.totalBytes)} used"
+                        } ?: "Storage usage unavailable",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                    )
+                    if (usage != null) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "${Formatter.formatShortFileSize(context, usage.freeBytes)} available",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                 }
             }
             Button(
                 onClick = onMainAction,
-                enabled = state?.isReady == true && state.actionState != BottomBarState.Action.WORKING,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFE6CEFF),
-                    contentColor = Color(0xFF2B1644),
-                ),
-                modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp),
-                shape = RoundedCornerShape(22.dp),
+                enabled = state?.isReady == true &&
+                    state.actionState != BottomBarState.Action.WORKING,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp),
+                shape = RoundedCornerShape(24.dp),
             ) {
-                if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                else Icon(Icons.Rounded.CleaningServices, null, Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
+                if (busy) {
+                    CircularProgressIndicator(Modifier.size(19.dp), strokeWidth = 2.dp)
+                } else {
+                    Icon(Icons.Rounded.CleaningServices, null, Modifier.size(20.dp))
+                }
+                Spacer(Modifier.width(9.dp))
                 Text(
                     when (state?.actionState) {
                         BottomBarState.Action.DELETE -> "Review & clean"
-                        BottomBarState.Action.ONECLICK -> "Clean now"
+                        BottomBarState.Action.ONECLICK -> "Quick clean"
                         BottomBarState.Action.WORKING_CANCELABLE -> "Stop cleaning"
-                        BottomBarState.Action.WORKING -> "Working…"
+                        BottomBarState.Action.WORKING -> "Cleaning…"
                         else -> "Scan for unwanted files"
                     },
                     style = MaterialTheme.typography.titleSmall,
@@ -151,100 +221,99 @@ private fun CleanerHomeHero(
 }
 
 @Composable
-private fun CleanerHomeToolCard(item: ToolDashboardCardItem) {
+private fun CleanerToolTile(item: ToolDashboardCardItem, modifier: Modifier = Modifier) {
     val title: String
     val description: String
     val icon: ImageVector
     when (item.toolType) {
         SDMTool.Type.SYSTEMCLEANER -> {
             title = "System Cleaner"
-            description = "Temp files, empty folders and system junk"
+            description = "Temporary files and empty folders"
             icon = Icons.Rounded.CleaningServices
         }
         SDMTool.Type.APPCLEANER -> {
             title = "App Cleaner"
-            description = "Free space from application caches"
+            description = "Free application cache and data"
             icon = Icons.Rounded.Apps
         }
-        SDMTool.Type.CORPSEFINDER -> {
-            title = "Obsolete files"
-            description = "Leftover files from removed apps"
-            icon = Icons.Rounded.FolderDelete
-        }
         SDMTool.Type.DEDUPLICATOR -> {
-            title = "Duplicate files"
-            description = "Review and remove identical copies"
+            title = "Duplicate Files"
+            description = "Find identical file copies"
             icon = Icons.Rounded.ContentCopy
+        }
+        SDMTool.Type.CORPSEFINDER -> {
+            title = "Obsolete Files"
+            description = "Leftovers from removed apps"
+            icon = Icons.Rounded.DeleteOutline
         }
         else -> return
     }
-
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(19.dp),
+        onClick = {
+            when {
+                item.progress != null -> item.onCancel()
+                item.onDelete != null -> item.onViewDetails()
+                else -> item.onScan()
+            }
+        },
+        enabled = !item.isInitializing,
+        modifier = modifier.height(184.dp),
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f)),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
-        Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
+        Column(
+            Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.primaryContainer,
             ) {
-                Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-                    Icon(
-                        icon, null,
-                        Modifier.padding(9.dp).size(20.dp),
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                }
-                Spacer(Modifier.width(11.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(title, style = MaterialTheme.typography.titleSmall)
-                    Text(
-                        description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                Spacer(Modifier.width(7.dp))
-                when {
-                    item.progress != null -> OutlinedButton(
-                        onClick = item.onCancel,
-                        modifier = Modifier.heightIn(min = 40.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp),
-                    ) { Text("Cancel") }
-                    else -> Button(
-                        onClick = item.onScan,
-                        enabled = !item.isInitializing,
-                        modifier = Modifier.heightIn(min = 40.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp),
-                    ) {
-                        Icon(Icons.Rounded.FolderOpen, null, Modifier.size(17.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Scan")
-                    }
-                }
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(7.dp).size(25.dp),
+                )
             }
+            Text(
+                title,
+                style = MaterialTheme.typography.titleSmall,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+            )
+            Text(
+                description,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.weight(1f))
             if (item.progress != null || item.isInitializing) {
-                Spacer(Modifier.height(6.dp))
-                LinearProgressIndicator(Modifier.fillMaxWidth())
-            } else if (item.result != null) {
-                Spacer(Modifier.height(5.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            } else {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                ) {
                     Text(
-                        "Results available",
-                        style = MaterialTheme.typography.labelSmall,
+                        if (item.onDelete != null) "Review" else "Scan",
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.labelMedium,
                     )
+                    Icon(Icons.Rounded.ChevronRight, null, Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary)
                     if (item.onDelete != null) {
-                        TextButton(onClick = item.onViewDetails, contentPadding = PaddingValues(horizontal = 8.dp)) {
-                            Text("Details")
-                        }
-                        TextButton(onClick = { item.onDelete.invoke() },
-                            contentPadding = PaddingValues(horizontal = 8.dp)) {
-                            Text("Clean")
+                        Spacer(Modifier.width(5.dp))
+                        TextButton(
+                            onClick = { item.onDelete.invoke() },
+                            contentPadding = PaddingValues(horizontal = 5.dp),
+                        ) {
+                            Text("Clean", style = MaterialTheme.typography.labelMedium)
                         }
                     }
                 }
@@ -263,58 +332,78 @@ private fun CleanerHomeScheduleCard(item: SchedulerDashboardCardItem) {
         }
     }
     val enabled = item.schedulerState.schedules.filter { it.isEnabled }
-    val nextMinutes = enabled.mapNotNull {
-        runCatching { it.calcExecutionEta(now, reschedule = false) }.getOrNull()
-    }.minOrNull()?.seconds?.coerceAtLeast(0L)?.let { (it + 59L) / 60L }
-
+    val upcoming = enabled.mapNotNull { schedule ->
+        runCatching { schedule.calcExecutionEta(now, reschedule = false) }.getOrNull()
+            ?.let { schedule to it }
+    }.minByOrNull { it.second }
+    val nextMinutes = upcoming?.second?.seconds?.coerceAtLeast(0L)?.let { (it + 59L) / 60L }
+    val selected = upcoming?.first ?: enabled.firstOrNull()
+    val cadence = when {
+        selected == null -> "No active schedule"
+        selected.runOnce -> "One-time cleanup"
+        selected.intervalMinutes != null -> "Every ${selected.intervalMinutes} minutes"
+        else -> "At ${selected.hour.toString().padStart(2, '0')}:${selected.minute.toString().padStart(2, '0')}"
+    }
     Card(
         onClick = item.onManageClicked,
-        shape = RoundedCornerShape(20.dp),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-        ),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(23.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
     ) {
-        Column(
-            Modifier
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.secondaryContainer),
-                    ),
-                ).padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(7.dp),
-        ) {
+        Column(Modifier.padding(horizontal = 15.dp, vertical = 13.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.EventRepeat, null, Modifier.size(29.dp),
-                    tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.width(10.dp))
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    shape = RoundedCornerShape(13.dp),
+                ) {
+                    Icon(Icons.Rounded.EventRepeat, null,
+                        Modifier.padding(9.dp).size(26.dp),
+                        tint = MaterialTheme.colorScheme.primary)
+                }
+                Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text("Scheduler", style = MaterialTheme.typography.titleMedium)
-                    Text("Automatic cleanup", style = MaterialTheme.typography.bodySmall)
-                }
-                Surface(shape = RoundedCornerShape(30.dp),
-                    color = if (enabled.isNotEmpty()) Color(0xFF68DF83)
-                    else MaterialTheme.colorScheme.surfaceContainerHigh) {
                     Text(
-                        if (enabled.isNotEmpty()) "Enabled" else "Paused",
-                        color = if (enabled.isNotEmpty()) Color(0xFF14251A) else MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                        "Automatic cleaning at scheduled intervals",
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 2,
                     )
                 }
-                Icon(Icons.Rounded.ChevronRight, null, Modifier.size(18.dp))
+                Surface(
+                    shape = RoundedCornerShape(30.dp),
+                    color = if (enabled.isNotEmpty()) Color(0xFF8DDF9F)
+                    else MaterialTheme.colorScheme.surfaceContainerHighest,
+                ) {
+                    Text(
+                        if (enabled.isNotEmpty()) "Enabled" else "Paused",
+                        color = if (enabled.isNotEmpty()) Color(0xFF173A23)
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                    )
+                }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
-            Text(
-                when {
-                    item.isInitializing -> "Checking schedule…"
-                    nextMinutes != null -> "Next run in $nextMinutes min"
-                    else -> "No active cleanup"
-                },
-                style = MaterialTheme.typography.labelSmall,
-            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                Icon(Icons.Rounded.Schedule, null, Modifier.size(18.dp))
+                Text(
+                    when {
+                        item.isInitializing -> "Checking scheduler…"
+                        nextMinutes != null -> "Next in $nextMinutes min"
+                        else -> "No upcoming run"
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(cadence, style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Icon(Icons.Rounded.ChevronRight, null, Modifier.size(19.dp))
+            }
         }
     }
 }

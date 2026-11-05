@@ -193,7 +193,7 @@ internal fun ScheduleItemSheet(
         ) {
             Column(
                 Modifier.background(
-                    Brush.horizontalGradient(listOf(Color(0xFF30224B), Color(0xFF7542BB))),
+                    Brush.horizontalGradient(listOf(Color(0xFF293545), Color(0xFF35465A))),
                 ).padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
@@ -201,7 +201,7 @@ internal fun ScheduleItemSheet(
                 Text("Cleaning Scheduler", style = MaterialTheme.typography.titleLarge, color = Color.White)
                 Text(
                     "Automatically clean your device on your schedule",
-                    style = MaterialTheme.typography.bodySmall, color = Color(0xFFEBDFFF),
+                    style = MaterialTheme.typography.bodySmall, color = Color(0xFFE0E8F2),
                 )
             }
         }
@@ -477,11 +477,11 @@ internal fun ScheduleItemSheet(
                 } == true),
             modifier = Modifier.fillMaxWidth().height(52.dp)
                 .clip(RoundedCornerShape(28.dp))
-                .background(Brush.horizontalGradient(listOf(Color(0xFFC89FFF), Color(0xFF965BF0)))),
+                .background(Brush.horizontalGradient(listOf(Color(0xFFB8D5F3), Color(0xFF8FB7E2)))),
             shape = RoundedCornerShape(28.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color.Transparent,
-                contentColor = Color(0xFF2E174A),
+                contentColor = Color(0xFF17283B),
                 disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             ),
         ) {

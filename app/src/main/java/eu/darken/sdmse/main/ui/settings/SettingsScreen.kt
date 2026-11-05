@@ -43,37 +43,47 @@ fun SettingsScreenHost() {
     val status by CleanerUpdater.controller.status.collectAsState()
     val schedulerVm: SchedulerManagerViewModel = hiltViewModel()
     val schedulerState by schedulerVm.state.collectAsStateWithLifecycle()
+    val quickVm: CleaningQuickSettingsViewModel = hiltViewModel()
+    val quickState by quickVm.state.collectAsStateWithLifecycle()
     SettingsPage("Settings", root = true) {
         Spacer(Modifier.height(12.dp))
         Text(
-            "CLEANING",
+            "Cleaning",
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(start = 24.dp, bottom = 8.dp),
         )
         CleanerQuickAction(
             title = "Cache cleanup",
-            description = "Manage app cache cleaning and cleanup methods",
+            description = "Scan public app cache files",
             icon = Icons.Rounded.DeleteSweep,
+            checked = quickState.cache,
+            onToggle = quickVm::setCacheEnabled,
             onClick = { nav.goTo(AppCleanerSettingsRoute) },
         )
         CleanerQuickAction(
-            title = "Temporary & system files",
-            description = "Review filters for unwanted files",
-            icon = Icons.Rounded.CleaningServices,
+            title = "Temp files",
+            description = "Remove temporary files",
+            icon = Icons.Rounded.Description,
+            checked = quickState.temp,
+            onToggle = quickVm::setTempEnabled,
             onClick = { nav.goTo(SystemCleanerSettingsRoute) },
         )
         CleanerQuickAction(
             title = "Obsolete files",
-            description = "Find leftovers from uninstalled applications",
+            description = "Scan leftover public app data",
             icon = Icons.Rounded.FolderDelete,
+            checked = quickState.obsolete,
+            onToggle = quickVm::setObsoleteEnabled,
             onClick = { nav.goTo(CorpseFinderSettingsRoute) },
         )
         CleanerQuickAction(
-            title = "Duplicate files",
-            description = "Find redundant copies before removing them",
-            icon = Icons.Rounded.ContentCopy,
-            onClick = { nav.goTo(DeduplicatorSettingsRoute) },
+            title = "Empty folders",
+            description = "Remove empty directories",
+            icon = Icons.Rounded.FolderOpen,
+            checked = quickState.emptyFolders,
+            onToggle = quickVm::setEmptyFoldersEnabled,
+            onClick = { nav.goTo(SystemCleanerSettingsRoute) },
         )
         Spacer(Modifier.height(12.dp))
         SchedulerOverviewCard(
@@ -202,6 +212,8 @@ private fun CleanerQuickAction(
     title: String,
     description: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
+    checked: Boolean? = null,
+    onToggle: ((Boolean) -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     Surface(
@@ -225,7 +237,11 @@ private fun CleanerQuickAction(
                 Text(title, style = MaterialTheme.typography.titleMedium)
                 Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Icon(Icons.Rounded.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (checked != null && onToggle != null) {
+                Switch(checked = checked, onCheckedChange = onToggle)
+            } else {
+                Icon(Icons.Rounded.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }

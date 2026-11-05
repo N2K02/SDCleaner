@@ -42,8 +42,7 @@
         android:name="android.permission.INTERACT_ACROSS_USERS"
         tools:ignore="ProtectedPermissions" />
 
-    <!--    Android 17+: detect "Advanced Protection" so we can explain why the accessibility service is blocked-->
-    <uses-permission android:name="android.permission.QUERY_ADVANCED_PROTECTION_MODE" />
+
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
@@ -145,19 +144,7 @@
                 android:resource="@xml/sdm_home_widget_info" />
         </receiver>
 
-        <service
-            android:name=".automation.core.AutomationService"
-            android:exported="false"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/accessibility_service" />
-        </service>
-
-        <provider
+<provider
             android:name="eu.darken.sdmse.cleaner.CleanerFileProvider"
             android:authorities="${applicationId}.provider"
             android:exported="false"

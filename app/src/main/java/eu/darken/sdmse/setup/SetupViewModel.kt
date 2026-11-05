@@ -125,7 +125,7 @@ class SetupViewModel @Inject constructor(
         val typeFilter = options.typeFilter
         setupState.moduleStates
             .filter { typeFilter == null || typeFilter.contains(it.type) }
-            .filter { it !is ShizukuSetupModule.Result || it.isInstalled }
+            .filter { it.type != SetupModule.Type.SHIZUKU && it.type != SetupModule.Type.AUTOMATION }
             .filter { it !is SetupModule.State.Current || !it.isComplete || options.showCompleted }
                 .mapNotNull { state ->
                     when (state.type) {

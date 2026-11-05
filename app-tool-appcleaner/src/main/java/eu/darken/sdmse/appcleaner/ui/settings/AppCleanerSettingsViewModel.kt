@@ -192,8 +192,8 @@ class AppCleanerSettingsViewModel @Inject constructor(
 
     fun onOtherUsersBadgeClick() = navTo(setupRoute(setOf(SetupModule.Type.ROOT)))
     fun onRunningAppsBadgeClick() = navTo(setupRoute(setOf(SetupModule.Type.USAGE_STATS)))
-    fun onInaccessibleBadgeClick() = navTo(setupRoute(setOf(SetupModule.Type.USAGE_STATS, SetupModule.Type.AUTOMATION)))
-    fun onForceStopBadgeClick() = navTo(setupRoute(setOf(SetupModule.Type.USAGE_STATS, SetupModule.Type.AUTOMATION)))
+    fun onInaccessibleBadgeClick() = navTo(setupRoute(setOf(SetupModule.Type.USAGE_STATS)))
+    fun onForceStopBadgeClick() = navTo(setupRoute(setOf(SetupModule.Type.USAGE_STATS)))
 
     private fun setupRoute(types: Set<SetupModule.Type>) = SetupRoute(
         options = SetupScreenOptions(showCompleted = true, typeFilter = types),

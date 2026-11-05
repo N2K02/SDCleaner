@@ -28,8 +28,6 @@ class AppCleanerSettings @Inject constructor(
     val includeRunningAppsEnabled = dataStore.createValue("include.runningapps.enabled", true)
     val includeOtherUsersEnabled = dataStore.createValue("include.multiuser.enabled", false)
 
-    val useAccessibilityService = dataStore.createValue("acs.enabled", false)
-
     val filterDefaultCachesPublicEnabled = dataStore.createValue("filter.defaultcachespublic.enabled", true)
     val filterDefaultCachesPrivateEnabled = dataStore.createValue("filter.defaultcachesprivate.enabled", true)
     val filterCodeCacheEnabled = dataStore.createValue("filter.codecache.enabled", true)

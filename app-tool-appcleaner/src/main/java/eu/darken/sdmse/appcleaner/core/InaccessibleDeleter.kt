@@ -136,7 +136,8 @@ class InaccessibleDeleter @Inject constructor(
     ): InaccDelResult {
         // Only a whole-tool clean issues the device-global trim, and only then are exclusion-limited
         // junks part of the scan results at all. Without the trim there is no reason to touch them.
-        val willTrim = adbManager.canUseAdbNow() && isAllApps
+        val adbAvailable = adbManager.canUseAdbNow()
+        val willTrim = adbAvailable && isAllApps
         val targets = when {
             !isAllApps -> rawTargets
             willTrim -> rawTargets
@@ -191,11 +192,11 @@ class InaccessibleDeleter @Inject constructor(
             }
             .toMutableList()
 
-        // Targeted cleaning never uses the global trim, so it used to require Accessibility
-        // even when Shizuku was connected. Prefer the existing privileged per-app cache API
-        // before opening Android Settings. Only touch allowed, current-user, non-system targets.
-        if (adbManager.canUseAdbNow()) {
-            val adbCandidates = remainingTargets.filter { !it.pkg.isSystemApp }
+        // With Shizuku active, never enter the Accessibility automation/overlay path.
+        // Per-package operations are cache-only, include system app caches if permitted,
+        // and are scoped to the scan's allowed targets and Android user profile.
+        if (adbAvailable) {
+            val adbCandidates = remainingTargets.toList()
             if (adbCandidates.isNotEmpty()) {
                 log(TAG, INFO) { "Attempting Shizuku/ADB cache-only clear for ${adbCandidates.size} apps" }
                 updateProgressPrimary(eu.darken.sdmse.appcleaner.R.string.appcleaner_progress_shizuku_deleting_caches)
@@ -213,15 +214,19 @@ class InaccessibleDeleter @Inject constructor(
                                 log(TAG, INFO) { "Verified ADB cache-only clear: $id" }
                                 successTargets.add(id)
                             } else {
-                                log(TAG, WARN) { "ADB cache-only clear unverified or declined for $id; allowing Accessibility fallback" }
+                                log(TAG, WARN) { "ADB cache-only clear unverified or declined for $id" }
+                                failedTargets[id] = IllegalStateException(
+                                    "Shizuku/ADB cache-only clear failed or cache size did not decrease: $id"
+                                )
                             }
                         } catch (e: CancellationException) {
                             throw e
                         } catch (e: Exception) {
                             currentCoroutineContext().ensureActive()
-                            // Device firmware can reject cache clearing for a particular package.
-                            // Do not abort the batch: Accessibility may still be able to clear it.
+                            // OEMs may deny this package. Do not open Settings or an overlay:
+                            // report a per-app failure and continue with the remaining packages.
                             log(TAG, WARN) { "ADB per-app clear failed for ${junk.identifier}: ${e.asLog()}" }
+                            failedTargets[junk.identifier] = e
                         } finally {
                             increaseProgress()
                         }
@@ -243,7 +248,18 @@ class InaccessibleDeleter @Inject constructor(
         val hasAcsConsent = generalSettings.hasAcsConsent.value() == true
         var noConsentSkip = false
 
-        if (useAutomation && remainingTargets.isNotEmpty() && hasAcsConsent) {
+        if (adbAvailable && remainingTargets.isNotEmpty()) {
+            // Silent, non-interactive mode for Shizuku users: no blocking screen overlay.
+            // The errors are actionable results; a separate explicitly chosen Accessibility
+            // clean can be used after Shizuku is disconnected.
+            log(TAG, WARN) { "Shizuku available: skipping Accessibility overlay for ${remainingTargets.size} uncleared caches" }
+            remainingTargets.forEach { junk ->
+                failedTargets.putIfAbsent(
+                    junk.identifier,
+                    IllegalStateException("Cache not cleared through Shizuku/ADB: ${junk.identifier}")
+                )
+            }
+        } else if (useAutomation && remainingTargets.isNotEmpty() && hasAcsConsent) {
             log(TAG, WARN) { "Using accessibility service to delete inaccessible caches." }
             updateProgressPrimary(eu.darken.sdmse.automation.R.string.automation_loading)
             updateProgressSecondary(CaString.EMPTY)

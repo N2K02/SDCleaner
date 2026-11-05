@@ -27,6 +27,10 @@ interface TaskSubmitter {
 
         val hasCancellable: Boolean
             get() = tasks.any { !it.isComplete && !it.isCancelling }
+
+        /** Scheduler tasks opt out of notifications and have their own WorkManager parent. */
+        val hasNotifiableActiveWork: Boolean
+            get() = tasks.any { !it.isComplete && it.notifyOnFinish }
     }
 
     data class ManagedTask(

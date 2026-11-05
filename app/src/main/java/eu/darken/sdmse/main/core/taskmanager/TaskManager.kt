@@ -140,11 +140,13 @@ class TaskManager @Inject constructor(
             }
             .launchIn(appScope)
         state
-            .map { it.isIdle }
+            // Scheduler-only tasks already run inside SchedulerWorker. Do not spawn the
+            // foreground TaskWorker for them: it would force a visible progress notification.
+            .map { it.hasNotifiableActiveWork }
             .distinctUntilChanged()
             .withPrevious()
-            .onEach { (isOldIdle, newIdle) ->
-                if (isOldIdle != false && !newIdle) {
+            .onEach { (wasVisible, hasVisible) ->
+                if (wasVisible != true && hasVisible) {
                     taskWorkerControl.startMonitor()
                 }
             }

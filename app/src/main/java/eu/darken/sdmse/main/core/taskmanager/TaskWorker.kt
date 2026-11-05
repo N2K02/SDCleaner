@@ -55,6 +55,13 @@ class TaskWorker @AssistedInject constructor(
         val start = System.currentTimeMillis()
         log(TAG, VERBOSE) { "Executing $inputData now (runAttemptCount=$runAttemptCount)" }
 
+        // Ordinary scheduled work is owned by SchedulerWorker, not this foreground monitor.
+        // A visible manual task can start us; if it already finished, exit without a notification.
+        val hasVisible = withTimeoutOrNull(700) {
+            taskManager.state.first().hasNotifiableActiveWork
+        } == true
+        if (!hasVisible) return Result.success()
+
         try {
             log(TAG) { "Declaring as foreground task" }
             setForeground(getForegroundInfo())
@@ -94,16 +101,20 @@ class TaskWorker @AssistedInject constructor(
 
         taskManager.state
             .onEach { state ->
-                val notification = taskWorkerNotifications.getNotification(state)
-                notificationManager.notify(TaskWorkerNotifications.NOTIFICATION_ID, notification)
+                if (state.hasNotifiableActiveWork) {
+                    val notification = taskWorkerNotifications.getNotification(state)
+                    notificationManager.notify(TaskWorkerNotifications.NOTIFICATION_ID, notification)
+                } else {
+                    notificationManager.cancel(TaskWorkerNotifications.NOTIFICATION_ID)
+                }
             }
             .launchIn(workerScope)
 
         val job = taskManager.state
             .mapLatest { state ->
                 when {
-                    state.isIdle -> {
-                        log(TAG) { "We are idle, granting grace period then canceling" }
+                    !state.hasNotifiableActiveWork -> {
+                        log(TAG) { "No user-visible task, granting grace period then stopping monitor" }
                         delay(5 * 1000)
                         log(TAG) { "No active tasks, grace period passed, canceling now" }
                         workerScope.cancel()

@@ -272,6 +272,8 @@ internal fun ScheduleItemSheet(
                         Text("Repeat interval", style = MaterialTheme.typography.titleSmall)
                         Text("Run cleaning repeatedly at a fixed interval.", style = MaterialTheme.typography.bodySmall)
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Every", style = MaterialTheme.typography.labelSmall)
+                            Spacer(Modifier.width(6.dp))
                             IconButton(onClick = { onIntervalMinutesChanged(intervalMinutes - 15) }) {
                                 Icon(Icons.TwoTone.Remove, contentDescription = "Decrease interval")
                             }
@@ -290,6 +292,7 @@ internal fun ScheduleItemSheet(
                             IconButton(onClick = { onIntervalMinutesChanged(intervalMinutes + 15) }) {
                                 Icon(Icons.TwoTone.Add, contentDescription = "Increase interval")
                             }
+                            Text("min", style = MaterialTheme.typography.labelSmall)
                         }
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -332,6 +335,8 @@ internal fun ScheduleItemSheet(
                     }
                     if (state.runOnce || state.initialDelayMinutes > 0) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("After", style = MaterialTheme.typography.labelSmall)
+                            Spacer(Modifier.width(6.dp))
                             IconButton(onClick = { onInitialDelayChanged(state.initialDelayMinutes - 1) }) {
                                 Icon(Icons.TwoTone.Remove, contentDescription = "Decrease initial delay")
                             }
@@ -351,6 +356,7 @@ internal fun ScheduleItemSheet(
                             IconButton(onClick = { onInitialDelayChanged(state.initialDelayMinutes + 1) }) {
                                 Icon(Icons.TwoTone.Add, contentDescription = "Increase initial delay")
                             }
+                            Text("min", style = MaterialTheme.typography.labelSmall)
                         }
                     }
                 }
@@ -436,20 +442,30 @@ internal fun ScheduleItemSheet(
         }
 
         }
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        Surface(
+            color = MaterialTheme.colorScheme.secondaryContainer,
             shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(
-                text = when {
-                    state.runOnce -> "Cleaning will run once after ${state.initialDelayMinutes} minutes."
-                    intervalMinutes != null -> "Cleaning will ${if (state.initialDelayMinutes > 0) "start after ${state.initialDelayMinutes} minutes and then " else ""}repeat every $intervalMinutes minutes."
-                    else -> "Cleaning will run at the selected time and repeat every ${state.repeatInterval.toDays()} days."
-                } + " Android battery restrictions may delay background execution.",
-                modifier = Modifier.padding(14.dp),
-                style = MaterialTheme.typography.bodyMedium,
-            )
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Rounded.Info, null, modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(9.dp))
+                Text(
+                    text = when {
+                        state.runOnce -> "Cleaning runs once after ${state.initialDelayMinutes} min."
+                        intervalMinutes != null && state.initialDelayMinutes > 0 ->
+                            "Starts in ${state.initialDelayMinutes} min, then repeats every $intervalMinutes min."
+                        intervalMinutes != null -> "Repeats every $intervalMinutes min."
+                        else -> "Runs at ${formatTime(state.hour, state.minute)} every ${state.repeatInterval.toDays()} days."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
         }
         Button(
             onClick = onSave,
@@ -457,8 +473,15 @@ internal fun ScheduleItemSheet(
                 (state.intervalMinutes != null || parseTime(timeText)?.let {
                     it.first == state.hour && it.second == state.minute
                 } == true),
-            modifier = Modifier.fillMaxWidth().height(52.dp),
+            modifier = Modifier.fillMaxWidth().height(52.dp)
+                .clip(RoundedCornerShape(28.dp))
+                .background(Brush.horizontalGradient(listOf(Color(0xFFC89FFF), Color(0xFF965BF0)))),
             shape = RoundedCornerShape(28.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color.Transparent,
+                contentColor = Color(0xFF2E174A),
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
         ) {
             Icon(Icons.Rounded.Check, null, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
@@ -515,6 +538,10 @@ internal fun ScheduleItemSheet(
             }
     
         }
+        Text("Android background restrictions can affect exact run times.",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 6.dp))
         Spacer(modifier = Modifier.height(8.dp))
     }
 

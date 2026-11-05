@@ -94,9 +94,9 @@ class MainActivity : ComponentActivity() {
         // Set initial window background to prevent white/black flash before Compose theme loads
         window.decorView.setBackgroundColor(
             if (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES) {
-                0xFF0F1510.toInt() // Dark background matching SdmSeColorsGreen
+                0xFF101419.toInt() // Neutral SDCleaner dark background
             } else {
-                0xFFF5FBF3.toInt() // Light background matching SdmSeColorsGreen
+                0xFFF7F9FC.toInt() // Neutral SDCleaner light background
             }
         )
 
@@ -283,9 +283,9 @@ class MainActivity : ComponentActivity() {
                     },
                 )
                 }
-                if (backStack.any { it == DashboardRoute || it == eu.darken.sdmse.main.ui.navigation.SettingsRoute }) {
+                if (backStack.lastOrNull() == DashboardRoute || backStack.lastOrNull() == eu.darken.sdmse.main.ui.navigation.SettingsRoute) {
                     eu.darken.sdmse.cleaner.CleanerNavigation(
-                        settings = backStack.any { it == eu.darken.sdmse.main.ui.navigation.SettingsRoute },
+                        settings = backStack.lastOrNull() == eu.darken.sdmse.main.ui.navigation.SettingsRoute,
                         onHome = { backStack.clear(); backStack.add(DashboardRoute) },
                         onSettings = {
                             backStack.clear()

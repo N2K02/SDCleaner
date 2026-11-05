@@ -1,6 +1,11 @@
 package eu.darken.sdmse.scheduler.ui.manager.create
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
@@ -11,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -23,6 +29,7 @@ import androidx.compose.material.icons.automirrored.twotone.ArrowBack
 import androidx.compose.material.icons.twotone.AccessTime
 import androidx.compose.material.icons.twotone.Add
 import androidx.compose.material.icons.twotone.Remove
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Surface
@@ -30,6 +37,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -42,6 +51,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -145,6 +155,7 @@ internal fun ScheduleItemSheet(
     }
 
     var showTimePicker by remember { mutableStateOf(false) }
+    var showCleaningOptions by rememberSaveable { mutableStateOf(false) }
 
     var timeText by remember { mutableStateOf(formatTime(state.hour, state.minute)) }
     LaunchedEffect(state.hour, state.minute) {
@@ -172,9 +183,9 @@ internal fun ScheduleItemSheet(
             .padding(horizontal = 16.dp)
             .navigationBarsPadding()
             .imePadding(),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(2.dp))
         Surface(
             shape = RoundedCornerShape(24.dp),
             color = MaterialTheme.colorScheme.primaryContainer,
@@ -182,20 +193,15 @@ internal fun ScheduleItemSheet(
         ) {
             Column(
                 Modifier.background(
-                    Brush.horizontalGradient(
-                        listOf(
-                            MaterialTheme.colorScheme.primaryContainer,
-                            MaterialTheme.colorScheme.secondaryContainer,
-                        ),
-                    ),
-                ).padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                    Brush.horizontalGradient(listOf(Color(0xFF293545), Color(0xFF35465A))),
+                ).padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
-                Icon(Icons.TwoTone.AccessTime, contentDescription = null, modifier = Modifier.size(36.dp))
-                Text("Cleaning Scheduler", style = MaterialTheme.typography.headlineSmall)
+                Icon(Icons.Rounded.EventRepeat, contentDescription = null, modifier = Modifier.size(29.dp), tint = Color.White)
+                Text("Cleaning Scheduler", style = MaterialTheme.typography.titleLarge, color = Color.White)
                 Text(
                     "Automatically clean your device on your schedule",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall, color = Color(0xFFE0E8F2),
                 )
             }
         }
@@ -205,79 +211,45 @@ internal fun ScheduleItemSheet(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(Icons.TwoTone.AccessTime, contentDescription = null)
                 Spacer(Modifier.width(12.dp))
-                Text("Enable scheduler", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                Text("Enable scheduler", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                 Switch(checked = state.isEnabled, onCheckedChange = onEnabledChanged)
             }
         }
-        OutlinedTextField(
-            value = state.label.orEmpty(),
-            onValueChange = onLabelChanged,
-            label = { Text(stringResource(R.string.scheduler_schedule_name_label)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-        )
-        Text("What to clean", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-        Card(
-            shape = RoundedCornerShape(22.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
-                listOf(
-                    Triple("App cache", state.useAppCleaner, onAppCleanerChanged),
-                    Triple("Temporary & system files", state.useSystemCleaner, onSystemCleanerChanged),
-                    Triple("Obsolete files", state.useCorpseFinder, onCorpseFinderChanged),
-                ).forEach { (title, checked, onChange) ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                        Switch(checked = checked, onCheckedChange = onChange)
-                    }
-                }
-            }
-        }
-        if (state.isEnabled && !state.useAppCleaner && !state.useSystemCleaner && !state.useCorpseFinder) {
-            Text(
-                "Select at least one cleaning tool before enabling the scheduler.",
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
-            )
-        }
-        Text("Run mode", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-        Card(
-            shape = RoundedCornerShape(22.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        Text("Run mode", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.fillMaxWidth().padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                FilterChip(
+                SchedulerModeButton(
                     selected = state.runOnce,
+                    label = "After X minutes",
+                    icon = Icons.Rounded.Timer,
+                    modifier = Modifier.weight(1f),
                     onClick = onRunOnceModeSelected,
-                    label = { Text("After X minutes", maxLines = 2) },
-                    modifier = Modifier.weight(1f),
                 )
-                FilterChip(
+                SchedulerModeButton(
                     selected = state.intervalMinutes != null && !state.runOnce,
+                    label = "Repeat every X minutes",
+                    icon = Icons.Rounded.AllInclusive,
+                    modifier = Modifier.weight(1f),
                     onClick = { onIntervalModeChanged(true) },
-                    label = { Text("Repeat every X minutes", maxLines = 2) },
-                    modifier = Modifier.weight(1f),
                 )
-                FilterChip(
+                SchedulerModeButton(
                     selected = state.intervalMinutes == null,
-                    onClick = { onIntervalModeChanged(false) },
-                    label = { Text("At specific time", maxLines = 2) },
+                    label = "At specific time",
+                    icon = Icons.Rounded.Event,
                     modifier = Modifier.weight(1f),
+                    onClick = { onIntervalModeChanged(false) },
                 )
             }
         }
@@ -291,21 +263,23 @@ internal fun ScheduleItemSheet(
         LaunchedEffect(state.initialDelayMinutes) {
             delayText = state.initialDelayMinutes.toString()
         }
-        if (intervalMinutes != null) {
+        if (intervalMinutes != null && !state.runOnce) {
             Card(
-                shape = RoundedCornerShape(22.dp),
+                shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (!state.runOnce) {
-                        Text("Repeat interval", style = MaterialTheme.typography.titleMedium)
+                        Text("Repeat interval", style = MaterialTheme.typography.titleSmall)
                         Text("Run cleaning repeatedly at a fixed interval.", style = MaterialTheme.typography.bodySmall)
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Every", style = MaterialTheme.typography.labelSmall)
+                            Spacer(Modifier.width(6.dp))
                             IconButton(onClick = { onIntervalMinutesChanged(intervalMinutes - 15) }) {
                                 Icon(Icons.TwoTone.Remove, contentDescription = "Decrease interval")
                             }
-                            OutlinedTextField(
+                            CompactMinuteField(
                                 value = intervalText,
                                 onValueChange = { input ->
                                     if (input.matches(MINUTE_INPUT_REGEX)) {
@@ -314,23 +288,13 @@ internal fun ScheduleItemSheet(
                                             ?.let(onIntervalMinutesChanged)
                                     }
                                 },
-                                label = { Text("Every (minutes)") },
-                                singleLine = true,
-                                supportingText = { Text("Minimum 15 minutes") },
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Number,
-                                    imeAction = ImeAction.Done,
-                                ),
-                                keyboardActions = KeyboardActions(
-                                    onDone = { intervalText = intervalMinutes.toString() },
-                                ),
-                                textStyle = MaterialTheme.typography.titleLarge.copy(textAlign = TextAlign.Center),
+                                onDone = { intervalText = intervalMinutes.toString() },
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(14.dp),
                             )
                             IconButton(onClick = { onIntervalMinutesChanged(intervalMinutes + 15) }) {
                                 Icon(Icons.TwoTone.Add, contentDescription = "Increase interval")
                             }
+                            Text("min", style = MaterialTheme.typography.labelSmall)
                         }
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -345,12 +309,21 @@ internal fun ScheduleItemSheet(
                                 )
                             }
                         }
-                        HorizontalDivider()
                     }
+                }
+            }
+        }
+        if (intervalMinutes != null) {
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (!state.runOnce) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Start after (optional)", style = MaterialTheme.typography.titleMedium)
+                                Text("Start after (initial delay)", style = MaterialTheme.typography.titleSmall)
                                 Text("Wait before the first run.", style = MaterialTheme.typography.bodySmall)
                             }
                             Switch(
@@ -359,15 +332,17 @@ internal fun ScheduleItemSheet(
                             )
                         }
                     } else {
-                        Text("Run once after", style = MaterialTheme.typography.titleMedium)
+                        Text("Run once after", style = MaterialTheme.typography.titleSmall)
                         Text("Run cleaning once and then disable this schedule.", style = MaterialTheme.typography.bodySmall)
                     }
                     if (state.runOnce || state.initialDelayMinutes > 0) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("After", style = MaterialTheme.typography.labelSmall)
+                            Spacer(Modifier.width(6.dp))
                             IconButton(onClick = { onInitialDelayChanged(state.initialDelayMinutes - 1) }) {
                                 Icon(Icons.TwoTone.Remove, contentDescription = "Decrease initial delay")
                             }
-                            OutlinedTextField(
+                            CompactMinuteField(
                                 value = delayText,
                                 onValueChange = { input ->
                                     if (input.matches(MINUTE_INPUT_REGEX)) {
@@ -377,22 +352,13 @@ internal fun ScheduleItemSheet(
                                             ?.let(onInitialDelayChanged)
                                     }
                                 },
-                                label = { Text("After (minutes)") },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Number,
-                                    imeAction = ImeAction.Done,
-                                ),
-                                keyboardActions = KeyboardActions(
-                                    onDone = { delayText = state.initialDelayMinutes.toString() },
-                                ),
-                                textStyle = MaterialTheme.typography.titleLarge.copy(textAlign = TextAlign.Center),
+                                onDone = { delayText = state.initialDelayMinutes.toString() },
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(14.dp),
                             )
                             IconButton(onClick = { onInitialDelayChanged(state.initialDelayMinutes + 1) }) {
                                 Icon(Icons.TwoTone.Add, contentDescription = "Increase initial delay")
                             }
+                            Text("min", style = MaterialTheme.typography.labelSmall)
                         }
                     }
                 }
@@ -478,29 +444,106 @@ internal fun ScheduleItemSheet(
         }
 
         }
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        Surface(
+            color = MaterialTheme.colorScheme.secondaryContainer,
             shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(
-                text = when {
-                    state.runOnce -> "Cleaning will run once after ${state.initialDelayMinutes} minutes."
-                    intervalMinutes != null -> "Cleaning will ${if (state.initialDelayMinutes > 0) "start after ${state.initialDelayMinutes} minutes and then " else ""}repeat every $intervalMinutes minutes."
-                    else -> "Cleaning will run at the selected time and repeat every ${state.repeatInterval.toDays()} days."
-                } + " Android battery restrictions may delay background execution.",
-                modifier = Modifier.padding(14.dp),
-                style = MaterialTheme.typography.bodyMedium,
-            )
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Rounded.Info, null, modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(9.dp))
+                Text(
+                    text = when {
+                        state.runOnce -> "Cleaning runs once after ${state.initialDelayMinutes} min."
+                        intervalMinutes != null && state.initialDelayMinutes > 0 ->
+                            "Starts in ${state.initialDelayMinutes} min, then repeats every $intervalMinutes min."
+                        intervalMinutes != null -> "Repeats every $intervalMinutes min."
+                        else -> "Runs at ${formatTime(state.hour, state.minute)} every ${state.repeatInterval.toDays()} days."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
         }
         Button(
             onClick = onSave,
-            enabled = state.canSave && areMinuteFieldsValid(state, intervalText, delayText),
-            modifier = Modifier.fillMaxWidth().height(56.dp),
+            enabled = state.canSave && areMinuteFieldsValid(state, intervalText, delayText) &&
+                (state.intervalMinutes != null || parseTime(timeText)?.let {
+                    it.first == state.hour && it.second == state.minute
+                } == true),
+            modifier = Modifier.fillMaxWidth().height(52.dp)
+                .clip(RoundedCornerShape(28.dp))
+                .background(Brush.horizontalGradient(listOf(Color(0xFFB8D5F3), Color(0xFF8FB7E2)))),
             shape = RoundedCornerShape(28.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color.Transparent,
+                contentColor = Color(0xFF17283B),
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
         ) {
-            Text(stringResource(CommonR.string.general_save_action), style = MaterialTheme.typography.titleMedium)
+            Icon(Icons.Rounded.Check, null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(CommonR.string.general_save_action), style = MaterialTheme.typography.titleSmall)
         }
+        TextButton(
+            onClick = { showCleaningOptions = !showCleaningOptions },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(if (showCleaningOptions) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("Cleaning options")
+        }
+        if (showCleaningOptions ||
+            (state.isEnabled && !state.useAppCleaner && !state.useSystemCleaner && !state.useCorpseFinder)) {
+            OutlinedTextField(
+                value = state.label.orEmpty(),
+                onValueChange = onLabelChanged,
+                label = { Text(stringResource(R.string.scheduler_schedule_name_label)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+            )
+            Text("What to clean", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            Card(
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                    listOf(
+                        Triple("App cache", state.useAppCleaner, onAppCleanerChanged),
+                        Triple("Temporary & system files", state.useSystemCleaner, onSystemCleanerChanged),
+                        Triple("Obsolete files", state.useCorpseFinder, onCorpseFinderChanged),
+                    ).forEach { (title, checked, onChange) ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                            Switch(checked = checked, onCheckedChange = onChange)
+                        }
+                    }
+                }
+            }
+            if (state.isEnabled && !state.useAppCleaner && !state.useSystemCleaner && !state.useCorpseFinder) {
+                Text(
+                    "Select at least one cleaning tool before enabling the scheduler.",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+    
+        }
+        Text("Android background restrictions can affect exact run times.",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 6.dp))
         Spacer(modifier = Modifier.height(8.dp))
     }
 
@@ -513,6 +556,62 @@ internal fun ScheduleItemSheet(
                 showTimePicker = false
             },
             onDismiss = { showTimePicker = false },
+        )
+    }
+}
+
+@Composable
+private fun SchedulerModeButton(
+    selected: Boolean,
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(13.dp),
+        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
+    ) {
+        Column(
+            Modifier.fillMaxWidth().heightIn(min = 60.dp).padding(horizontal = 3.dp, vertical = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Icon(icon, null, modifier = Modifier.size(20.dp),
+                tint = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(3.dp))
+            Text(label, maxLines = 2, textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.labelSmall,
+                color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
+        }
+    }
+}
+
+@Composable
+private fun CompactMinuteField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onDone: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier.height(44.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(10.dp)),
+        contentAlignment = Alignment.Center,
+    ) {
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            textStyle = MaterialTheme.typography.titleMedium.copy(
+                textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurface),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { onDone() }),
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }

@@ -23,9 +23,6 @@ import eu.darken.sdmse.common.root.canUseRootNow
 import eu.darken.sdmse.common.shell.ShellOps
 import eu.darken.sdmse.common.shell.ipc.ShellOpsCmd
 import eu.darken.sdmse.common.uix.ViewModel4
-import eu.darken.sdmse.main.core.GeneralSettings
-import eu.darken.sdmse.main.core.taskmanager.AcsScheduleRisk
-import eu.darken.sdmse.main.core.taskmanager.SchedulerAppCleanerAdvisor
 import eu.darken.sdmse.scheduler.R
 import eu.darken.sdmse.scheduler.core.Schedule
 import eu.darken.sdmse.scheduler.core.ScheduleId
@@ -59,8 +56,6 @@ class SchedulerManagerViewModel @Inject constructor(
     dispatcherProvider: DispatcherProvider,
     private val schedulerManager: SchedulerManager,
     private val settings: SchedulerSettings,
-    private val generalSettings: GeneralSettings,
-    private val appCleanerAdvisor: SchedulerAppCleanerAdvisor,
     private val rootManager: RootManager,
     private val adbManager: AdbManager,
     private val batteryHelper: BatteryHelper,
@@ -80,22 +75,6 @@ class SchedulerManagerViewModel @Inject constructor(
         !isDismissed && !isIgnoring
     }
 
-    // Risk type to surface (NONE = hide), gated by everything except "is there an enabled AppCleaner schedule"
-    // (that part needs schedulerManager.state, resolved in the main combine).
-    private val acsScreenLockedRisk = combine(
-        appCleanerAdvisor.acsScheduleRisk,
-        settings.useAutomation.flow,
-        generalSettings.hasAcsConsent.flow,
-        settings.hintAcsScreenLockedDismissed.flow,
-    ) { risk, useAutomation, hasConsent, dismissed ->
-        resolveAcsScreenLockedHint(
-            risk = risk,
-            schedulerUsesAutomation = useAutomation,
-            hasAcsConsent = hasConsent == true,
-            hasEnabledAppCleanerSchedule = true,
-            dismissed = dismissed,
-        )
-    }
 
     init {
         // One-shot: create a default schedule the first time the screen opens with no entries.
@@ -122,52 +101,21 @@ class SchedulerManagerViewModel @Inject constructor(
             }
         }
 
-        // Re-arm the ACS screen-locked hint once the risky combination no longer applies, so a future
-        // reconfiguration surfaces it again instead of staying permanently dismissed. `dismissed` is intentionally
-        // excluded from the inputs (and not reset while the risk is active) so this never fights a fresh dismissal.
-        combine(
-            appCleanerAdvisor.acsScheduleRisk,
-            settings.useAutomation.flow,
-            generalSettings.hasAcsConsent.flow,
-            schedulerManager.state,
-        ) { risk, useAutomation, hasConsent, schedulerState ->
-            resolveAcsScreenLockedHint(
-                risk = risk,
-                schedulerUsesAutomation = useAutomation,
-                hasAcsConsent = hasConsent == true,
-                hasEnabledAppCleanerSchedule = schedulerState.schedules.any { it.isEnabled && it.useAppCleaner },
-                dismissed = false,
-            ) != AcsScheduleRisk.NONE
-        }
-            .distinctUntilChanged()
-            .onEach { riskActive ->
-                if (!riskActive && settings.hintAcsScreenLockedDismissed.value()) {
-                    log(TAG) { "Re-arming ACS screen-locked hint (risk no longer active)" }
-                    settings.hintAcsScreenLockedDismissed.value(false)
-                }
-            }
-            .launchInViewModel()
+
     }
 
     val state: StateFlow<State> = combine(
         schedulerManager.state,
         showBatteryOptimizationHint,
-        acsScreenLockedRisk,
         rootManager.useRoot,
         adbManager.useAdb,
-    ) { schedulerState, showBatteryHint, acsRisk, useRoot, useAdb ->
+    ) { schedulerState, showBatteryHint, useRoot, useAdb ->
         val sortedSchedules = schedulerState.schedules.sortedBy { it.label.lowercase() }
         val showCommands = useRoot || useAdb
-        val acsScreenLockedRisk = if (sortedSchedules.any { it.isEnabled && it.useAppCleaner }) {
-            acsRisk
-        } else {
-            AcsScheduleRisk.NONE
-        }
         State(
             schedules = sortedSchedules,
             showAlarmHint = sortedSchedules.any { it.isEnabled },
             showBatteryHint = hasApiLevel(31) && showBatteryHint && sortedSchedules.any { it.isEnabled },
-            acsScreenLockedRisk = acsScreenLockedRisk,
             showCommands = showCommands,
             isLoading = false,
         )
@@ -250,11 +198,6 @@ class SchedulerManagerViewModel @Inject constructor(
     fun dismissBatteryHint() = launch {
         log(TAG) { "dismissBatteryHint()" }
         settings.hintBatteryDismissed.value(true)
-    }
-
-    fun dismissAcsScreenLockedHint() = launch {
-        log(TAG) { "dismissAcsScreenLockedHint()" }
-        settings.hintAcsScreenLockedDismissed.value(true)
     }
 
     fun showHelp() {
@@ -346,7 +289,6 @@ class SchedulerManagerViewModel @Inject constructor(
         val history: List<SchedulerDailyRun> = emptyList(),
         val showAlarmHint: Boolean = false,
         val showBatteryHint: Boolean = false,
-        val acsScreenLockedRisk: AcsScheduleRisk = AcsScheduleRisk.NONE,
         val showCommands: Boolean = false,
         val isLoading: Boolean = true,
     )
@@ -362,25 +304,3 @@ class SchedulerManagerViewModel @Inject constructor(
     }
 }
 
-/**
- * The screen-locked AppCleaner warning only makes sense when ACS is actually the active path AND the schedule will
- * run it: ACS automation is needed ([risk] != NONE), the scheduler is allowed to use ACS, the user has consented to
- * accessibility, an enabled schedule actually runs AppCleaner, and the hint hasn't been dismissed.
- */
-internal fun resolveAcsScreenLockedHint(
-    risk: AcsScheduleRisk,
-    schedulerUsesAutomation: Boolean,
-    hasAcsConsent: Boolean,
-    hasEnabledAppCleanerSchedule: Boolean,
-    dismissed: Boolean,
-): AcsScheduleRisk = if (
-    risk == AcsScheduleRisk.NONE ||
-    !schedulerUsesAutomation ||
-    !hasAcsConsent ||
-    !hasEnabledAppCleanerSchedule ||
-    dismissed
-) {
-    AcsScheduleRisk.NONE
-} else {
-    risk
-}

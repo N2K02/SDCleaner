@@ -5,7 +5,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.twotone.ArrowBack
 import androidx.compose.material.icons.automirrored.twotone.HelpOutline
-import androidx.compose.material.icons.twotone.AccessibilityNew
 import androidx.compose.material.icons.twotone.BatteryAlert
 import androidx.compose.material.icons.twotone.PowerOff
 import eu.darken.sdmse.common.compose.layout.SdmScaffold
@@ -39,7 +38,6 @@ fun SchedulerSettingsScreenHost(
         onNavigateUp = vm::navUp,
         onSkipPowerSavingChanged = vm::setSkipWhenPowerSaving,
         onSkipNotChargingChanged = vm::setSkipWhenNotCharging,
-        onUseAutomationChanged = vm::setUseAutomation,
         onHelp = vm::onHelpClick,
     )
 }
@@ -50,7 +48,6 @@ internal fun SchedulerSettingsScreen(
     onNavigateUp: () -> Unit = {},
     onSkipPowerSavingChanged: (Boolean) -> Unit = {},
     onSkipNotChargingChanged: (Boolean) -> Unit = {},
-    onUseAutomationChanged: (Boolean) -> Unit = {},
     onHelp: () -> Unit = {},
 ) {
     SdmScaffold(
@@ -96,15 +93,6 @@ internal fun SchedulerSettingsScreen(
                     onCheckedChange = onSkipNotChargingChanged,
                 )
             }
-            item {
-                SettingsSwitchItem(
-                    icon = Icons.TwoTone.AccessibilityNew,
-                    title = stringResource(R.string.scheduler_setting_automation_title),
-                    subtitle = stringResource(R.string.scheduler_setting_automation_summary),
-                    checked = state.useAutomation,
-                    onCheckedChange = onUseAutomationChanged,
-                )
-            }
         }
     }
 }
@@ -117,7 +105,6 @@ private fun SchedulerSettingsScreenPreview() {
             state = SchedulerSettingsViewModel.State(
                 skipWhenPowerSaving = true,
                 skipWhenNotCharging = false,
-                useAutomation = false,
             ),
         )
     }

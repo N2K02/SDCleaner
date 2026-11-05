@@ -6,9 +6,6 @@ import eu.darken.sdmse.common.WebpageTool
 import eu.darken.sdmse.common.adb.AdbManager
 import eu.darken.sdmse.common.root.RootManager
 import eu.darken.sdmse.common.shell.ShellOps
-import eu.darken.sdmse.main.core.GeneralSettings
-import eu.darken.sdmse.main.core.taskmanager.AcsScheduleRisk
-import eu.darken.sdmse.main.core.taskmanager.SchedulerAppCleanerAdvisor
 import eu.darken.sdmse.scheduler.core.Schedule
 import eu.darken.sdmse.scheduler.core.SchedulerManager
 import eu.darken.sdmse.scheduler.core.SchedulerRunHistory
@@ -53,23 +50,14 @@ class SchedulerManagerViewModelTest : BaseTest() {
             every { state } returns schedules
         }
         val settings = mockk<SchedulerSettings>().apply {
-            every { useAutomation } returns mockDataStoreValue(false)
             every { createdDefaultEntry } returns mockDataStoreValue(true)
             every { hintBatteryDismissed } returns mockDataStoreValue(false)
-            every { hintAcsScreenLockedDismissed } returns mockDataStoreValue(false)
-        }
-        val generalSettings = mockk<GeneralSettings>().apply {
-            every { hasAcsConsent } returns mockDataStoreValue(true)
         }
         val vm = SchedulerManagerViewModel(
             context = mockk<Context>(relaxed = true),
             dispatcherProvider = TestDispatcherProvider(),
             schedulerManager = schedulerManager,
             settings = settings,
-            generalSettings = generalSettings,
-            appCleanerAdvisor = mockk<SchedulerAppCleanerAdvisor>().apply {
-                every { acsScheduleRisk } returns flowOf(AcsScheduleRisk.NONE)
-            },
             rootManager = mockk<RootManager>().apply { every { this@apply.useRoot } returns rootFlow },
             adbManager = mockk<AdbManager>().apply { every { this@apply.useAdb } returns adbFlow },
             batteryHelper = mockk<BatteryHelper>().apply {

@@ -51,9 +51,9 @@ class AppNavigation @Inject constructor() : NavigationEntry {
         entry<BackupRestoreRoute> { BackupRestoreScreenHost() }
         entry<GeneralSettingsRoute> { GeneralSettingsScreenHost() }
         entry<AcknowledgementsRoute> { AcknowledgementsScreenHost() }
-        entry<SupportRoute> { eu.darken.sdmse.main.ui.settings.CleanerSettingsScreenHost("diagnostics") }
+        entry<SupportRoute> { SupportScreenHost() }
         entry<DashboardCardConfigRoute> { DashboardCardConfigScreenHost() }
         entry<SupportFormRoute> { SupportContactFormScreenHost() }
-        entry<DebugLogSessionsRoute> { eu.darken.sdmse.main.ui.settings.CleanerSettingsScreenHost("diagnostics") }
+        entry<DebugLogSessionsRoute> { DebugLogSessionsScreenHost() }
     }
 }

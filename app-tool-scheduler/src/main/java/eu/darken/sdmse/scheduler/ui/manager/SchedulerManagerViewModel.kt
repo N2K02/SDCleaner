@@ -18,14 +18,11 @@ import eu.darken.sdmse.common.debug.logging.log
 import eu.darken.sdmse.common.debug.logging.logTag
 import eu.darken.sdmse.common.flow.SingleEventFlow
 import eu.darken.sdmse.common.hasApiLevel
-import eu.darken.sdmse.common.navigation.routes.UpgradeRoute
 import eu.darken.sdmse.common.root.RootManager
 import eu.darken.sdmse.common.root.canUseRootNow
 import eu.darken.sdmse.common.shell.ShellOps
 import eu.darken.sdmse.common.shell.ipc.ShellOpsCmd
 import eu.darken.sdmse.common.uix.ViewModel4
-import eu.darken.sdmse.common.upgrade.UpgradeRepo
-import eu.darken.sdmse.common.upgrade.isProForUi
 import eu.darken.sdmse.main.core.GeneralSettings
 import eu.darken.sdmse.main.core.taskmanager.AcsScheduleRisk
 import eu.darken.sdmse.main.core.taskmanager.SchedulerAppCleanerAdvisor
@@ -62,7 +59,6 @@ class SchedulerManagerViewModel @Inject constructor(
     private val settings: SchedulerSettings,
     private val generalSettings: GeneralSettings,
     private val appCleanerAdvisor: SchedulerAppCleanerAdvisor,
-    private val upgradeRepo: UpgradeRepo,
     private val rootManager: RootManager,
     private val adbManager: AdbManager,
     private val batteryHelper: BatteryHelper,
@@ -200,11 +196,12 @@ class SchedulerManagerViewModel @Inject constructor(
     fun toggleSchedule(id: ScheduleId) = launch {
         log(TAG) { "toggleSchedule($id)" }
         val live = schedulerManager.state.first().schedules.firstOrNull { it.id == id } ?: return@launch
-        if (!upgradeRepo.isProForUi()) {
-            navTo(UpgradeRoute())
+        val enabling = !live.isEnabled
+        if (enabling && !live.useAppCleaner && !live.useSystemCleaner && !live.useCorpseFinder) {
+            // A default schedule with no tools must not silently run a no-op.
+            editSchedule(id)
             return@launch
         }
-        val enabling = !live.isEnabled
         schedulerManager.saveSchedule(
             live.copy(
                 scheduledAt = if (enabling) Instant.now() else null,
@@ -215,10 +212,6 @@ class SchedulerManagerViewModel @Inject constructor(
 
     fun runNow(id: ScheduleId) = launch {
         val schedule = schedulerManager.getSchedule(id) ?: return@launch
-        if (!upgradeRepo.isProForUi()) {
-            navTo(UpgradeRoute())
-            return@launch
-        }
         if (!schedule.useAppCleaner && !schedule.useSystemCleaner && !schedule.useCorpseFinder) return@launch
         schedulerManager.runNow(id)
     }

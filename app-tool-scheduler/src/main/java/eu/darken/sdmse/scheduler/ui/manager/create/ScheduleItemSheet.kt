@@ -101,6 +101,10 @@ fun ScheduleItemSheetHost(
                 onRunOnceModeSelected = vm::setRunOnceMode,
                 onIntervalMinutesChanged = vm::setIntervalMinutes,
                 onInitialDelayChanged = vm::setInitialDelayMinutes,
+                onEnabledChanged = vm::setEnabled,
+                onAppCleanerChanged = vm::setAppCleanerEnabled,
+                onSystemCleanerChanged = vm::setSystemCleanerEnabled,
+                onCorpseFinderChanged = vm::setCorpseFinderEnabled,
                 onSave = vm::saveSchedule,
             )
         }
@@ -119,6 +123,10 @@ internal fun ScheduleItemSheet(
     onRunOnceModeSelected: () -> Unit = {},
     onIntervalMinutesChanged: (Long) -> Unit = {},
     onInitialDelayChanged: (Long) -> Unit = {},
+    onEnabledChanged: (Boolean) -> Unit = {},
+    onAppCleanerChanged: (Boolean) -> Unit = {},
+    onSystemCleanerChanged: (Boolean) -> Unit = {},
+    onCorpseFinderChanged: (Boolean) -> Unit = {},
     onSave: () -> Unit = {},
 ) {
     val state by stateSource.collectAsStateWithLifecycle(initialValue = ScheduleItemViewModel.State())
@@ -191,6 +199,21 @@ internal fun ScheduleItemSheet(
                 )
             }
         }
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.TwoTone.AccessTime, contentDescription = null)
+                Spacer(Modifier.width(12.dp))
+                Text("Enable scheduler", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                Switch(checked = state.isEnabled, onCheckedChange = onEnabledChanged)
+            }
+        }
         OutlinedTextField(
             value = state.label.orEmpty(),
             onValueChange = onLabelChanged,
@@ -200,6 +223,35 @@ internal fun ScheduleItemSheet(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
         )
+        Text("What to clean", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+        Card(
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                listOf(
+                    Triple("App cache", state.useAppCleaner, onAppCleanerChanged),
+                    Triple("Temporary & system files", state.useSystemCleaner, onSystemCleanerChanged),
+                    Triple("Obsolete files", state.useCorpseFinder, onCorpseFinderChanged),
+                ).forEach { (title, checked, onChange) ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                        Switch(checked = checked, onCheckedChange = onChange)
+                    }
+                }
+            }
+        }
+        if (state.isEnabled && !state.useAppCleaner && !state.useSystemCleaner && !state.useCorpseFinder) {
+            Text(
+                "Select at least one cleaning tool before enabling the scheduler.",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
         Text("Run mode", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
         Card(
             shape = RoundedCornerShape(22.dp),
@@ -212,19 +264,19 @@ internal fun ScheduleItemSheet(
                 FilterChip(
                     selected = state.runOnce,
                     onClick = onRunOnceModeSelected,
-                    label = { Text("After X min", maxLines = 1) },
+                    label = { Text("After X minutes", maxLines = 2) },
                     modifier = Modifier.weight(1f),
                 )
                 FilterChip(
                     selected = state.intervalMinutes != null && !state.runOnce,
                     onClick = { onIntervalModeChanged(true) },
-                    label = { Text("Repeat", maxLines = 1) },
+                    label = { Text("Repeat every X minutes", maxLines = 2) },
                     modifier = Modifier.weight(1f),
                 )
                 FilterChip(
                     selected = state.intervalMinutes == null,
                     onClick = { onIntervalModeChanged(false) },
-                    label = { Text("At a time", maxLines = 1) },
+                    label = { Text("At specific time", maxLines = 2) },
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -434,7 +486,7 @@ internal fun ScheduleItemSheet(
             Text(
                 text = when {
                     state.runOnce -> "Cleaning will run once after ${state.initialDelayMinutes} minutes."
-                    intervalMinutes != null -> "Cleaning will start after ${state.initialDelayMinutes} minutes and repeat every $intervalMinutes minutes."
+                    intervalMinutes != null -> "Cleaning will ${if (state.initialDelayMinutes > 0) "start after ${state.initialDelayMinutes} minutes and then " else ""}repeat every $intervalMinutes minutes."
                     else -> "Cleaning will run at the selected time and repeat every ${state.repeatInterval.toDays()} days."
                 } + " Android battery restrictions may delay background execution.",
                 modifier = Modifier.padding(14.dp),

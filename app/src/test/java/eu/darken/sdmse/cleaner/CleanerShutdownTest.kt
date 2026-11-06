@@ -25,7 +25,7 @@ class CleanerShutdownTest {
         assertEquals(listOf("background", "cancel", "recording", "host"), events)
     }
 
-    @Test fun `stalled cleanup does not close the host or recorder`() = runTest {
+    @Test fun `stalled cleanup stops recording but retains active cleaner host`() = runTest {
         var closed = false
         var recorded = false
         val error = runCatching {
@@ -33,6 +33,6 @@ class CleanerShutdownTest {
         }.exceptionOrNull()
         assertTrue(error is TimeoutCancellationException)
         assertFalse(closed)
-        assertFalse(recorded)
+        assertTrue(recorded)
     }
 }

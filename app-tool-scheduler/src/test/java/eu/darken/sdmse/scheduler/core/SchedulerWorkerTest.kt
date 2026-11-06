@@ -20,6 +20,11 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import eu.darken.sdmse.main.core.SDMTool
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
@@ -90,6 +95,38 @@ class SchedulerWorkerTest : BaseTest() {
         shellOps = shellOps,
         runHistory = runHistory,
     )
+
+    @Test
+    fun `scheduler idle cycle waits for task completion and only then schedules the next run`() = runTest {
+        val scheduled = Schedule(id = scheduleId, useAppCleaner = true)
+        val task = mockk<SDMTool.Task> {
+            every { type } returns SDMTool.Type.APPCLEANER
+        }
+        val outcome = mockk<SDMTool.Task.Result> {
+            every { type } returns SDMTool.Type.APPCLEANER
+        }
+        val inFlight = CompletableDeferred<SDMTool.Task.Result>()
+        coEvery { schedulerManager.getSchedule(scheduleId) } returns scheduled
+        coEvery { schedulerTaskFactory.createTasks(scheduleId, setOf(SDMTool.Type.APPCLEANER)) } returns listOf(task)
+        coEvery {
+            taskSubmitter.submit(task, notifyOnFinish = false, cancelOnCallerCancellation = true)
+        } coAnswers { inFlight.await() }
+
+        val running = async { createWorker().doWork() }
+        advanceTimeBy(1_500)
+        runCurrent()
+        coVerify(exactly = 0) { schedulerManager.reschedule(any()) }
+        coVerify(exactly = 1) {
+            taskSubmitter.submit(task, notifyOnFinish = false, cancelOnCallerCancellation = true)
+        }
+
+        inFlight.complete(outcome)
+        running.await().shouldBeInstanceOf<ListenableWorker.Result.Success>()
+        coVerify(exactly = 1) { schedulerManager.reschedule(scheduleId) }
+        coVerify(exactly = 1) { runHistory.record(any(), any(), any(), RunOutcome.SUCCESS, any(), any(), false) }
+        coVerify(exactly = 0) { schedulerNotifications.notifyError(any()) }
+        coVerify(exactly = 0) { schedulerNotifications.notifyResult(any()) }
+    }
 
     @Test
     fun `successful execution returns success and re-arms the schedule`() = runTest {

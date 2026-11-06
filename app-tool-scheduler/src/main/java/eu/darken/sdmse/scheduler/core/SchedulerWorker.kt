@@ -158,7 +158,12 @@ class SchedulerWorker @AssistedInject constructor(
             log(TAG, WARN) { "WorkManager stopped schedule id=$scheduleId" }
         }
         lastOutcome = RunOutcome.WARNING
-        lastError = "Cancelled by Android or user"
+        lastError = if (hasApiLevel(31)) {
+            @Suppress("NewApi")
+            "Stopped by WorkManager (reason=$stopReason)"
+        } else {
+            "Stopped by WorkManager or user"
+        }
         throw e
     } catch (e: Throwable) {
         log(TAG, ERROR) { "Execution failed: ${e.asLog()}" }

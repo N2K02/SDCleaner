@@ -37,6 +37,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Instant
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
@@ -436,10 +437,25 @@ class TaskManager @Inject constructor(
                 throw (error as? Exception ?: TaskFatalErrorException(error))
             }
         } catch (e: CancellationException) {
-            // SchedulerWorker may be stopped by JobScheduler / WorkManager at any point.
-            // Do not leave a detached AppScope cleaning job running beyond its parent.
-            // Cancel ONLY this submission; never cancel other tasks of the same tool.
-            if (cancelOnCallerCancellation) job.cancel(e)
+            // The tool job lives in AppScope so manual UI tasks survive Activity recreation.
+            // A scheduler submission has different ownership: cancellation of its WorkManager
+            // caller must cancel the one tool job and WAIT for its cleanup, not merely signal it.
+            // The deadline is essential: buggy I/O must never trap WorkManager's wakelock forever.
+            if (cancelOnCallerCancellation) {
+                job.cancel(e)
+                val drained = withContext(NonCancellable) {
+                    withTimeoutOrNull(SCHEDULED_DRAIN_TIMEOUT_MS) {
+                        job.join()
+                        true
+                    } ?: false
+                }
+                if (!drained) {
+                    log(TAG, WARN) {
+                        "Scheduler task $taskId did not finish cleanup within " +
+                            "${SCHEDULED_DRAIN_TIMEOUT_MS}ms after cancellation"
+                    }
+                }
+            }
             throw e
         }
     }
@@ -480,6 +496,7 @@ class TaskManager @Inject constructor(
     }
 
     companion object {
+        private const val SCHEDULED_DRAIN_TIMEOUT_MS = 5_000L
         private val TAG = logTag("TaskManager")
     }
 }

@@ -418,6 +418,31 @@ class TaskManagerTest : BaseTest() {
             }
         }
 
+    @Test fun `scheduled cleanup returns to idle without keeping a resource lease or foreground monitor`() =
+        runTest2(autoCancel = true) {
+            val scope = this + Dispatchers.IO
+            val tool = createTool(scope)
+            coEvery { tool.submit(task) } returns taskResult
+            val manager = createManager(scope, tool)
+
+            // Three successive scheduled runs must each go RUNNING -> IDLE. The
+            // task-map intentionally retains the latest result; that must not hold
+            // any of its previous keep-alive leases or start a foreground monitor.
+            repeat(3) {
+                manager.submit(task, notifyOnFinish = false, cancelOnCallerCancellation = true)
+                    .shouldBeSameInstanceAs(taskResult)
+                val idle = manager.state.first { state ->
+                    state.tasks.isNotEmpty() && state.isIdle
+                }
+                idle.isIdle shouldBe true
+                idle.hasNotifiableActiveWork shouldBe false
+                manager.rawEntries().forEach { entry ->
+                    (entry.entryField("resourceLock") as KeepAlive).isClosed shouldBe true
+                }
+            }
+            coVerify(exactly = 0) { taskWorkerControl.startMonitor() }
+        }
+
     @Test fun `stopping scoped scheduler submission cancels only its underlying job`() =
         runTest2(autoCancel = true) {
             val scope = this + Dispatchers.IO
@@ -432,10 +457,13 @@ class TaskManagerTest : BaseTest() {
             manager.state.first { it.tasks.isNotEmpty() }
             val submittedJob = manager.jobOf(task)
             caller.cancel()
+            // The bounded cleanup join must not complete until the parked job is
+            // allowed to execute its finalizer. No detached WorkManager-owned work.
+            dispatcher.releaseAll()
             caller.join()
             submittedJob.isCancelled shouldBe true
-            dispatcher.releaseAll()
             manager.state.first { state -> state.tasks.singleOrNull()?.isComplete == true }
+            (manager.rawEntries().single().entryField("resourceLock") as KeepAlive).isClosed shouldBe true
         }
 
     @Test fun `ordinary UI submission survives cancellation of its caller`() =

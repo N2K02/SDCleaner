@@ -19,11 +19,16 @@ import javax.inject.Singleton
 /**
  * On-demand localhost ADB. Never treats the ordinary Android app UID as shell UID.
  * Pairing/authorization is explicit, and each actual connection is verified as uid 2000.
- * There is no boot receiver, background watchdog, or external privileged-manager dependency.
+ * Automatic recovery is bounded and local only; no external privileged-manager dependency.
  */
 @Singleton
 class DirectAdb @Inject constructor(@ApplicationContext private val context: Context) {
-    data class Status(val connected: Boolean = false, val message: String = "Not connected")
+    data class Status(
+        val connected: Boolean = false,
+        val message: String = "Not connected",
+        val verifiedUid: Int? = null,
+        val transport: String = "None",
+    )
     /** Fatal for this cleanup run: don't reconnect and retry the same broken stream for every package. */
     class TransportException(message: String, cause: Throwable? = null) :
         java.io.IOException(message, cause)
@@ -47,7 +52,11 @@ class DirectAdb @Inject constructor(@ApplicationContext private val context: Con
             status.value = Status(message = "ADB connected but shell UID verification failed")
         } else {
             DirectAdbOptions.rememberAuthorized(context, port)
-            status.value = Status(connected = true, message = "ADB ready (shell UID 2000)")
+            status.value = Status(
+                connected = true, verifiedUid = 2000,
+                transport = if (port == 5555) "Local TCP/5555" else "Wireless TLS",
+                message = "ADB ready (shell UID 2000)"
+            )
         }
         return okay
     }
@@ -55,7 +64,11 @@ class DirectAdb @Inject constructor(@ApplicationContext private val context: Con
     /** Connect only to this phone's USB-bootstrapped TCP listener. */
     suspend fun connectTcp(): Boolean = lock.withLock {
         withContext(Dispatchers.IO) {
-            if (AdbTransport.isConnected && status.value.connected) return@withContext true
+            if (AdbTransport.isConnected && status.value.connected &&
+                status.value.transport == "Local TCP/5555" &&
+                AdbTransport.exec("id -u").getOrNull()?.trim() == "2000") return@withContext true
+            // Never mistake an established Wireless TLS session for TCP/5555.
+            if (AdbTransport.isConnected) AdbTransport.disconnect()
             if (!endpointAvailable()) {
                 status.value = Status(message = "Localhost TCP/5555 unavailable. Enable Wireless debugging or USB ADB first.")
                 return@withContext false
@@ -75,6 +88,7 @@ class DirectAdb @Inject constructor(@ApplicationContext private val context: Con
             status.value = Status(message = "Enter the pairing port and six-digit code")
             return@withLock false
         }
+        AdbTransport.disconnect()
         val result = AdbTransport.pairLocal(context, port, code)
         status.value = Status(message = if (result.isSuccess)
             "Paired. Enter the Wireless debugging connection port and tap Connect."
@@ -118,7 +132,8 @@ class DirectAdb @Inject constructor(@ApplicationContext private val context: Con
 
     /** No scans, discovery, or keep-alive when disconnected. */
     suspend fun ensureConnected(): Boolean {
-        if (status.value.connected && AdbTransport.isConnected) return true
+        if (status.value.connected && AdbTransport.isConnected &&
+            AdbTransport.exec("id -u").getOrNull()?.trim() == "2000") return true
         if (connectTcp()) return true
         val tlsPort = DirectAdbOptions.tlsPort(context)
         return tlsPort != null && connectTls(tlsPort)

@@ -75,6 +75,7 @@ class DirectAdb @Inject constructor(@ApplicationContext private val context: Con
             }
             val result = AdbTransport.connect(context, AdbTransport.LOOPBACK, AdbTransport.LEGACY_TCP_PORT)
             if (result.isFailure) {
+                AdbTransport.disconnect()
                 status.value = Status(message = "ADB connection failed: ${result.exceptionOrNull()?.message}")
                 return@withContext false
             }
@@ -90,6 +91,7 @@ class DirectAdb @Inject constructor(@ApplicationContext private val context: Con
         }
         AdbTransport.disconnect()
         val result = AdbTransport.pairLocal(context, port, code)
+        if (result.isSuccess) DirectAdbOptions.rememberPaired(context)
         status.value = Status(message = if (result.isSuccess)
             "Paired. Enter the Wireless debugging connection port and tap Connect."
         else "Pairing failed: ${result.exceptionOrNull()?.message}")
@@ -102,13 +104,19 @@ class DirectAdb @Inject constructor(@ApplicationContext private val context: Con
             status.value = Status(message = "Enter a valid Wireless debugging connection port")
             return@withLock false
         }
+        if (AdbTransport.isConnected) {
+            // Do not silently verify the existing TCP manager as a different TLS port.
+            AdbTransport.disconnect()
+        }
         val attached = AdbTransport.connectLocalTls(context, port)
         if (attached.isFailure || !verifyShell(port)) {
+            AdbTransport.disconnect()
             status.value = Status(message = "Wireless ADB connection or UID verification failed")
             return@withLock false
         }
         if (!DirectAdbOptions.get(context, DirectAdbOptions.Option.TCP_5555)) return@withLock true
         if (AdbTransport.switchToTcpip().isFailure) {
+            AdbTransport.disconnect()
             status.value = Status(message = "Shell verified, but switching to TCP/5555 failed")
             return@withLock false
         }
@@ -179,6 +187,18 @@ class DirectAdb @Inject constructor(@ApplicationContext private val context: Con
         require(packageName != context.packageName && packageName != "com.android.systemui" &&
             packageName != "android") { "Unsafe force-stop target" }
         return execute("am force-stop --user $userId $packageName")
+    }
+
+    /** Restore permission is granted/revoked only by a fresh verified shell. */
+    suspend fun setRestartPermission(enabled: Boolean): Boolean {
+        val packageName = context.packageName.takeIf {
+            it.matches(Regex("[A-Za-z_][A-Za-z0-9_]*(\\\\.[A-Za-z_][A-Za-z0-9_]*)+"))
+        } ?: return false
+        if (!ensureConnected()) return false
+        val operation = if (enabled) "grant" else "revoke"
+        return runCatching {
+            execute("pm $operation $packageName android.permission.WRITE_SECURE_SETTINGS").success
+        }.getOrDefault(false)
     }
 
     suspend fun disconnect() {

@@ -61,7 +61,6 @@ class AppCleanerListViewModelTest : BaseTest() {
         isOtherUsersAvailable = false,
         isRunningAppsDetectionAvailable = false,
         isInaccessibleCacheAvailable = false,
-        isAcsRequired = false,
     )
 
     private fun upgradeInfo(isPro: Boolean): UpgradeRepo.Info = mockk<UpgradeRepo.Info>().apply {

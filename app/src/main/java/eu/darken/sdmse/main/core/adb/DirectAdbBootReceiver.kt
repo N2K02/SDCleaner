@@ -1,6 +1,5 @@
 package eu.darken.sdmse.main.core.adb
 
-import android.Manifest
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -45,7 +44,7 @@ class DirectAdbBootReceiver : BroadcastReceiver() {
                             app, DirectAdbOptions.Option.RESTORE_AFTER_RESTART
                         ) && DirectAdbOptions.lastVerifiedBoot(app) >= 0 &&
                         DirectAdbOptions.lastVerifiedBoot(app) != DirectAdbOptions.currentBoot(app) &&
-                        app.checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) ==
+                        app.checkSelfPermission("android.permission.WRITE_SECURE_SETTINGS") ==
                             PackageManager.PERMISSION_GRANTED && onWifi(app)) {
                         runCatching {
                             if (Settings.Global.getInt(app.contentResolver, "adb_wifi_enabled", 0) == 0) {

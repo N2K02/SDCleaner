@@ -19,6 +19,11 @@ object DirectAdbOptions {
     }
     fun wasAuthorized(context: Context): Boolean =
         prefs(context).getBoolean("previously_authorized", false)
+    fun wasPaired(context: Context): Boolean =
+        prefs(context).getBoolean("previously_paired", false)
+    fun rememberPaired(context: Context) {
+        prefs(context).edit().putBoolean("previously_paired", true).apply()
+    }
     fun rememberAuthorized(context: Context, port: Int) {
         if (port !in 1..65535) return
         val boot = boot(context)

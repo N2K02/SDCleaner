@@ -21,6 +21,7 @@ import eu.darken.sdmse.main.core.SDMTool
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.CoroutineStart
@@ -421,7 +422,10 @@ class TaskManager @Inject constructor(
         }
 
         try {
-            withContext(NonCancellable) {
+            // Acquire and register on a real-time dispatcher: the test scheduler's virtual
+            // clock must not expire the registration timeout before asynchronous IO can run.
+            // The critical section stays cancellation-safe and bounded by ten seconds.
+            withContext(NonCancellable + Dispatchers.IO) {
                 withTimeout(10_000L) {
                     val tool = tools.single { it.type == task.type }
                     sharedResource.addChild(tool.sharedResource)

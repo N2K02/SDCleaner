@@ -153,11 +153,11 @@ class DirectAdb @Inject constructor(@ApplicationContext private val context: Con
      * The shell protocol does not expose exit codes; append a unique status sentinel.
      * Commands are built from validated package names and integer Android user IDs only.
      */
-    suspend fun execute(command: String): CommandResult {
+    suspend fun execute(command: String, timeoutMs: Long = DEFAULT_TIMEOUT_MS): CommandResult {
         if (!ensureConnected()) throw TransportException("ADB shell UID 2000 unavailable")
         val tag = "__SDC_EXIT_${UUID.randomUUID().toString().replace("-", "")}__"
         val wrapped = "( $command ); printf '\\n$tag%s\\n' \"\$?\""
-        val raw = AdbTransport.exec(wrapped).getOrElse { error ->
+        val raw = AdbTransport.exec(wrapped, timeoutMs).getOrElse { error ->
             if (error is CancellationException) throw error
             status.value = Status(message = "ADB command stream interrupted")
             throw TransportException("ADB stream failed; stop this cleanup run", error)
@@ -179,10 +179,18 @@ class DirectAdb @Inject constructor(@ApplicationContext private val context: Con
         return CommandResult(code, lines.filterNot { it.startsWith(tag) }.joinToString("\n").trim())
     }
 
-    suspend fun clearCache(packageName: String, userId: Int): CommandResult {
-        require(validPackage(packageName) && userId >= 0) { "Invalid cache target" }
-        return execute("pm clear --user $userId --cache-only $packageName")
-    }
+    /**
+     * Device-wide cache trim through PackageManager.freeStorageAndNotify (needs CLEAR_APP_CACHE,
+     * which the shell UID holds). Only removes cache files; never app data.
+     *
+     * Per-package `pm clear --cache-only` is deliberately NOT used: it calls
+     * deleteApplicationCacheFilesAsUser, which requires INTERNAL_DELETE_CACHE_FILES. The shell
+     * only holds the legacy DELETE_CACHE_FILES, so the framework "silently ignores" the call and
+     * never invokes the observer - `pm` then blocks forever (seen on-device as 15s exec timeouts
+     * followed by "Stream closed").
+     */
+    suspend fun trimCaches(): CommandResult =
+        execute(trimCachesCommand(), timeoutMs = TRIM_TIMEOUT_MS)
 
     suspend fun forceStop(packageName: String, userId: Int): CommandResult {
         require(validPackage(packageName) && userId >= 0) { "Invalid force-stop target" }
@@ -213,7 +221,17 @@ class DirectAdb @Inject constructor(@ApplicationContext private val context: Con
         }
     }
 
+    /** Previously verified as UID 2000 on this install; cheap, no connection attempt. */
+    val wasAuthorized: Boolean get() = DirectAdbOptions.wasAuthorized(context)
+
     companion object {
+        const val DEFAULT_TIMEOUT_MS = 15_000L
+        /** freeStorage walks every app's cache; large devices need far more than 15s. */
+        const val TRIM_TIMEOUT_MS = 120_000L
+
+        /** Long.MAX_VALUE bytes requested => trim every app's cache. */
+        fun trimCachesCommand(): String = "pm trim-caches ${Long.MAX_VALUE}"
+
         fun validPackage(value: String): Boolean =
             value.length <= 255 && value.contains('.') &&
                 value.matches(Regex("[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+"))

@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test
 import testhelpers.BaseTest
 import testhelpers.mockDataStoreValue
 
-/** Only the actual uid-2000 backend is tested; no Accessibility or settings automation remains. */
+/** uid-2000 device-wide trim backend; no Accessibility, settings automation or per-app pm clear. */
 class InaccessibleDeleterTest : BaseTest() {
     private val handle = UserHandle2(handleId = 0)
     private val profile = UserProfile2(handle = handle)
@@ -42,7 +42,7 @@ class InaccessibleDeleterTest : BaseTest() {
         coEvery { userManager.currentUser() } returns profile
         coEvery { adb.ensureConnected() } returns true
         coEvery { adb.disconnect() } returns Unit
-        coEvery { adb.clearCache(any(), any()) } returns DirectAdb.CommandResult(0, "Success")
+        coEvery { adb.trimCaches() } returns DirectAdb.CommandResult(0, "")
         every { settings.forceStopBeforeClearing } returns mockDataStoreValue(false)
         deleter = InaccessibleDeleter(userManager, adb, provider, settings)
     }
@@ -64,93 +64,91 @@ class InaccessibleDeleterTest : BaseTest() {
         )
     }
 
-    @Test fun `without an authorized ADB session only failures are reported`() = runTest {
+    private fun run(vararg items: AppJunk, targets: Collection<InstallId>? = null) =
+        kotlinx.coroutines.test.runTest {
+            result = deleter.deleteInaccessible(AppCleaner.Data(junks = items.toList()), targets, false, false)
+        }
+    private lateinit var result: InaccessibleDeleter.InaccDelResult
+
+    @Test fun `without an authorized ADB session only failures are reported`() {
         val item = junk("com.example.test")
         coEvery { adb.ensureConnected() } returns false
-        val result = deleter.deleteInaccessible(
-            AppCleaner.Data(junks = listOf(item)), null, false, false
-        )
+        run(item)
         result.failed shouldContainKey item.identifier
         result.succesful shouldNotContain item.identifier
-        coVerify(exactly = 0) { adb.clearCache(any(), any()) }
+        coVerify(exactly = 0) { adb.trimCaches() }
         coVerify(exactly = 1) { adb.disconnect() }
     }
 
-    @Test fun `cache already empty does not issue a destructive command`() = runTest {
-        val item = junk("com.example.empty")
-        coEvery { provider.determineCache(item.pkg) } returns item.inaccessibleCache!!.copy(totalSize = 0L)
-        val result = deleter.deleteInaccessible(
-            AppCleaner.Data(junks = listOf(item)), null, false, false
-        )
-        result.succesful shouldContain item.identifier
-        result.freedBytes[item.identifier] shouldBe 0L
-        coVerify(exactly = 0) { adb.clearCache(any(), any()) }
+    @Test fun `whole-tool clean issues exactly one trim and verifies each app`() {
+        val a = junk("com.example.a", 500L)
+        val b = junk("com.example.b", 300L)
+        coEvery { provider.determineCache(a.pkg) } returns a.inaccessibleCache!!.copy(totalSize = 100L)
+        coEvery { provider.determineCache(b.pkg) } returns b.inaccessibleCache!!.copy(totalSize = 0L)
+        run(a, b)
+        result.succesful shouldContain a.identifier
+        result.succesful shouldContain b.identifier
+        result.freedBytes[a.identifier] shouldBe 400L
+        result.freedBytes[b.identifier] shouldBe 300L
+        coVerify(exactly = 1) { adb.trimCaches() }
+        coVerify(exactly = 1) { adb.disconnect() }
     }
 
-    @Test fun `success requires observed cache decrease`() = runTest {
-        val item = junk("com.example.success", 500L)
-        coEvery { provider.determineCache(item.pkg) } returnsMany listOf(
-            item.inaccessibleCache!!,
-            item.inaccessibleCache!!.copy(totalSize = 100L)
-        )
-        val result = deleter.deleteInaccessible(
-            AppCleaner.Data(junks = listOf(item)), null, false, false
-        )
-        result.succesful shouldContain item.identifier
-        result.freedBytes[item.identifier] shouldBe 400L
-        coVerify(exactly = 1) { adb.clearCache("com.example.success", 0) }
-    }
-
-    @Test fun `platform command failure does not report success`() = runTest {
-        val item = junk("com.example.denied")
+    @Test fun `unchanged cache after trim is a failure, not a success`() {
+        val item = junk("com.example.busy", 500L)
         coEvery { provider.determineCache(item.pkg) } returns item.inaccessibleCache
-        coEvery { adb.clearCache(any(), any()) } returns DirectAdb.CommandResult(1, "Failure")
-        val result = deleter.deleteInaccessible(
-            AppCleaner.Data(junks = listOf(item)), null, false, false
-        )
+        run(item)
         result.failed shouldContainKey item.identifier
         result.succesful shouldNotContain item.identifier
     }
 
-    @Test fun `ADB stream failure skips remaining packages without repeated 15-second reconnects`() = runTest {
-        val first = junk("com.example.first", 800L)
-        val second = junk("com.example.second", 700L)
-        val third = junk("com.example.third", 600L)
-        listOf(first, second, third).forEach { item ->
-            coEvery { provider.determineCache(item.pkg) } returns item.inaccessibleCache
-        }
-        coEvery { adb.clearCache("com.example.first", 0) } throws
-            DirectAdb.TransportException("ADB stream timeout")
-        val result = deleter.deleteInaccessible(
-            AppCleaner.Data(junks = listOf(first, second, third)), null, false, true
-        )
+    @Test fun `rejected trim reports failures without verification`() {
+        val item = junk("com.example.denied")
+        coEvery { adb.trimCaches() } returns DirectAdb.CommandResult(255, "Error: SecurityException")
+        run(item)
+        result.failed shouldContainKey item.identifier
+        coVerify(exactly = 0) { provider.determineCache(any()) }
+    }
+
+    @Test fun `transport failure on trim fails the run once without retries`() {
+        val first = junk("com.example.first")
+        val second = junk("com.example.second")
+        coEvery { adb.trimCaches() } throws DirectAdb.TransportException("ADB stream timeout")
+        run(first, second)
         result.failed shouldContainKey first.identifier
         result.failed shouldContainKey second.identifier
-        result.failed shouldContainKey third.identifier
-        result.succesful shouldNotContain first.identifier
-        coVerify(exactly = 1) { adb.clearCache("com.example.first", 0) }
-        coVerify(exactly = 0) { adb.clearCache("com.example.second", 0) }
-        coVerify(exactly = 0) { adb.clearCache("com.example.third", 0) }
+        coVerify(exactly = 1) { adb.trimCaches() }
         coVerify(exactly = 1) { adb.disconnect() }
     }
 
-    @Test fun `cancellation preserves partial results and closes transport`() = runTest {
-        val good = junk("com.example.a", 600L)
-        val interrupted = junk("com.example.z", 500L)
-        coEvery { provider.determineCache(good.pkg) } returnsMany listOf(
-            good.inaccessibleCache!!, good.inaccessibleCache!!.copy(totalSize = 0L)
-        )
-        coEvery { provider.determineCache(interrupted.pkg) } returns interrupted.inaccessibleCache
-        coEvery { adb.clearCache("com.example.z", 0) } throws CancellationException("Quit")
+    @Test fun `targeted clean never trims every app`() {
+        val item = junk("com.example.selected")
+        run(item, targets = listOf(item.identifier))
+        (result.failed[item.identifier] is InaccessibleDeleter.TargetedClearUnsupportedException) shouldBe true
+        coVerify(exactly = 0) { adb.trimCaches() }
+        coVerify(exactly = 0) { adb.ensureConnected() }
+    }
+
+    @Test fun `cancellation during trim preserves partial results and closes transport`() {
+        val item = junk("com.example.z", 500L)
+        coEvery { adb.trimCaches() } throws CancellationException("Quit")
         var partial: InaccessibleDeleter.InaccDelResult? = null
-        try {
-            deleter.deleteInaccessible(
-                AppCleaner.Data(junks = listOf(good, interrupted)), null, false, false,
-                onPartialResult = { partial = it },
-            )
-            error("Expected cancellation")
-        } catch (_: CancellationException) { }
-        partial!!.succesful shouldContain good.identifier
+        kotlinx.coroutines.test.runTest {
+            try {
+                deleter.deleteInaccessible(
+                    AppCleaner.Data(junks = listOf(item)), null, false, false,
+                    onPartialResult = { partial = it },
+                )
+                error("Expected cancellation")
+            } catch (_: CancellationException) { }
+        }
+        partial!!.succesful shouldNotContain item.identifier
         coVerify { adb.disconnect() }
+    }
+
+    @Test fun `trim command requests every cache byte and never data clear`() {
+        val cmd = DirectAdb.trimCachesCommand()
+        cmd shouldBe "pm trim-caches ${Long.MAX_VALUE}"
+        cmd.contains("pm clear") shouldBe false
     }
 }

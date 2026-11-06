@@ -86,7 +86,6 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var navigationEntries: Set<@JvmSuppressWildcards NavigationEntry>
     @Inject lateinit var guidedTourController: GuidedTourController
     @Inject lateinit var deviceDetective: DeviceDetective
-    @Inject lateinit var shizukuSetupModule: eu.darken.sdmse.setup.shizuku.ShizukuSetupModule
 
     override fun onCreate(savedInstanceState: Bundle?) {
         log(TAG) { "onCreate(restoringState=${savedInstanceState != null})" }
@@ -324,8 +323,6 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         eu.darken.sdmse.cleaner.CleanerUpdater.resume(this)
-        // Recheck installed managers after returning from an installer or another app.
-        lifecycleScope.launch { shizukuSetupModule.refresh() }
         savedIntent?.let { intent ->
             handleShortcutAction(intent)
             savedIntent = null

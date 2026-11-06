@@ -78,7 +78,6 @@ fun AppCleanerSettingsScreenHost(
     AppCleanerSettingsScreen(
         state = state,
         snackbarHostState = snackbarHostState,
-        adbSetupCard = { DirectAdbSettingsCard() },
         onNavigateUp = vm::navUp,
         onIncludeSystemAppsChanged = vm::setIncludeSystemApps,
         onIncludeOtherUsersChanged = vm::setIncludeOtherUsers,

@@ -1,6 +1,7 @@
 package eu.darken.sdmse.common.adb.local
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.net.wifi.WifiManager
@@ -57,7 +58,10 @@ class DirectAdbRecovery @Inject constructor(
 
     fun onSettingsChanged() {
         configureWatchdog()
-        if (visible) connectionAttempt = scope.launch { recover() }
+        if (visible && !DirectAdbOptions.stopRequested(app)) {
+            connectionAttempt?.cancel()
+            connectionAttempt = scope.launch { recover() }
+        }
     }
 
     /** Disposes timers and Wi-Fi discovery when the user leaves this page. */
@@ -86,18 +90,38 @@ class DirectAdbRecovery @Inject constructor(
     suspend fun recover() {
         if (DirectAdbOptions.stopRequested(app)) return
         if (adb.status.value.connected && AdbTransport.isConnected &&
-            adb.ensureConnected()) return
+            adb.ensureConnected()) {
+            synchronizeRestartPermission()
+            return
+        }
         // Only a local listener is accepted; no TCP probes outside this phone.
         if (adb.connectTcp()) {
             stopDiscovery()
+            synchronizeRestartPermission()
             return
         }
         val tls = DirectAdbOptions.tlsPort(app)
         if (tls != null && adb.connectTls(tls)) {
             stopDiscovery()
+            synchronizeRestartPermission()
             return
         }
         if (visible) startDiscovery()
+    }
+
+    /** WRITE_SECURE_SETTINGS is never granted unless explicitly enabled. */
+    private suspend fun synchronizeRestartPermission() {
+        if (!adb.status.value.connected || !AdbTransport.isConnected) return
+        val desired = DirectAdbOptions.get(app, DirectAdbOptions.Option.RESTORE_AFTER_RESTART)
+        val permission = app.checkSelfPermission("android.permission.WRITE_SECURE_SETTINGS") ==
+            PackageManager.PERMISSION_GRANTED
+        if (desired == permission) return
+        val changed = adb.setRestartPermission(desired)
+        if (!changed) {
+            state.value = state.value.copy(message =
+                if (desired) "Android denied optional Wireless debugging restore permission"
+                else "Could not revoke optional Wireless debugging restore permission")
+        }
     }
 
     fun submitPairingCode(code: String) {
@@ -113,7 +137,10 @@ class DirectAdbRecovery @Inject constructor(
                     DirectAdbOptions.rememberPaired(app)
                     state.value = state.value.copy(message = "Paired. Waiting for verified connection")
                     state.value.connectionPort?.let {
-                        if (adb.connectTls(it)) stopDiscovery()
+                        if (adb.connectTls(it)) {
+                            stopDiscovery()
+                            synchronizeRestartPermission()
+                        }
                     }
                 }
             } finally {
@@ -163,7 +190,10 @@ class DirectAdbRecovery @Inject constructor(
         connectListener = listen(nsd, "_adb-tls-connect._tcp.", activeGeneration) { port ->
             state.value = state.value.copy(connectionPort = port)
             if (DirectAdbOptions.wasAuthorized(app) || DirectAdbOptions.wasPaired(app)) scope.launch {
-                if (visible && activeGeneration == generation && adb.connectTls(port)) stopDiscovery()
+                if (visible && activeGeneration == generation && adb.connectTls(port)) {
+                    stopDiscovery()
+                    synchronizeRestartPermission()
+                }
             }
         }
         scanTimeout = scope.launch {

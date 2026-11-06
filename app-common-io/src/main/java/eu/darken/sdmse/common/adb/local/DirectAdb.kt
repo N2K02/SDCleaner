@@ -116,7 +116,7 @@ class DirectAdb @Inject constructor(@ApplicationContext private val context: Con
      * Commands are built from validated package names and integer Android user IDs only.
      */
     suspend fun execute(command: String): CommandResult {
-        check(ensureConnected()) { "ADB shell UID 2000 unavailable" }
+        if (!ensureConnected()) throw TransportException("ADB shell UID 2000 unavailable")
         val tag = "__SDC_EXIT_${UUID.randomUUID().toString().replace("-", "")}__"
         val wrapped = "( $command ); printf '\\n$tag%s\\n' \"\$?\""
         val raw = AdbTransport.exec(wrapped).getOrElse { error ->

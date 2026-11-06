@@ -112,6 +112,28 @@ class InaccessibleDeleterTest : BaseTest() {
         result.succesful shouldNotContain item.identifier
     }
 
+    @Test fun `ADB stream failure skips remaining packages without repeated 15-second reconnects`() = runTest {
+        val first = junk("com.example.first", 800L)
+        val second = junk("com.example.second", 700L)
+        val third = junk("com.example.third", 600L)
+        listOf(first, second, third).forEach { item ->
+            coEvery { provider.determineCache(item.pkg) } returns item.inaccessibleCache
+        }
+        coEvery { adb.clearCache("com.example.first", 0) } throws
+            DirectAdb.TransportException("ADB stream timeout")
+        val result = deleter.deleteInaccessible(
+            AppCleaner.Data(junks = listOf(first, second, third)), null, false, true
+        )
+        result.failed shouldContainKey first.identifier
+        result.failed shouldContainKey second.identifier
+        result.failed shouldContainKey third.identifier
+        result.succesful shouldNotContain first.identifier
+        coVerify(exactly = 1) { adb.clearCache("com.example.first", 0) }
+        coVerify(exactly = 0) { adb.clearCache("com.example.second", 0) }
+        coVerify(exactly = 0) { adb.clearCache("com.example.third", 0) }
+        coVerify(exactly = 1) { adb.disconnect() }
+    }
+
     @Test fun `cancellation preserves partial results and closes transport`() = runTest {
         val good = junk("com.example.a", 600L)
         val interrupted = junk("com.example.z", 500L)

@@ -24,6 +24,9 @@ import javax.inject.Singleton
 @Singleton
 class DirectAdb @Inject constructor(@ApplicationContext private val context: Context) {
     data class Status(val connected: Boolean = false, val message: String = "Not connected")
+    /** Fatal for this cleanup run: don't reconnect and retry the same broken stream for every package. */
+    class TransportException(message: String, cause: Throwable? = null) :
+        java.io.IOException(message, cause)
     data class CommandResult(val exitCode: Int, val output: String) {
         val success: Boolean get() = exitCode == 0
     }
@@ -116,13 +119,17 @@ class DirectAdb @Inject constructor(@ApplicationContext private val context: Con
         check(ensureConnected()) { "ADB shell UID 2000 unavailable" }
         val tag = "__SDC_EXIT_${UUID.randomUUID().toString().replace("-", "")}__"
         val wrapped = "( $command ); printf '\\n$tag%s\\n' \"\$?\""
-        val raw = AdbTransport.exec(wrapped).getOrElse { throw it }
+        val raw = AdbTransport.exec(wrapped).getOrElse { error ->
+            if (error is CancellationException) throw error
+            status.value = Status(message = "ADB command stream interrupted")
+            throw TransportException("ADB stream failed; stop this cleanup run", error)
+        }
         currentCoroutineContext().ensureActive()
         val lines = raw.lines()
         val last = lines.lastOrNull { it.startsWith(tag) }
-            ?: throw IllegalStateException("ADB command returned no exit status")
+            ?: throw TransportException("ADB stream lost command exit marker")
         val code = last.removePrefix(tag).trim().toIntOrNull()
-            ?: throw IllegalStateException("ADB command returned invalid exit status")
+            ?: throw TransportException("ADB stream returned malformed exit marker")
         return CommandResult(code, lines.filterNot { it.startsWith(tag) }.joinToString("\n").trim())
     }
 

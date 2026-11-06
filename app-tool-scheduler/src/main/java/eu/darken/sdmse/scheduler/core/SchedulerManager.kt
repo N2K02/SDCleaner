@@ -184,7 +184,7 @@ class SchedulerManager @Inject constructor(
      * A user-requested cleanup runs in its own unique work chain, without replacing the
      * next automatic occurrence. KEEP prevents duplicate taps from starting extra cleanups.
      */
-    suspend fun runNow(id: ScheduleId) = workGate.withLock {
+    suspend fun runNow(id: ScheduleId): Unit = workGate.withLock {
         val schedule = state.first().schedules.singleOrNull { it.id == id } ?: return@withLock
         // A manual tap while automatic cleanup is already RUNNING would create
         // an additional JobScheduler job and a second long CPU wake-up for the
@@ -205,6 +205,7 @@ class SchedulerManager @Inject constructor(
             ExistingWorkPolicy.KEEP,
             request,
         ).await()
+        Unit
     }
 
     suspend fun reschedule(id: ScheduleId) {

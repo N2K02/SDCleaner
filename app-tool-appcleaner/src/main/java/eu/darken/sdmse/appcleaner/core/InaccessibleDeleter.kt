@@ -19,6 +19,9 @@ import eu.darken.sdmse.common.progress.updateProgressPrimary
 import eu.darken.sdmse.common.progress.updateProgressSecondary
 import eu.darken.sdmse.common.user.UserManager2
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
+import java.io.IOException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -84,7 +87,7 @@ class InaccessibleDeleter @Inject constructor(
             }
 
             val shouldForceStop = settings.forceStopBeforeClearing.value()
-            for (junk in targets) {
+            for ((index, junk) in targets.withIndex()) {
                 currentCoroutineContext().ensureActive()
                 val id = junk.identifier
                 val packageName = id.pkgId.name
@@ -104,6 +107,10 @@ class InaccessibleDeleter @Inject constructor(
                             val result = directAdb.forceStop(packageName, userId)
                             if (!result.success) log(TAG, WARN) { "Force-stop declined for $id" }
                         } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: DirectAdb.TransportException) {
+                            // The stream is broken, so clearing the same package
+                            // through it would immediately hang again.
                             throw e
                         } catch (e: Exception) {
                             log(TAG, WARN) { "Force-stop skipped for $id: ${e.asLog()}" }
@@ -142,6 +149,24 @@ class InaccessibleDeleter @Inject constructor(
                     currentCoroutineContext().ensureActive()
                     failed[id] = e
                     log(TAG, WARN) { "ADB cache clear failed for $id: ${e.asLog()}" }
+                    if (e is DirectAdb.TransportException) {
+                        // A timed-out/closed ADB stream is a *session* failure,
+                        // not an ordinary per-package failure. Without this
+                        // circuit breaker every remaining package reconnects,
+                        // waits 15 seconds, and can keep JobScheduler awake for
+                        // many minutes with no useful cleanup.
+                        val skipped = targets.drop(index + 1)
+                        skipped.forEach { pending ->
+                            failed[pending.identifier] = IOException(
+                                "Skipped after ADB transport failure; no further commands issued", e
+                            )
+                        }
+                        log(TAG, WARN) {
+                            "Stopping ADB cache-only cleanup after transport error; " +
+                                "skipped ${skipped.size} remaining packages"
+                        }
+                        break
+                    }
                 } finally {
                     increaseProgress()
                 }
@@ -150,8 +175,20 @@ class InaccessibleDeleter @Inject constructor(
             onPartialResult(snapshotResult())
             throw e
         } finally {
-            // No idle listener, shell, daemon, or polling task after a cleaning run.
-            directAdb.disconnect()
+            // A suspended worker may already be cancelled here. Close the ADB
+            // socket under a short independent deadline rather than allowing
+            // cancellation to skip cleanup or a wedged socket to block forever.
+            withContext(NonCancellable) {
+                try {
+                    val closed = withTimeoutOrNull(4_000) {
+                        directAdb.disconnect()
+                        true
+                    } ?: false
+                    if (!closed) log(TAG, WARN) { "Timed out disconnecting the ADB cleanup session" }
+                } catch (e: Exception) {
+                    log(TAG, WARN) { "Failed to close ADB cleanup session: ${e.asLog()}" }
+                }
+            }
         }
         return snapshotResult()
     }

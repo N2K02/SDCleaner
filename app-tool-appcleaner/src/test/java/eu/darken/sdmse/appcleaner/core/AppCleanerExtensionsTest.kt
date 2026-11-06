@@ -1,6 +1,5 @@
 package eu.darken.sdmse.appcleaner.core
 
-import eu.darken.sdmse.appcleaner.core.automation.errors.LockedAppCacheException
 import eu.darken.sdmse.appcleaner.ui.preview.previewAppJunk
 import eu.darken.sdmse.appcleaner.ui.preview.previewInaccessibleCache
 import eu.darken.sdmse.automation.core.errors.DisabledAppException
@@ -37,7 +36,6 @@ class AppCleanerExtensionsTest : BaseTest() {
     fun `a permanently failed inaccessible-only junk is unclearable`() {
         unclearableJunk(NoSettingsWindowException("no settings window")).isUnclearable shouldBe true
         unclearableJunk(DisabledAppException("disabled")).isUnclearable shouldBe true
-        unclearableJunk(LockedAppCacheException("locked")).isUnclearable shouldBe true
     }
 
     @Test

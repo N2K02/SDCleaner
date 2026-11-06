@@ -66,11 +66,13 @@ object AdbTransport {
     private const val SHELL_SERVICE = "exec:sh"
 
     @Volatile
+    @Volatile
     private var manager: AbsAdbConnectionManager? = null
 
     /** The one reused shell, and the lock that stops two commands interleaving
      *  on it. A shared stream with a sentinel protocol is only correct while
      *  exactly one caller is writing to it. */
+    @Volatile
     private var shell: ShellSession? = null
     private val mutex = Mutex()
 
@@ -196,9 +198,15 @@ object AdbTransport {
                         // A timed-out shell is desynchronized: retire its entire transport.
                         runCatching { session?.close() }
                         runCatching { mgr.disconnect() }
-                        if (manager === mgr) manager = null
-                        lastKnownConnected = false
-                        shell = null
+                        synchronized(this@AdbTransport) {
+                            // An older command's watchdog must not tear down
+                            // the newer manager that recovered in the meantime.
+                            if (manager === mgr) {
+                                manager = null
+                                lastKnownConnected = false
+                                shell = null
+                            }
+                        }
                     }
                     try {
                         // Include openStream in the try/finally: opening a dead
@@ -251,6 +259,8 @@ object AdbTransport {
      * back. It is random per session so no command's own output can collide.
      */
     private class ShellSession(private val stream: AdbStream) {
+        @Volatile private var running = false
+        @Volatile private var closing = false
         private val marker = "__vrec_" + java.util.UUID.randomUUID().toString().take(12) + "__"
         private val out = stream.openOutputStream()
         private val reader = stream.openInputStream().bufferedReader()
@@ -281,6 +291,9 @@ object AdbTransport {
         }
 
         fun run(command: String): String {
+            check(!closing) { "ADB shell is closing" }
+            running = true
+            try {
             val begin = "$marker-BEGIN"
             val end = "$marker-END"
 
@@ -333,13 +346,23 @@ object AdbTransport {
                 sb.appendLine(line)
             }
             return sb.toString().trimEnd()
+            } finally {
+                running = false
+                // Closing a BufferedReader from a different thread while
+                // readLine is blocked can deadlock on its internal reader lock.
+                // Defer that close until this reading thread has returned.
+                if (closing) runCatching { reader.close() }
+            }
         }
 
         fun close() {
-            // Wake blocked readers first, then close both stream wrappers.
+            closing = true
+            // Close the underlying ADB stream FIRST to wake the blocked
+            // reader. Do not wait for BufferedReader.close() from watchdog:
+            // it synchronizes with readLine and can prevent mgr.disconnect().
             runCatching { if (!stream.isClosed) stream.close() }
-            runCatching { reader.close() }
             runCatching { out.close() }
+            if (!running) runCatching { reader.close() }
         }
 
         private companion object {

@@ -146,8 +146,15 @@ class DirectAdb @Inject constructor(@ApplicationContext private val context: Con
     }
 
     suspend fun disconnect() {
-        AdbTransport.disconnect()
-        status.value = Status()
+        try {
+            // Disconnect must still run when the background Worker has
+            // already been cancelled. The only native socket cleanup is here.
+            withContext(kotlinx.coroutines.NonCancellable) {
+                kotlinx.coroutines.withTimeout(5_000) { AdbTransport.disconnect() }
+            }
+        } finally {
+            status.value = Status()
+        }
     }
 
     companion object {

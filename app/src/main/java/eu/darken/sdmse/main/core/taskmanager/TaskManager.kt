@@ -221,9 +221,14 @@ class TaskManager @Inject constructor(
         return result
     }
 
-    override suspend fun submit(task: SDMTool.Task, notifyOnFinish: Boolean): SDMTool.Task.Result {
-        log(TAG, INFO) { "submit(): $task (notifyOnFinish=$notifyOnFinish)" }
-        return submitInternal(task, notifyOnFinish, declineIfToolBusy = false)!!
+    override suspend fun submit(
+        task: SDMTool.Task,
+        notifyOnFinish: Boolean,
+        cancelOnCallerCancellation: Boolean,
+    ): SDMTool.Task.Result {
+        log(TAG, INFO) { "submit(): $task (notifyOnFinish=$notifyOnFinish, scoped=$cancelOnCallerCancellation)" }
+        return submitInternal(task, notifyOnFinish, declineIfToolBusy = false,
+            cancelOnCallerCancellation = cancelOnCallerCancellation)!!
     }
 
     override suspend fun submitIfToolIdle(task: SDMTool.Task, notifyOnFinish: Boolean): SDMTool.Task.Result? {
@@ -242,6 +247,7 @@ class TaskManager @Inject constructor(
         task: SDMTool.Task,
         notifyOnFinish: Boolean,
         declineIfToolBusy: Boolean,
+        cancelOnCallerCancellation: Boolean = false,
     ): SDMTool.Task.Result? {
         val taskId = rngString
 
@@ -423,12 +429,18 @@ class TaskManager @Inject constructor(
 
         if (declined) return null
 
-        job.join()
-
-        return outcome.await().getOrElse { error ->
-            // Callers expect an Exception: a CancellationException passes through raw, anything else
-            // that isn't an Exception (i.e. an Error) arrives wrapped with its cause preserved.
-            throw (error as? Exception ?: TaskFatalErrorException(error))
+        try {
+            job.join()
+            return outcome.await().getOrElse { error ->
+                // Callers expect an Exception: cancellations pass through unwrapped.
+                throw (error as? Exception ?: TaskFatalErrorException(error))
+            }
+        } catch (e: CancellationException) {
+            // SchedulerWorker may be stopped by JobScheduler / WorkManager at any point.
+            // Do not leave a detached AppScope cleaning job running beyond its parent.
+            // Cancel ONLY this submission; never cancel other tasks of the same tool.
+            if (cancelOnCallerCancellation) job.cancel(e)
+            throw e
         }
     }
 

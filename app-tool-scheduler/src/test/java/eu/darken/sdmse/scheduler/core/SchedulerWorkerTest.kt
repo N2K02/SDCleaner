@@ -180,4 +180,14 @@ class SchedulerWorkerTest : BaseTest() {
 
         coVerify(exactly = 0) { schedulerManager.reschedule(any()) }
     }
+
+    @Test
+    fun `setup healer never completing does not hold background worker indefinitely`() = runTest {
+        every { setupHealer.state } returns flowOf(SetupHealerSource.State(healAttemptCount = 0))
+        val result = createWorker().doWork()
+        result.shouldBeInstanceOf<ListenableWorker.Result.Success>()
+        coVerify { schedulerManager.reschedule(scheduleId) }
+        coVerify { runHistory.record(any(), any(), any(), RunOutcome.WARNING, any(), any(), any()) }
+    }
+
 }

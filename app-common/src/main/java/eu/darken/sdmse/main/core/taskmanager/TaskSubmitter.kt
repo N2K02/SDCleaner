@@ -5,7 +5,16 @@ import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 
 interface TaskSubmitter {
-    suspend fun submit(task: SDMTool.Task, notifyOnFinish: Boolean = true): SDMTool.Task.Result
+    /**
+     * [cancelOnCallerCancellation] is for scheduler-owned jobs: stopping their WorkManager
+     * parent must stop the exact tool job as well. Default false preserves user-triggered
+     * cleanups that intentionally survive UI navigation / Activity recreation.
+     */
+    suspend fun submit(
+        task: SDMTool.Task,
+        notifyOnFinish: Boolean = true,
+        cancelOnCallerCancellation: Boolean = false,
+    ): SDMTool.Task.Result
 
     /**
      * Like [submit], but atomically declines when the task's tool already has an incomplete task.

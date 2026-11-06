@@ -33,22 +33,23 @@ import eu.darken.sdmse.stats.core.ReportDetails
 import eu.darken.sdmse.main.core.taskmanager.TaskSubmitter
 import eu.darken.sdmse.setup.SetupHealerSource
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.take
-
+import kotlinx.coroutines.flow.first
 
 @HiltWorker
 class SchedulerWorker @AssistedInject constructor(
     @Assisted private val context: Context,
     @Assisted private val params: WorkerParameters,
-    dispatcherProvider: DispatcherProvider,
+    @Suppress("UNUSED_PARAMETER") dispatcherProvider: DispatcherProvider,
     private val taskSubmitter: TaskSubmitter,
     private val schedulerTaskFactory: SchedulerTaskFactory,
     private val schedulerManager: SchedulerManager,
@@ -64,9 +65,8 @@ class SchedulerWorker @AssistedInject constructor(
         log(TAG, VERBOSE) { "init(): workerId=$id" }
     }
 
-    private val workerScope = CoroutineScope(dispatcherProvider.Default + SupervisorJob())
-    private var finishedWithError = false
     private var currentSchedule: Schedule? = null
+    private var wasInterrupted = false
     private var startedAtMs: Long? = null
     private var lastOutcome = RunOutcome.WARNING
     private var lastDetails: List<String> = emptyList()
@@ -112,7 +112,7 @@ class SchedulerWorker @AssistedInject constructor(
             Bugs.leaveBreadCrumb("Executing schedule")
 
             startedAtMs = start
-            val results = doDoWork(schedule)
+            val results = withTimeout(8 * 60 * 1000L) { doDoWork(schedule) }
             lastDetails = results.map { item ->
                 val tool = item.task.type.toString()
                 when {
@@ -140,62 +140,64 @@ class SchedulerWorker @AssistedInject constructor(
 
             Result.success(inputData)
         }
+    } catch (e: TimeoutCancellationException) {
+        // Ordinary WorkManager jobs have a limited execution window. Stop cleaning
+        // before Android has to force-stop a long-running background job.
+        log(TAG, WARN) { "Scheduled cleaning timed out after the 8-minute budget" }
+        lastOutcome = RunOutcome.WARNING
+        lastError = "Background cleanup exceeded 8-minute limit"
+        Result.success(inputData)
+    } catch (e: CancellationException) {
+        // The OS or user has stopped this worker. Do not convert the signal to
+        // Result.success(), and do not append a successor while cancelling.
+        wasInterrupted = true
+        lastOutcome = RunOutcome.WARNING
+        lastError = "Cancelled by Android or user"
+        throw e
     } catch (e: Throwable) {
-        if (e !is CancellationException) {
-            log(TAG, ERROR) { "Execution failed: ${e.asLog()}" }
-            finishedWithError = true
-            lastOutcome = RunOutcome.FAILED
-            lastError = e.javaClass.simpleName + ": " + (e.message ?: "Unknown error")
-
-            // Not Result.failure(...), that would sever the recurring chain, see above.
-            Result.success(inputData)
-        } else {
-            lastOutcome = RunOutcome.WARNING
-            lastError = "Cancelled"
-            Result.success()
-        }
+        log(TAG, ERROR) { "Execution failed: ${e.asLog()}" }
+        lastOutcome = RunOutcome.FAILED
+        lastError = e.javaClass.simpleName + ": " + (e.message ?: "Unknown error")
+        // Keep the recurring chain viable after an ordinary tool error.
+        Result.success(inputData)
     } finally {
-        // First, so stray task jobs can't outlive the worker even if cleanup below rethrows cancellation
-        try {
-            workerScope.cancel("Worker finished (withError?=$finishedWithError).")
-        } catch (e: Exception) {
-            log(TAG, ERROR) { "Failed to cancel worker scope (error=$finishedWithError): ${e.asLog()}" }
-        }
-
-        try {
+        // Only SHORT, bounded bookkeeping may outlive cancellation. No detached
+        // tasks, polling, sockets or indefinitely waiting commits in a worker.
+        withContext(NonCancellable) {
             currentSchedule?.let { schedule ->
                 startedAtMs?.let { started ->
-                    // Record before rescheduling, even if individual tools failed.
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
-                        runHistory.record(schedule, started, System.currentTimeMillis(),
-                            lastOutcome, lastDetails, lastError, isManual)
+                    try {
+                        withTimeout(3_000) {
+                            runHistory.record(schedule, started, System.currentTimeMillis(),
+                                lastOutcome, lastDetails, lastError, isManual)
+                        }
+                    } catch (e: Exception) {
+                        log(TAG, ERROR) { "Run history cleanup failed: ${e.asLog()}" }
                     }
                 }
             }
-        } catch (e: Exception) {
-            log(TAG, ERROR) { "Failed to persist scheduler history: ${e.asLog()}" }
-        }
 
-        try {
-            schedulerManager.updateExecutedNow(scheduleId, manual = isManual)
-        } catch (e: Exception) {
-            // On cancellation (e.g. schedule disabled) the schedule must not be re-armed
-            if (e is CancellationException) throw e
-            log(TAG, ERROR) { "Failed to update execution timestamp (error=$finishedWithError): ${e.asLog()}" }
-        }
+            if (!wasInterrupted && !isStopped) {
+                try {
+                    withTimeout(3_000) { schedulerManager.updateExecutedNow(scheduleId, manual = isManual) }
+                } catch (e: Exception) {
+                    log(TAG, ERROR) { "Failed to update execution time: ${e.asLog()}" }
+                }
+            }
 
-        try {
-            schedulerNotifications.cancel(scheduleId)
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-            log(TAG, ERROR) { "Failed to clean up notifications (error=$finishedWithError): ${e.asLog()}" }
-        }
+            try {
+                schedulerNotifications.cancel(scheduleId)
+            } catch (e: Exception) {
+                log(TAG, ERROR) { "Failed to clear old notification: ${e.asLog()}" }
+            }
 
-        try {
-            if (!isManual) schedulerManager.reschedule(scheduleId)
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-            log(TAG, ERROR) { "Failed to reschedule (error=$finishedWithError): ${e.asLog()}" }
+            if (!isManual && !wasInterrupted && !isStopped) {
+                try {
+                    withTimeout(5_000) { schedulerManager.reschedule(scheduleId) }
+                } catch (e: Exception) {
+                    log(TAG, ERROR) { "Failed to reschedule: ${e.asLog()}" }
+                }
+            }
         }
     }
 
@@ -211,20 +213,29 @@ class SchedulerWorker @AssistedInject constructor(
 
         // If the worker was launched from a cold-app-start some permission may be broken
         // Instead of driving straight into an error, let's slightly delay and see if we can fix any setup issues
-        setupHealer.state
-            .filter { it.healAttemptCount > 0 }
-            .take(1)
-            .first()
+        val setupReady = withTimeoutOrNull(5_000) {
+            setupHealer.state.first { it.healAttemptCount > 0 && !it.isWorking }
+        }
+        if (setupReady == null) {
+            // On cold starts SetupHealer may not emit (e.g. permissions not
+            // available). Never keep WorkManager awake indefinitely for it.
+            lastError = "Setup readiness check timed out (5s); cleanup attempted anyway"
+            log(TAG, WARN) { lastError ?: "Setup readiness check timed out" }
+        }
 
-        val taskJobs = tasks.map { task ->
-            workerScope.async {
+        val taskResults = coroutineScope {
+            val taskJobs = tasks.map { task ->
+                async {
                 try {
                     log(TAG) { "Launching $task" }
                     // Scheduler aggregates results into its own notification (SchedulerNotifications.notifyResult),
                     // so opt out of the per-task background completion notification.
-                    val result = taskSubmitter.submit(task, notifyOnFinish = false)
+                    val result = taskSubmitter.submit(task,
+                        notifyOnFinish = false, cancelOnCallerCancellation = true)
                     log(TAG) { "Finished $task -> $result" }
                     SchedulerNotifications.Results(task, result = result)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     log(TAG, ERROR) { "Scheduler task failed ($task): ${e.asLog()}" }
                     val wrappedError = if (e.hasCause(AutomationException::class)) {
@@ -235,11 +246,11 @@ class SchedulerWorker @AssistedInject constructor(
                     SchedulerNotifications.Results(task, error = wrappedError)
                 }
             }
+            }
+            log(TAG) { "Waiting for scheduled cleanup tasks: $taskJobs" }
+            taskJobs.awaitAll().toSet()
         }
-
-        log(TAG) { "Waiting for jobs to complete: $taskJobs" }
-        val taskResults = taskJobs.awaitAll().toSet()
-        log(TAG) { "All task jobs have finished." }
+        log(TAG) { "All scheduled tasks have finished." }
 
         schedule.commandsAfterSchedule.takeIf { it.isNotEmpty() }?.let { cmds ->
             log(TAG, INFO) { "Post-schedule commands are available" }

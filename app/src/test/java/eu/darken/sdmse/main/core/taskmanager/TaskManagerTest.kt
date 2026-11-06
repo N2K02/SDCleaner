@@ -417,4 +417,45 @@ class TaskManagerTest : BaseTest() {
                 it.result shouldBeSameInstanceAs taskResult
             }
         }
+
+    @Test fun `stopping scoped scheduler submission cancels only its underlying job`() =
+        runTest2(autoCancel = true) {
+            val scope = this + Dispatchers.IO
+            val tool = createTool(scope)
+            val dispatcher = ParkingDispatcher()
+            val manager = createManager(scope, tool, dispatcher)
+
+            dispatcher.park()
+            val caller = async(Dispatchers.IO) {
+                manager.submit(task, notifyOnFinish = false, cancelOnCallerCancellation = true)
+            }
+            manager.state.first { it.tasks.isNotEmpty() }
+            val submittedJob = manager.jobOf(task)
+            caller.cancel()
+            caller.join()
+            submittedJob.isCancelled shouldBe true
+            dispatcher.releaseAll()
+            manager.state.first { state -> state.tasks.singleOrNull()?.isComplete == true }
+        }
+
+    @Test fun `ordinary UI submission survives cancellation of its caller`() =
+        runTest2(autoCancel = true) {
+            val scope = this + Dispatchers.IO
+            val tool = createTool(scope)
+            coEvery { tool.submit(task) } returns taskResult
+            val dispatcher = ParkingDispatcher()
+            val manager = createManager(scope, tool, dispatcher)
+
+            dispatcher.park()
+            val caller = async(Dispatchers.IO) { manager.submit(task) }
+            manager.state.first { it.tasks.isNotEmpty() }
+            val submittedJob = manager.jobOf(task)
+            caller.cancel()
+            caller.join()
+            submittedJob.isCancelled shouldBe false
+            dispatcher.releaseAll()
+            submittedJob.join()
+            manager.state.first { state -> state.tasks.singleOrNull()?.isComplete == true }
+        }
+
 }

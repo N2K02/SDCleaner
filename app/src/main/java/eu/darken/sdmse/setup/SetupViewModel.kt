@@ -20,6 +20,7 @@ import eu.darken.sdmse.common.navigation.routes.DataAreasRoute
 import eu.darken.sdmse.common.permissions.Permission
 import eu.darken.sdmse.common.permissions.RuntimePermission
 import eu.darken.sdmse.common.permissions.Specialpermission
+import eu.darken.sdmse.common.pkgs.getSettingsIntent
 import eu.darken.sdmse.common.pkgs.toPkgId
 import eu.darken.sdmse.common.uix.ViewModel4
 import eu.darken.sdmse.setup.inventory.InventorySetupCardItem

@@ -90,8 +90,10 @@ class MainViewModel @Inject constructor(
         OnboardingWelcomeRoute
     }
 
+    // Only user-visible manual operations should keep an open Activity's display awake.
+    // Quiet scheduled cleaning is background work and must not defeat screen sleep.
     val keepScreenOn: Flow<Boolean> = taskManager.state
-        .map { !it.isIdle || BuildConfigWrap.DEBUG }
+        .map { it.hasNotifiableActiveWork || BuildConfigWrap.DEBUG }
 
     // Seeded blocking: the first composition reads this StateFlow's current value, so a default here
     // renders the wrong theme until the DataStore flow emits. Constructing this ViewModel is what

@@ -116,7 +116,7 @@ fun DirectAdbSettingsCard(vm: DirectAdbSettingsViewModel = hiltViewModel()) {
                 }
                 Text(
                     when {
-                        status.connected -> "Shell UID 2000 verified • Connected"
+                        status.connected && status.verifiedUid == 2000 -> "Shell UID 2000 verified • Connected"
                         vm.pairedPreviously() -> "Previously authorized • Disconnected"
                         else -> "ADB setup required"
                     },

@@ -85,7 +85,15 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x gradlew
-          ./gradlew --no-daemon testFossDebugUnitTest lintFossDebug || {
+          # App unit tests do not execute the tests in referenced Android libraries.
+          # Include the modules owning the scheduler, ADB, and cleanup fixes.
+          ./gradlew --no-daemon testFossDebugUnitTest \
+            :app-tool-scheduler:testDebugUnitTest \
+            :app-tool-appcleaner:testDebugUnitTest \
+            :app-tool-corpsefinder:testDebugUnitTest \
+            :app-tool-systemcleaner:testDebugUnitTest \
+            :app-common-io:testDebugUnitTest \
+            lintFossDebug || {
             find app/build -name 'lint-results-*.txt' -exec cat {} +
             exit 1
           }
@@ -175,5 +183,15 @@ jobs:
           path: |
             app/build/reports/
             app/build/test-results/
+            app-tool-scheduler/build/reports/tests/
+            app-tool-scheduler/build/test-results/
+            app-tool-appcleaner/build/reports/tests/
+            app-tool-appcleaner/build/test-results/
+            app-tool-corpsefinder/build/reports/tests/
+            app-tool-corpsefinder/build/test-results/
+            app-tool-systemcleaner/build/reports/tests/
+            app-tool-systemcleaner/build/test-results/
+            app-common-io/build/reports/tests/
+            app-common-io/build/test-results/
             app/build/intermediates/lint_intermediate_text_report/
           if-no-files-found: ignore

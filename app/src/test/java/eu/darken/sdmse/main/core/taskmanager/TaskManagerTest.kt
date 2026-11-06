@@ -20,6 +20,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.plus
@@ -416,6 +418,36 @@ class TaskManagerTest : BaseTest() {
                 it.isComplete shouldBe true
                 it.result shouldBeSameInstanceAs taskResult
             }
+        }
+
+    @Test fun `cancelling an active scheduler task waits for final resource release`() =
+        runTest2(autoCancel = true) {
+            val scope = this + Dispatchers.IO
+            val started = CompletableDeferred<Unit>()
+            val ended = CompletableDeferred<Unit>()
+            val tool = createTool(scope)
+            coEvery { tool.submit(task) } coAnswers {
+                started.complete(Unit)
+                try {
+                    awaitCancellation()
+                } finally {
+                    ended.complete(Unit)
+                }
+            }
+            val manager = createManager(scope, tool)
+            val caller = async(Dispatchers.IO) {
+                manager.submit(task, notifyOnFinish = false, cancelOnCallerCancellation = true)
+            }
+            started.await()
+            val toolJob = manager.jobOf(task)
+            // A worker-owned job must be a *real child* of the caller's job.
+            (caller.children.any { it === toolJob }) shouldBe true
+            caller.cancel()
+            caller.join()
+            ended.await()
+            manager.state.first { it.tasks.isNotEmpty() && it.isIdle }
+            (manager.rawEntries().single().entryField("resourceLock") as KeepAlive).isClosed shouldBe true
+            coVerify(exactly = 0) { taskWorkerControl.startMonitor() }
         }
 
     @Test fun `scheduled cleanup returns to idle without keeping a resource lease or foreground monitor`() =

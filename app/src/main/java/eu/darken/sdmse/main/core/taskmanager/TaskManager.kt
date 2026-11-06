@@ -338,7 +338,8 @@ class TaskManager @Inject constructor(
         // NonCancellable section. SharedResource.get() itself releases provisional
         // leases when this caller is cancelled.
         val keepAlive = try {
-            withTimeout(10_000L) { sharedResource.get() }
+            if (cancelOnCallerCancellation) withTimeout(10_000L) { sharedResource.get() }
+            else sharedResource.get() // Preserve foreground/manual cleanup behavior.
         } catch (error: Throwable) {
             job.cancel()
             throw error
@@ -470,6 +471,12 @@ class TaskManager @Inject constructor(
                 val drained = withContext(NonCancellable) {
                     withTimeoutOrNull(SCHEDULED_DRAIN_TIMEOUT_MS) {
                         job.join()
+                        // A LAZY task may be cancelled before its body executes;
+                        // its safety-net resource release runs asynchronously.
+                        // Only call the worker drained after that lease is gone.
+                        state.first { snapshot ->
+                            snapshot.tasks.none { it.id == taskId && !it.isComplete }
+                        }
                         true
                     } ?: false
                 }

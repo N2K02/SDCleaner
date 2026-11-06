@@ -10,6 +10,7 @@ import eu.darken.sdmse.scheduler.core.Schedule
 import eu.darken.sdmse.scheduler.core.SchedulerManager
 import eu.darken.sdmse.scheduler.core.SchedulerRunHistory
 import eu.darken.sdmse.scheduler.core.SchedulerSettings
+import eu.darken.sdmse.main.core.taskmanager.TaskSubmitter
 import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
@@ -68,6 +69,9 @@ class SchedulerManagerViewModelTest : BaseTest() {
             shellOps = mockk<ShellOps>(relaxed = true),
             runHistory = mockk<SchedulerRunHistory>().apply {
                 every { history } returns MutableStateFlow(emptyList())
+            },
+            taskSubmitter = mockk<TaskSubmitter>().apply {
+                every { state } returns flowOf(TaskSubmitter.State())
             },
         )
         backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) { vm.state.collect { } }

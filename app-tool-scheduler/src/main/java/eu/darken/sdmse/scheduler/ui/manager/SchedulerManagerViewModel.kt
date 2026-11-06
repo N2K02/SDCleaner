@@ -30,6 +30,7 @@ import eu.darken.sdmse.scheduler.core.SchedulerDailyRun
 import eu.darken.sdmse.scheduler.core.SchedulerRunHistory
 import eu.darken.sdmse.scheduler.core.SchedulerManager
 import eu.darken.sdmse.scheduler.core.SchedulerSettings
+import eu.darken.sdmse.main.core.taskmanager.TaskSubmitter
 import eu.darken.sdmse.scheduler.ui.ScheduleItemRoute
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.StateFlow
@@ -62,6 +63,7 @@ class SchedulerManagerViewModel @Inject constructor(
     private val webpageTool: WebpageTool,
     private val shellOps: ShellOps,
     private val runHistory: SchedulerRunHistory,
+    private val taskSubmitter: TaskSubmitter,
 ) : ViewModel4(dispatcherProvider, tag = TAG) {
 
     val events = SingleEventFlow<Event>()
@@ -122,6 +124,12 @@ class SchedulerManagerViewModel @Inject constructor(
     }.combine(runHistory.history) { current, daily -> current.copy(history = daily) }
         .combine(schedulerManager.runtimeWork) { current, work ->
             current.copy(work = work)
+        }.combine(taskSubmitter.state) { current, tasks ->
+            val inFlight = tasks.tasks.filter { !it.notifyOnFinish && !it.isComplete }
+            current.copy(
+                cleanupActive = inFlight.size,
+                cleanupCancelling = inFlight.count { it.isCancelling },
+            )
         }.safeStateIn(
         initialValue = State(),
         onError = { State(isLoading = false) },
@@ -291,6 +299,8 @@ class SchedulerManagerViewModel @Inject constructor(
         val schedules: List<Schedule> = emptyList(),
         val history: List<SchedulerDailyRun> = emptyList(),
         val work: List<SchedulerManager.WorkSnapshot> = emptyList(),
+        val cleanupActive: Int = 0,
+        val cleanupCancelling: Int = 0,
         val showAlarmHint: Boolean = false,
         val showBatteryHint: Boolean = false,
         val showCommands: Boolean = false,

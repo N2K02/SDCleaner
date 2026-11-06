@@ -60,6 +60,17 @@ class SchedulerManager @Inject constructor(
     private val workGate = Mutex()
 
     /** Read-only, event-driven WorkManager status; no polling, wake locks or background service. */
+    /** The queue policy is kept pure for race/idle-cycle regression tests. */
+    internal object QueuePolicy {
+        fun hasSuccessor(infos: List<WorkInfo>): Boolean = infos.any {
+            it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.BLOCKED
+        }
+
+        fun automaticActive(infos: List<WorkInfo>): Boolean = infos.any {
+            it.state == WorkInfo.State.RUNNING
+        }
+    }
+
     data class WorkSnapshot(
         val scheduleId: ScheduleId,
         val label: String,
@@ -172,8 +183,16 @@ class SchedulerManager @Inject constructor(
      * A user-requested cleanup runs in its own unique work chain, without replacing the
      * next automatic occurrence. KEEP prevents duplicate taps from starting extra cleanups.
      */
-    suspend fun runNow(id: ScheduleId) {
-        val schedule = getSchedule(id) ?: return
+    suspend fun runNow(id: ScheduleId) = workGate.withLock {
+        val schedule = state.first().schedules.singleOrNull { it.id == id } ?: return@withLock
+        // A manual tap while automatic cleanup is already RUNNING would create
+        // an additional JobScheduler job and a second long CPU wake-up for the
+        // same tools. The user may retry when automatic cleanup is idle.
+        val running = workManager.getWorkInfosForUniqueWorkFlow(schedule.workName).first()
+        if (QueuePolicy.automaticActive(running)) {
+            log(TAG, INFO) { "Skipping manual run for $id: automatic cleanup is already running" }
+            return@withLock
+        }
         val request = OneTimeWorkRequestBuilder<SchedulerWorker>()
             .setInputData(workDataOf(
                 SchedulerWorker.INPUT_SCHEDULE_ID to schedule.id,
@@ -204,8 +223,9 @@ class SchedulerManager @Inject constructor(
             log(TAG, WARN) { "Skipping stale schedule($label): enabled=${latest?.isEnabled}" }
             return@withLock
         }
-        val pending = workManager.getWorkInfosForUniqueWorkFlow(workName).first()
-            .any { it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.BLOCKED }
+        val pending = QueuePolicy.hasSuccessor(
+            workManager.getWorkInfosForUniqueWorkFlow(workName).first()
+        )
         if (pending) {
             log(TAG, INFO) { "Skipping duplicate schedule($label): a pending successor already exists" }
             return@withLock

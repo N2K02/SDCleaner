@@ -13,7 +13,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath("com.android.tools.build:gradle:9.3.2")
+        classpath("com.android.tools.build:gradle:9.5.0")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:${Versions.Kotlin.core}")
         classpath("com.google.dagger:hilt-android-gradle-plugin:${Versions.Dagger.core}")
         classpath("org.jetbrains.kotlin:kotlin-serialization:${Versions.Kotlin.core}")
@@ -36,6 +36,32 @@ allprojects {
                 content { includeGroup("dev.n2k02") }
             }
         }
+    }
+}
+
+// JVM tests run under Robolectric on the build host, not on Android.
+// The embedded ADB client needs conscrypt-android in the real APK, but that AAR's
+// Java classes call System.loadLibrary("conscrypt_jni"), which only exists for
+// Android ABIs. When that AAR leaks into a host test runtime, Robolectric fails
+// before any test executes (hundreds of identical UnsatisfiedLinkErrors).
+//
+// Keep the production dependency untouched. Replace ONLY JVM test runtime's
+// Android JNI provider with the official host OpenJDK uber jar, in every module
+// (including modules which gain app-common-io transitively via test helpers).
+subprojects {
+    configurations.configureEach {
+        if (name.endsWith("UnitTestRuntimeClasspath")) {
+            exclude(group = "org.conscrypt", module = "conscrypt-android")
+            // Robolectric's HTTPS SDK downloader fails on Conscrypt 2.6+ when
+            // negotiating XDH under JDK 17. Keep the known-good host provider.
+            resolutionStrategy.force("org.conscrypt:conscrypt-openjdk-uber:2.5.2")
+        }
+    }
+    pluginManager.withPlugin("com.android.application") {
+        dependencies.add("testRuntimeOnly", "org.conscrypt:conscrypt-openjdk-uber:2.5.2")
+    }
+    pluginManager.withPlugin("com.android.library") {
+        dependencies.add("testRuntimeOnly", "org.conscrypt:conscrypt-openjdk-uber:2.5.2")
     }
 }
 

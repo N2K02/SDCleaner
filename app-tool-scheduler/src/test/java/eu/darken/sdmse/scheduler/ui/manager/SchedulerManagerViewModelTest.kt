@@ -6,13 +6,13 @@ import eu.darken.sdmse.common.WebpageTool
 import eu.darken.sdmse.common.adb.AdbManager
 import eu.darken.sdmse.common.root.RootManager
 import eu.darken.sdmse.common.shell.ShellOps
-import eu.darken.sdmse.common.upgrade.UpgradeRepo
-import eu.darken.sdmse.main.core.GeneralSettings
-import eu.darken.sdmse.main.core.taskmanager.AcsScheduleRisk
-import eu.darken.sdmse.main.core.taskmanager.SchedulerAppCleanerAdvisor
 import eu.darken.sdmse.scheduler.core.Schedule
 import eu.darken.sdmse.scheduler.core.SchedulerManager
+import eu.darken.sdmse.scheduler.core.SchedulerRunHistory
 import eu.darken.sdmse.scheduler.core.SchedulerSettings
+import eu.darken.sdmse.main.core.SDMTool
+import eu.darken.sdmse.main.core.taskmanager.TaskSubmitter
+import java.time.Instant
 import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
@@ -36,6 +36,8 @@ class SchedulerManagerViewModelTest : BaseTest() {
         val useRoot: MutableStateFlow<Boolean>,
         val useAdb: MutableStateFlow<Boolean>,
         val schedules: MutableStateFlow<SchedulerManager.State>,
+        val workStatus: MutableStateFlow<List<SchedulerManager.WorkSnapshot>>,
+        val taskStatus: MutableStateFlow<TaskSubmitter.State>,
     )
 
     private fun TestScope.harness(
@@ -49,28 +51,21 @@ class SchedulerManagerViewModelTest : BaseTest() {
         val schedules = MutableStateFlow(
             SchedulerManager.State(schedules = setOf(Schedule(id = "test-schedule", label = "Test"))),
         )
+        val workStatus = MutableStateFlow<List<SchedulerManager.WorkSnapshot>>(emptyList())
+        val taskStatus = MutableStateFlow(TaskSubmitter.State())
         val schedulerManager = mockk<SchedulerManager>(relaxed = true).apply {
             every { state } returns schedules
+            every { runtimeWork } returns workStatus
         }
         val settings = mockk<SchedulerSettings>().apply {
-            every { useAutomation } returns mockDataStoreValue(false)
             every { createdDefaultEntry } returns mockDataStoreValue(true)
             every { hintBatteryDismissed } returns mockDataStoreValue(false)
-            every { hintAcsScreenLockedDismissed } returns mockDataStoreValue(false)
-        }
-        val generalSettings = mockk<GeneralSettings>().apply {
-            every { hasAcsConsent } returns mockDataStoreValue(true)
         }
         val vm = SchedulerManagerViewModel(
             context = mockk<Context>(relaxed = true),
             dispatcherProvider = TestDispatcherProvider(),
             schedulerManager = schedulerManager,
             settings = settings,
-            generalSettings = generalSettings,
-            appCleanerAdvisor = mockk<SchedulerAppCleanerAdvisor>().apply {
-                every { acsScheduleRisk } returns flowOf(AcsScheduleRisk.NONE)
-            },
-            upgradeRepo = mockk<UpgradeRepo>(relaxed = true),
             rootManager = mockk<RootManager>().apply { every { this@apply.useRoot } returns rootFlow },
             adbManager = mockk<AdbManager>().apply { every { this@apply.useAdb } returns adbFlow },
             batteryHelper = mockk<BatteryHelper>().apply {
@@ -78,9 +73,52 @@ class SchedulerManagerViewModelTest : BaseTest() {
             },
             webpageTool = mockk<WebpageTool>(relaxed = true),
             shellOps = mockk<ShellOps>(relaxed = true),
+            runHistory = mockk<SchedulerRunHistory>().apply {
+                every { history } returns MutableStateFlow(emptyList())
+            },
+            taskSubmitter = mockk<TaskSubmitter>().apply {
+                every { state } returns taskStatus
+            },
         )
         backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) { vm.state.collect { } }
-        return Harness(vm, rootFlow, adbFlow, schedules)
+        return Harness(vm, rootFlow, adbFlow, schedules, workStatus, taskStatus)
+    }
+
+    @Test
+    fun `scheduler diagnostics reflect running work queued successors and held resource leases`() = runTest2 {
+        val h = harness()
+        h.workStatus.value = listOf(
+            SchedulerManager.WorkSnapshot("test-schedule", "Test", running = 1, pending = 1, lastState = "RUNNING")
+        )
+        val pendingTask = TaskSubmitter.ManagedTask(
+            id = "scheduled-task",
+            toolType = SDMTool.Type.APPCLEANER,
+            task = mockk(),
+            notifyOnFinish = false,
+            resourceHeld = true,
+        )
+        h.taskStatus.value = TaskSubmitter.State(listOf(pendingTask))
+        advanceUntilIdle()
+        h.vm.state.first().let { state ->
+            state.work.single().running shouldBe 1
+            state.work.single().pending shouldBe 1
+            state.cleanupActive shouldBe 1
+            state.cleanupLeases shouldBe 1
+        }
+
+        h.workStatus.value = listOf(
+            SchedulerManager.WorkSnapshot("test-schedule", "Test", pending = 1, lastState = "ENQUEUED")
+        )
+        h.taskStatus.value = TaskSubmitter.State(
+            listOf(pendingTask.copy(completedAt = Instant.now(), resourceHeld = false))
+        )
+        advanceUntilIdle()
+        h.vm.state.first().let { state ->
+            state.work.single().running shouldBe 0
+            state.work.single().pending shouldBe 1
+            state.cleanupActive shouldBe 0
+            state.cleanupLeases shouldBe 0
+        }
     }
 
     @Test

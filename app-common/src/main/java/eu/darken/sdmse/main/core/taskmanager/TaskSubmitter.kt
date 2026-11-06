@@ -5,7 +5,16 @@ import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 
 interface TaskSubmitter {
-    suspend fun submit(task: SDMTool.Task, notifyOnFinish: Boolean = true): SDMTool.Task.Result
+    /**
+     * [cancelOnCallerCancellation] is for scheduler-owned jobs: stopping their WorkManager
+     * parent must stop the exact tool job as well. Default false preserves user-triggered
+     * cleanups that intentionally survive UI navigation / Activity recreation.
+     */
+    suspend fun submit(
+        task: SDMTool.Task,
+        notifyOnFinish: Boolean = true,
+        cancelOnCallerCancellation: Boolean = false,
+    ): SDMTool.Task.Result
 
     /**
      * Like [submit], but atomically declines when the task's tool already has an incomplete task.
@@ -25,8 +34,16 @@ interface TaskSubmitter {
         val isIdle: Boolean
             get() = tasks.all { it.isComplete }
 
+        /** Quit must not close the privileged host until every task's lease was released. */
+        val isFullyIdle: Boolean
+            get() = isIdle && tasks.none { it.resourceHeld }
+
         val hasCancellable: Boolean
             get() = tasks.any { !it.isComplete && !it.isCancelling }
+
+        /** Scheduler tasks opt out of notifications and have their own WorkManager parent. */
+        val hasNotifiableActiveWork: Boolean
+            get() = tasks.any { !it.isComplete && it.notifyOnFinish }
     }
 
     data class ManagedTask(
@@ -40,6 +57,8 @@ interface TaskSubmitter {
         val result: SDMTool.Task.Result? = null,
         val error: Throwable? = null,
         val notifyOnFinish: Boolean = true,
+        /** True only while this task retains a TaskManager keep-alive lease. */
+        val resourceHeld: Boolean = false,
     ) {
         val isComplete: Boolean = completedAt != null
         val isCancelling: Boolean = cancelledAt != null && completedAt == null

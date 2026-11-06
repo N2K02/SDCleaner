@@ -19,7 +19,6 @@ import eu.darken.sdmse.common.pkgs.pkgops.PkgOps
 import eu.darken.sdmse.common.root.RootManager
 import eu.darken.sdmse.common.user.UserManager2
 import eu.darken.sdmse.common.user.ourInstall
-import eu.darken.sdmse.setup.automation.AutomationSetupModule
 import eu.darken.sdmse.setup.notification.NotificationSetupModule
 import eu.darken.sdmse.setup.storage.StorageSetupModule
 import eu.darken.sdmse.setup.usagestats.UsageStatsSetupModule
@@ -45,7 +44,6 @@ class SetupHealer @Inject constructor(
     private val notificationSetupModule: NotificationSetupModule,
     private val storageSetupModule: StorageSetupModule,
     private val dataAreaManager: DataAreaManager,
-    private val automationSetupModule: AutomationSetupModule,
 ) : SetupHealerSource {
 
     private val internalState = MutableStateFlow(SetupHealerSource.State())
@@ -58,8 +56,7 @@ class SetupHealer @Inject constructor(
             usageStatsSetupModule.state.filterIsInstance<SetupModule.State.Current>(),
             notificationSetupModule.state.filterIsInstance<SetupModule.State.Current>(),
             storageSetupModule.state.filterIsInstance<SetupModule.State.Current>(),
-            automationSetupModule.state.filterIsInstance<SetupModule.State.Current>(),
-        ) { useRoot, useAdb, usageState, notifState, storageState, automationState ->
+        ) { useRoot, useAdb, usageState, notifState, storageState ->
 
             val hasHealingPowers = useRoot || useAdb
 
@@ -67,7 +64,6 @@ class SetupHealer @Inject constructor(
                 usageState.isComplete,
                 notifState.isComplete,
                 storageState.isComplete,
-                automationState.isComplete,
             ).any { !it }
 
             if (hasHealingPowers && hasIncomplete) {
@@ -76,9 +72,6 @@ class SetupHealer @Inject constructor(
 
             var reloadDataAreas = false
             try {
-                if ((automationState as AutomationSetupModule.Result).tryHeal()) {
-                    automationSetupModule.refresh()
-                }
                 if ((usageState as UsageStatsSetupModule.Result).tryHeal()) {
                     usageStatsSetupModule.refresh()
                 }
@@ -167,22 +160,6 @@ class SetupHealer @Inject constructor(
         return allGranted
     }
 
-    private suspend fun AutomationSetupModule.Result.tryHeal(): Boolean {
-        // Skips healing while Advanced Protection blocks the ACS bind - a heal attempt would no-op
-        // yet report success and spin this collector in a refresh loop.
-        if (!isAcsHealAttemptViable) {
-            return false
-        }
-
-        if (!setupHelper.checkGrantPermissions()) {
-            log(TAG) { "AUTOMATION: We don't have grant permission powers :(" }
-            return false
-        }
-
-        return setupHelper.setSecureSettings(true).also {
-            log(TAG, INFO) { "AUTOMATION: Heal attempt success=$it" }
-        }
-    }
 
     @Module @InstallIn(SingletonComponent::class)
     abstract class DIM {

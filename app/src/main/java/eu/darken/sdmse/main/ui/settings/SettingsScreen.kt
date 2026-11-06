@@ -40,6 +40,7 @@ import kotlinx.coroutines.delay
 import eu.darken.sdmse.corpsefinder.ui.CorpseFinderSettingsRoute
 import eu.darken.sdmse.systemcleaner.ui.SystemCleanerSettingsRoute
 import eu.darken.sdmse.appcleaner.ui.AppCleanerSettingsRoute
+import eu.darken.sdmse.appcleaner.ui.settings.DirectAdbSettingsCard
 import eu.darken.sdmse.deduplicator.ui.DeduplicatorSettingsRoute
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 
@@ -47,8 +48,6 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 fun SettingsScreenHost() {
     val nav = requireNotNull(LocalNavigationController.current)
     val status by CleanerUpdater.controller.status.collectAsState()
-    val schedulerVm: SchedulerManagerViewModel = hiltViewModel()
-    val schedulerState by schedulerVm.state.collectAsStateWithLifecycle()
     val quickVm: CleaningQuickSettingsViewModel = hiltViewModel()
     val quickState by quickVm.state.collectAsStateWithLifecycle()
 
@@ -70,10 +69,9 @@ fun SettingsScreenHost() {
             quickState.emptyFolders, quickVm::setEmptyFoldersEnabled, onClick = { nav.goTo(SystemCleanerSettingsRoute) })
 
         Spacer(Modifier.height(6.dp))
-        SchedulerOverviewCard(
-            schedules = schedulerState.schedules,
-            onClick = { nav.goTo(SchedulerManagerRoute) },
-        )
+        CompactSettingsLink("Scheduler", "Schedules, next run, history and results", Icons.Rounded.EventRepeat) {
+            nav.goTo(SchedulerManagerRoute)
+        }
         CompactSettingsLink("Cleaning rules", "Customize what to clean", Icons.Rounded.Tune) {
             nav.goTo(CleanerSettingsRoute("tools"))
         }
@@ -107,6 +105,9 @@ fun SettingsScreenHost() {
         CompactSettingsLink("Appearance", "System, light, or dark theme", Icons.Rounded.Palette) {
             nav.goTo(CleanerSettingsRoute("appearance"))
         }
+        CompactSettingsLink("ADB connection", "Automatic pairing and recovery", Icons.Rounded.SettingsInputAntenna) {
+            nav.goTo(CleanerSettingsRoute("adb"))
+        }
         CompactSettingsLink("Permissions & setup", "Access needed by cleaning tools", Icons.Rounded.Security) {
             nav.goTo(SetupRoute(options = SetupScreenOptions(showCompleted = true)))
         }
@@ -121,126 +122,6 @@ internal fun scheduleOverviewMode(schedule: Schedule?): String = when {
     schedule.runOnce -> "Once after ${schedule.initialDelayMinutes} min"
     schedule.intervalMinutes != null -> "Repeat every ${schedule.intervalMinutes} min"
     else -> "At ${schedule.hour.toString().padStart(2, '0')}:${schedule.minute.toString().padStart(2, '0')}"
-}
-
-@Composable
-private fun SchedulerOverviewCard(
-    schedules: List<Schedule>,
-    onClick: () -> Unit,
-) {
-    val enabled = schedules.filter { it.isEnabled }
-    var now by remember { mutableStateOf(Instant.now()) }
-    LaunchedEffect(enabled.isNotEmpty()) {
-        if (enabled.isNotEmpty()) {
-            while (true) {
-                delay(30_000)
-                now = Instant.now()
-            }
-        }
-    }
-    val next = enabled.mapNotNull { schedule ->
-        runCatching {
-            schedule.calcExecutionEta(now, reschedule = false)?.let { schedule to it }
-        }.getOrNull()
-    }.minByOrNull { it.second }
-    val selected = next?.first ?: enabled.firstOrNull()
-    val nextMinutes = next?.second?.seconds?.coerceAtLeast(0L)?.let { (it + 59L) / 60L }
-    val statusLabel = when {
-        enabled.isNotEmpty() -> "Enabled"
-        schedules.isNotEmpty() -> "Paused"
-        else -> "Not configured"
-    }
-
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(20.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f)),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-    ) {
-        Column(
-            Modifier
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(
-                            MaterialTheme.colorScheme.primaryContainer,
-                            MaterialTheme.colorScheme.secondaryContainer,
-                        ),
-                    ),
-                )
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
-                ) {
-                    Icon(
-                        Icons.Rounded.EventRepeat,
-                        null,
-                        modifier = Modifier.padding(9.dp).size(26.dp),
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                }
-                Spacer(Modifier.width(10.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("Scheduler", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "Automate cleaning after a delay or repeat every X minutes",
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                Spacer(Modifier.width(6.dp))
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = if (enabled.isNotEmpty()) Color(0xFF68DF83)
-                    else MaterialTheme.colorScheme.surfaceContainerHigh,
-                ) {
-                    Text(
-                        statusLabel,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (enabled.isNotEmpty()) Color(0xFF14251A)
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-                    )
-                }
-                Icon(Icons.Rounded.ChevronRight, null, modifier = Modifier.size(19.dp))
-            }
-            HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.30f))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
-            ) {
-                Icon(Icons.Rounded.Schedule, null, modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.primary)
-                Text(
-                    scheduleOverviewMode(selected),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.weight(1f),
-                )
-                Box(
-                    Modifier.width(1.dp).height(16.dp)
-                        .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
-                )
-                Text(
-                    when {
-                        nextMinutes != null -> "Starts in ${nextMinutes} min"
-                        enabled.isNotEmpty() -> "Waiting for next run"
-                        else -> "Inactive"
-                    },
-                    maxLines = 1,
-                    style = MaterialTheme.typography.labelSmall,
-                )
-            }
-        }
-    }
 }
 
 @Composable
@@ -325,6 +206,7 @@ private fun CompactSettingsLink(
 internal fun cleanerSettingsTitle(section: String): String? = when (section) {
     "appearance" -> "Appearance"
     "tools" -> "Cleaning tools"
+    "adb" -> "ADB connection"
     "updates" -> "Updates"
     "about" -> "About"
     else -> null
@@ -382,6 +264,7 @@ fun CleanerSettingsScreenHost(section: String) {
                 SettingsPreferenceItem(title = "App cleaner", subtitle = "Cache and app cleaning options", icon = Icons.Rounded.Apps, onClick = { nav.goTo(AppCleanerSettingsRoute) })
                 SettingsPreferenceItem(title = "Duplicate files", subtitle = "Find redundant copies for review", icon = Icons.Rounded.ContentCopy, onClick = { nav.goTo(DeduplicatorSettingsRoute) })
             }
+            "adb" -> DirectAdbSettingsCard()
             "appearance" -> AppearanceSettings()
             "about" -> InstalledAppAbout()
         }
@@ -407,6 +290,7 @@ private fun SettingsHeader(title: String, root: Boolean = false) {
             Icon(when (title) {
                 "Appearance" -> Icons.Rounded.Palette
                 "Cleaning tools" -> Icons.Rounded.CleaningServices
+                "ADB connection" -> Icons.Rounded.SettingsInputAntenna
                 "Updates" -> Icons.Rounded.SystemUpdate
                 "About" -> Icons.Rounded.Info
                 else -> Icons.Rounded.Settings

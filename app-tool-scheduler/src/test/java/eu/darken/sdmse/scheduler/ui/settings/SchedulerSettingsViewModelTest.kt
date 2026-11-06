@@ -18,13 +18,11 @@ class SchedulerSettingsViewModelTest : BaseTest() {
     private fun vm(
         skipPowerSaving: Boolean = true,
         skipNotCharging: Boolean = false,
-        useAutomation: Boolean = false,
         webpageTool: WebpageTool = mockk(relaxed = true),
     ): SchedulerSettingsViewModel {
         val settings = mockk<SchedulerSettings>().apply {
             coEvery { this@apply.skipWhenPowerSaving } returns mockDataStoreValue(skipPowerSaving)
             coEvery { this@apply.skipWhenNotCharging } returns mockDataStoreValue(skipNotCharging)
-            coEvery { this@apply.useAutomation } returns mockDataStoreValue(useAutomation)
         }
         return SchedulerSettingsViewModel(
             dispatcherProvider = TestDispatcherProvider(),
@@ -38,15 +36,13 @@ class SchedulerSettingsViewModelTest : BaseTest() {
         val state = vm().state.first()
         state.skipWhenPowerSaving shouldBe true
         state.skipWhenNotCharging shouldBe false
-        state.useAutomation shouldBe false
     }
 
     @Test
     fun `state reflects non-default DataStore values`() = runTest2 {
-        val state = vm(skipPowerSaving = false, skipNotCharging = true, useAutomation = true).state.first()
+        val state = vm(skipPowerSaving = false, skipNotCharging = true).state.first()
         state.skipWhenPowerSaving shouldBe false
         state.skipWhenNotCharging shouldBe true
-        state.useAutomation shouldBe true
     }
 
     @Test

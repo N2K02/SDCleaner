@@ -19,6 +19,7 @@ import eu.darken.sdmse.common.uix.ViewModel4
 import eu.darken.sdmse.common.upgrade.UpgradeRepo
 import eu.darken.sdmse.common.upgrade.isProForUi
 import eu.darken.sdmse.main.core.GeneralSettings
+import eu.darken.sdmse.common.adb.local.DirectAdb
 import eu.darken.sdmse.main.core.shortcuts.OneTapCleaner
 import eu.darken.sdmse.main.core.themeState
 import eu.darken.sdmse.main.core.themeStateBlocking
@@ -51,10 +52,12 @@ class MainViewModel @Inject constructor(
     private val oneTapCleaner: OneTapCleaner,
     private val appScope: AppCoroutineScope,
     private val sessions: eu.darken.sdmse.common.debug.recorder.core.DebugLogSessionManager,
+    private val directAdb: DirectAdb,
+    private val directAdbRecovery: eu.darken.sdmse.common.adb.local.DirectAdbRecovery,
 
 ) : ViewModel4(dispatcherProvider = dispatcherProvider, tag = TAG) {
 
-    val tasksIdle = taskManager.state.map { it.isIdle }
+    val tasksIdle = taskManager.state.map { it.isFullyIdle }
         .stateIn(vmScope, SharingStarted.Eagerly, false)
 
     private val quitting = MutableStateFlow(false)
@@ -62,21 +65,37 @@ class MainViewModel @Inject constructor(
         if (!quitting.compareAndSet(false, true)) return
         launch {
             try {
+                directAdbRecovery.stopForQuit()
                 eu.darken.sdmse.cleaner.CleanerUpdater.cancel()
                 eu.darken.sdmse.cleaner.stopCleaner(
                     cancelBackground = { androidx.work.WorkManager.getInstance(context).cancelAllWork().await() },
                     cancelTasks = { SDMTool.Type.entries.forEach { taskManager.cancel(it) } },
-                    awaitIdle = { taskManager.state.first { it.isIdle }; Unit },
+                    awaitIdle = { taskManager.state.first { it.isFullyIdle }; Unit },
                     stopRecording = { sessions.forceStopRecording(); Unit },
                     stopHost = {
+                        // Stop privileged ADB shell before the process is terminated.
+                        directAdb.disconnect()
                         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
-                            eu.darken.sdmse.automation.core.AutomationService.instance?.disableSelf()
                             onStopped()
                         }
                     },
                 )
             } catch (error: kotlinx.coroutines.TimeoutCancellationException) {
-                errorEvents.emit(IllegalStateException("Cleaning is still stopping. Try Quit again once the active task finishes.", error))
+                // The wait below is a suspended Flow collector, NOT a polling
+                // service or wake lock. Preserve the connected host until all
+                // tasks have released their leases; then complete Quit itself.
+                errorEvents.emit(IllegalStateException(
+                    "Cleaning is still stopping. Quit will complete automatically when cleanup finishes.", error
+                ))
+                eu.darken.sdmse.cleaner.resumeCleanerQuitAfterTimeout(
+                    awaitIdle = { taskManager.state.first { it.isFullyIdle }; Unit },
+                    stopHost = {
+                        directAdb.disconnect()
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
+                            onStopped()
+                        }
+                    },
+                )
             } finally { quitting.value = false }
         }
     }
@@ -87,8 +106,10 @@ class MainViewModel @Inject constructor(
         OnboardingWelcomeRoute
     }
 
+    // Only user-visible manual operations should keep an open Activity's display awake.
+    // Quiet scheduled cleaning AND debug/experimental idle screens must allow sleep.
     val keepScreenOn: Flow<Boolean> = taskManager.state
-        .map { !it.isIdle || BuildConfigWrap.DEBUG }
+        .map { it.hasNotifiableActiveWork }
 
     // Seeded blocking: the first composition reads this StateFlow's current value, so a default here
     // renders the wrong theme until the DataStore flow emits. Constructing this ViewModel is what

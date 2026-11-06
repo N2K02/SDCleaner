@@ -16,7 +16,7 @@ import eu.darken.sdmse.appcleaner.core.tasks.AppCleanerTask
 import eu.darken.sdmse.appcleaner.core.tasks.AppCleanerTask.StopReason
 import eu.darken.sdmse.automation.core.errors.AutomationNoConsentException
 import eu.darken.sdmse.automation.core.errors.isScreenUnavailable
-import eu.darken.sdmse.common.adb.AdbManager
+import eu.darken.sdmse.common.adb.local.DirectAdb
 import eu.darken.sdmse.common.adb.canUseAdbNow
 import eu.darken.sdmse.common.ca.CaString
 import eu.darken.sdmse.common.coroutine.AppScope
@@ -106,7 +106,7 @@ class AppCleaner @Inject constructor(
     private val pkgOps: PkgOps,
     @SetupBinding(SetupModule.Type.USAGE_STATS) usageStatsSetupModule: SetupModule,
     rootManager: RootManager,
-    private val adbManager: AdbManager,
+    private val directAdb: DirectAdb,
     private val shellOps: ShellOps,
     private val filterFactories: Set<@JvmSuppressWildcards ExpendablesFilter.Factory>,
     @SetupBinding(SetupModule.Type.INVENTORY) private val appInventorySetupModule: SetupModule,
@@ -128,17 +128,17 @@ class AppCleaner @Inject constructor(
     override val state: Flow<State> = combine(
         usageStatsSetupModule.state,
         rootManager.useRoot,
-        adbManager.useAdb,
+        directAdb.status,
         internalData,
         progress,
-    ) { usageState, useRoot, useAdb, data, progress ->
+    ) { usageState, useRoot, adbStatus, data, progress ->
+        val useAdb = adbStatus.connected
         State(
             data = data,
             progress = progress,
             isRunningAppsDetectionAvailable = usageState.isComplete || useRoot || useAdb,
             isOtherUsersAvailable = useRoot,
             isInaccessibleCacheAvailable = usageState.isComplete || useRoot || useAdb,
-            isAcsRequired = !useRoot
         )
     }.replayingShare(appScope)
 
@@ -496,7 +496,7 @@ class AppCleaner @Inject constructor(
         // Everything that can suspend or fail is resolved before save(), otherwise a cancel between
         // a durable exclusion and the state rewrite would leave stale data and no undo handle.
         val snapshot = internalData.value!!
-        val canUseAdb = adbManager.canUseAdbNow()
+        val canUseAdb = directAdb.status.value.connected
 
         val saved = exclusionManager.save(exclusions)
 
@@ -581,7 +581,7 @@ class AppCleaner @Inject constructor(
         val isOtherUsersAvailable: Boolean,
         val isRunningAppsDetectionAvailable: Boolean,
         val isInaccessibleCacheAvailable: Boolean,
-        val isAcsRequired: Boolean,
+
     ) : SDMTool.State
 
     data class Data(

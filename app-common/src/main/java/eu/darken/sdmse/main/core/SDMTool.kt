@@ -39,3 +39,7 @@ SQUEEZER,
         SWIPER,
     }
 }
+/** Optional structured warning for a task that returned success after skipping work. */
+interface TaskResultWarnings {
+    val warningMessage: String?
+}

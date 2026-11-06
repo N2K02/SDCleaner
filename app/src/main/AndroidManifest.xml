@@ -5,13 +5,19 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <uses-permission
+        android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="33" />
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!--    For some reason this affects PackageManager.getSharedLibraries() results, i.e. trichromelibrary-->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
 
-    <uses-permission
-        android:name="android.permission.CLEAR_APP_CACHE"
-        tools:ignore="ProtectedPermissions" />
     <uses-permission
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
@@ -19,10 +25,6 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
-    <!--    Up to Android 12-->
-    <uses-permission
-        android:name="android.permission.BROADCAST_CLOSE_SYSTEM_DIALOGS"
-        tools:ignore="ProtectedPermissions" />
 
     <!--    Android 11-->
     <uses-permission
@@ -42,8 +44,7 @@
         android:name="android.permission.INTERACT_ACROSS_USERS"
         tools:ignore="ProtectedPermissions" />
 
-    <!--    Android 17+: detect "Advanced Protection" so we can explain why the accessibility service is blocked-->
-    <uses-permission android:name="android.permission.QUERY_ADVANCED_PROTECTION_MODE" />
+
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
@@ -145,19 +146,7 @@
                 android:resource="@xml/sdm_home_widget_info" />
         </receiver>
 
-        <service
-            android:name=".automation.core.AutomationService"
-            android:exported="false"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/accessibility_service" />
-        </service>
-
-        <provider
+<provider
             android:name="eu.darken.sdmse.cleaner.CleanerFileProvider"
             android:authorities="${applicationId}.provider"
             android:exported="false"
@@ -184,6 +173,30 @@
                 tools:node="remove" />
 
         </provider>
+
+        <!-- Only Android Settings is observable, solely for the optional six-digit
+             Wireless debugging pairing dialog. Not used for cleaning other app UIs. -->
+        <service
+            android:name="eu.darken.sdmse.appcleaner.ui.settings.DirectAdbPairingAccessibilityService"
+            android:exported="true"
+            android:label="SDCleaner ADB pairing"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/sdcleaner_adb_pairing" />
+        </service>
+
+        <receiver
+            android:name="eu.darken.sdmse.main.core.adb.DirectAdbBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Debug stuff-->
         <activity

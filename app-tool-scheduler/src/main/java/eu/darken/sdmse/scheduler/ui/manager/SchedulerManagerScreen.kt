@@ -52,11 +52,14 @@ import eu.darken.sdmse.common.debug.logging.logTag
 import eu.darken.sdmse.common.error.ErrorEventHandler
 import eu.darken.sdmse.common.navigation.NavigationEventHandler
 import eu.darken.sdmse.common.progress.Progress
-import eu.darken.sdmse.main.core.taskmanager.AcsScheduleRisk
 import eu.darken.sdmse.scheduler.R
 import eu.darken.sdmse.scheduler.core.Schedule
 import eu.darken.sdmse.scheduler.core.ScheduleId
-import eu.darken.sdmse.scheduler.ui.manager.items.AcsScreenLockedHintRow
+import eu.darken.sdmse.scheduler.core.RunOutcome
+import eu.darken.sdmse.scheduler.core.SchedulerDailyRun
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import eu.darken.sdmse.scheduler.ui.manager.items.AlarmHintRow
 import eu.darken.sdmse.scheduler.ui.manager.items.BatteryHintRow
 import eu.darken.sdmse.scheduler.ui.manager.items.CommandsEditDialog
@@ -114,7 +117,6 @@ fun SchedulerManagerScreenHost(
         onEditCommands = vm::requestEditCommands,
         onFixBattery = vm::fixBatteryOptimization,
         onDismissBattery = vm::dismissBatteryHint,
-        onDismissAcsScreenLockedHint = vm::dismissAcsScreenLockedHint,
     )
 
     pendingCommandsEdit?.let { ev ->
@@ -147,7 +149,6 @@ internal fun SchedulerManagerScreen(
     onEditCommands: (ScheduleId) -> Unit = {},
     onFixBattery: () -> Unit = {},
     onDismissBattery: () -> Unit = {},
-    onDismissAcsScreenLockedHint: () -> Unit = {},
 ) {
     val state by stateSource.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
@@ -228,7 +229,6 @@ internal fun SchedulerManagerScreen(
                 onEditCommands = onEditCommands,
                 onFixBattery = onFixBattery,
                 onDismissBattery = onDismissBattery,
-                onDismissAcsScreenLockedHint = onDismissAcsScreenLockedHint,
             )
         }
     }
@@ -249,7 +249,6 @@ private fun ScheduleListContent(
     onEditCommands: (ScheduleId) -> Unit,
     onFixBattery: () -> Unit,
     onDismissBattery: () -> Unit,
-    onDismissAcsScreenLockedHint: () -> Unit,
 ) {
     LazyColumn(
         state = listState,
@@ -275,23 +274,93 @@ private fun ScheduleListContent(
                         "${state.schedules.count { it.isEnabled }} active · ${state.schedules.size} total schedules",
                         style = MaterialTheme.typography.labelLarge,
                     )
+                    val next = state.schedules.filter { it.isEnabled }.mapNotNull { schedule ->
+                        schedule.calcExecutionEta(Instant.now(), reschedule = false)
+                            ?.let { schedule.label to Instant.now().plus(it) }
+                    }.minByOrNull { it.second }
+                    Text(
+                        "Next run: " + (next?.let { "${it.first.ifBlank { "Schedule" }} · " +
+                            it.second.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("MMM d, HH:mm")) }
+                            ?: "Not scheduled"),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text("Runs stay in the app. No scheduler alerts; each schedule keeps one daily summary for 30 days.",
+                        style = MaterialTheme.typography.bodySmall)
+
                 }
             }
+        }
+        item("scheduler-diagnostics") {
+            val running = state.work.sumOf { it.running }
+            val pending = state.work.sumOf { it.pending }
+            val latest = state.history.maxByOrNull { it.lastAt }
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+            ) {
+                androidx.compose.foundation.layout.Column(
+                    Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text("Scheduler Diagnostics", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "WorkManager: $running running · $pending queued" +
+                            if (running == 0 && pending == 0) " · Idle" else "",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    state.work.filter { it.running > 0 || it.pending > 0 || it.error != null }.take(3).forEach { status ->
+                        Text(
+                            "${status.label.ifBlank { "Schedule" }}: " +
+                                "${status.running} running, ${status.pending} queued" +
+                                (status.error?.let { " · $it" } ?: ""),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    Text(
+                        if (state.cleanupActive == 0) "Cleanup: Idle · No active scheduler tasks"
+                        else "Cleanup: ${state.cleanupActive} active · " +
+                            "${state.cleanupCancelling} cancelling",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Text(
+                        "Scheduler leases: ${state.cleanupLeases} held" +
+                            if (state.cleanupActive == 0 && state.cleanupLeases > 0)
+                                " · Check resource cleanup" else "",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    latest?.let { last ->
+                        Text(
+                            "Last: ${last.label} · ${last.lastOutcome} · ${last.lastDurationMs / 1000}s",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        last.lastError?.let { error ->
+                            Text("Cleanup/stop: $error", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                    Text(
+                        "Live WorkManager status · no background polling",
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
+            }
+        }
+        item("scheduler-history-title") {
+            Text("Recent runs", style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
+        }
+        if (state.history.isEmpty()) {
+            item("scheduler-history-empty") {
+                Text("No scheduled runs recorded yet", modifier = Modifier.padding(horizontal = 20.dp))
+            }
+        }
+        items(state.history, key = { "history-${it.scheduleId}-${it.day}" }) { run ->
+            SchedulerHistoryRow(run, Modifier.padding(horizontal = 16.dp))
         }
         if (state.showBatteryHint) {
             item("battery") {
                 BatteryHintRow(
                     onFix = onFixBattery,
                     onDismiss = onDismissBattery,
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                )
-            }
-        }
-        if (state.acsScreenLockedRisk != AcsScheduleRisk.NONE) {
-            item("acs_screenlocked") {
-                AcsScreenLockedHintRow(
-                    risk = state.acsScreenLockedRisk,
-                    onDismiss = onDismissAcsScreenLockedHint,
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
             }
@@ -384,7 +453,6 @@ private fun SchedulerManagerScreenWithAcsHintPreview() {
                             useAppCleaner = true,
                         ),
                     ),
-                    acsScreenLockedRisk = AcsScheduleRisk.ACS_REQUIRED_ALL,
                     showAlarmHint = true,
                     showBatteryHint = false,
                     showCommands = false,
@@ -411,7 +479,6 @@ private fun SchedulerManagerScreenWithAcsSystemAppsHintPreview() {
                             useAppCleaner = true,
                         ),
                     ),
-                    acsScreenLockedRisk = AcsScheduleRisk.ACS_REQUIRED_SYSTEM_APPS_ONLY,
                     showAlarmHint = true,
                     showBatteryHint = false,
                     showCommands = false,
@@ -422,3 +489,31 @@ private fun SchedulerManagerScreenWithAcsSystemAppsHintPreview() {
     }
 }
 
+
+@Composable
+private fun SchedulerHistoryRow(run: SchedulerDailyRun, modifier: Modifier = Modifier) {
+    var expanded by remember { mutableStateOf(false) }
+    val localTime = Instant.ofEpochMilli(run.lastAt).atZone(ZoneId.systemDefault())
+        .format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+    val outcome = when (run.lastOutcome) {
+        RunOutcome.SUCCESS -> "Success"
+        RunOutcome.WARNING -> "Warning"
+        RunOutcome.FAILED -> "Failed"
+    }
+    Card(onClick = { expanded = !expanded }, modifier = modifier.fillMaxWidth()) {
+        androidx.compose.foundation.layout.Column(Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("${run.label} · ${run.day}", style = MaterialTheme.typography.titleSmall)
+            Text("$outcome · Last run $localTime · ${run.executions} run(s)",
+                style = MaterialTheme.typography.bodyMedium)
+            Text("${run.successes} success · ${run.warnings} warning · ${run.failures} failed",
+                style = MaterialTheme.typography.bodySmall)
+            if (expanded) {
+                Text("Duration: ${run.lastDurationMs} ms · ${if (run.lastManual) "Manual" else "Automatic"}",
+                    style = MaterialTheme.typography.bodySmall)
+                run.lastDetails.forEach { line -> Text(line, style = MaterialTheme.typography.bodySmall) }
+                run.lastError?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            }
+        }
+    }
+}

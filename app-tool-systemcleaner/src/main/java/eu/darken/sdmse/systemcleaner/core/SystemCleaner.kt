@@ -45,6 +45,8 @@ import eu.darken.sdmse.systemcleaner.core.tasks.SystemCleanerScanTask
 import eu.darken.sdmse.systemcleaner.core.tasks.SystemCleanerSchedulerTask
 import eu.darken.sdmse.systemcleaner.core.tasks.SystemCleanerTask
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
@@ -200,6 +202,7 @@ class SystemCleaner @Inject constructor(
                     processed.addAll(results.filter { it.success }.map { it.match })
                     results.filter { !it.success }.forEach { log(TAG, WARN) { "Failed to process $it" } }
                 } catch (e: PathException) {
+                    currentCoroutineContext().ensureActive()
                     log(TAG, ERROR) { "Failed to process for ${filter.identifier}: ${e.asLog()}" }
                 }
             }

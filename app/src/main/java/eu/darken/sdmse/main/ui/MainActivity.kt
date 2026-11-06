@@ -86,7 +86,6 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var navigationEntries: Set<@JvmSuppressWildcards NavigationEntry>
     @Inject lateinit var guidedTourController: GuidedTourController
     @Inject lateinit var deviceDetective: DeviceDetective
-    @Inject lateinit var shizukuSetupModule: eu.darken.sdmse.setup.shizuku.ShizukuSetupModule
 
     override fun onCreate(savedInstanceState: Bundle?) {
         log(TAG) { "onCreate(restoringState=${savedInstanceState != null})" }
@@ -102,6 +101,8 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        // Explicit user launch clears the persisted Quit suppression; boot does not.
+        eu.darken.sdmse.common.adb.local.DirectAdbOptions.markStopped(this, false)
 
         eu.darken.sdmse.cleaner.CleanerUpdater.init(this) { vm.tasksIdle.value }
         curriculumVitae.updateAppOpened()
@@ -299,7 +300,7 @@ class MainActivity : ComponentActivity() {
                 if (quitDialog) {
                     SdmConfirmDialog(
                         title = "Quit SDCleaner?",
-                        message = "Active cleaning will stop. Schedules resume on the next launch. Accessibility access will need to be enabled again for automated app cleaning.",
+                        message = "Active cleaning and ADB connections will stop. Schedules resume on the next launch.",
                         onDismissRequest = { quitDialog = false },
                         positive = SdmDialogAction(label = "Quit", onClick = {
                             quitDialog = false
@@ -324,8 +325,6 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         eu.darken.sdmse.cleaner.CleanerUpdater.resume(this)
-        // Recheck installed managers after returning from an installer or another app.
-        lifecycleScope.launch { shizukuSetupModule.refresh() }
         savedIntent?.let { intent ->
             handleShortcutAction(intent)
             savedIntent = null

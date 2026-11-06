@@ -157,6 +157,7 @@ internal fun AppCleanerSettingsScreen(
     onFilterViberChanged: (Boolean) -> Unit = {},
     onFilterMobileQQChanged: (Boolean) -> Unit = {},
     onHelp: () -> Unit = {},
+    adbSetupCard: @Composable () -> Unit = {},
 ) {
     var showSizeDialog by remember { mutableStateOf(false) }
     var showAgeDialog by remember { mutableStateOf(false) }
@@ -220,6 +221,7 @@ internal fun AppCleanerSettingsScreen(
             modifier = Modifier.fillMaxSize(),
             contentPadding = paddingValues,
         ) {
+            item { adbSetupCard() }
             item {
                 SettingsSwitchItem(
                     icon = Icons.TwoTone.Apps,
@@ -258,7 +260,6 @@ internal fun AppCleanerSettingsScreen(
                     onClick = { showAgeDialog = true },
                 )
             }
-            if (state.isAcsRequired) {
                 item {
                     SettingsBadgedSwitchItem(
                         icon = Icons.TwoTone.FolderOff,
@@ -281,7 +282,6 @@ internal fun AppCleanerSettingsScreen(
                         gate = if (state.isInaccessibleCacheAvailable) null else SettingGate.SetupRequired,
                     )
                 }
-            }
 
             item { SettingsCategoryHeader(text = stringResource(CommonR.string.settings_category_filter_generic)) }
             item {
@@ -482,11 +482,10 @@ internal fun AppCleanerSettingsScreen(
 
 @Preview2
 @Composable
-private fun AppCleanerSettingsScreenPreviewAcsRequired() {
+private fun AppCleanerSettingsScreenPreviewAdbUnavailable() {
     PreviewWrapper {
         AppCleanerSettingsScreen(
             state = AppCleanerSettingsViewModel.State(
-                isAcsRequired = true,
                 isOtherUsersAvailable = true,
                 otherUsersGate = FeatureGateState.AVAILABLE,
                 isRunningAppsDetectionAvailable = true,
@@ -498,11 +497,10 @@ private fun AppCleanerSettingsScreenPreviewAcsRequired() {
 
 @Preview2
 @Composable
-private fun AppCleanerSettingsScreenPreviewAcsNotRequired() {
+private fun AppCleanerSettingsScreenPreviewAdbAvailable() {
     PreviewWrapper {
         AppCleanerSettingsScreen(
             state = AppCleanerSettingsViewModel.State(
-                isAcsRequired = false,
                 isOtherUsersAvailable = true,
                 otherUsersGate = FeatureGateState.AVAILABLE,
                 isRunningAppsDetectionAvailable = true,

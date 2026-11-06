@@ -8,13 +8,11 @@ import androidx.lifecycle.SavedStateHandle
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import eu.darken.sdmse.common.WebpageTool
-import eu.darken.sdmse.common.adb.shizuku.AdbBackend
+import eu.darken.sdmse.common.device.DeviceDetective
 import eu.darken.sdmse.common.coroutine.DispatcherProvider
 import eu.darken.sdmse.common.debug.logging.Logging.Priority.WARN
 import eu.darken.sdmse.common.debug.logging.log
 import eu.darken.sdmse.common.debug.logging.logTag
-import eu.darken.sdmse.common.device.DeviceDetective
-import eu.darken.sdmse.common.device.RomType
 import eu.darken.sdmse.common.flow.SingleEventFlow
 import eu.darken.sdmse.common.flow.setupCommonEventHandlers
 import eu.darken.sdmse.common.navigation.routes.DashboardRoute
@@ -22,21 +20,15 @@ import eu.darken.sdmse.common.navigation.routes.DataAreasRoute
 import eu.darken.sdmse.common.permissions.Permission
 import eu.darken.sdmse.common.permissions.RuntimePermission
 import eu.darken.sdmse.common.permissions.Specialpermission
-import eu.darken.sdmse.common.pkgs.getLaunchIntent
 import eu.darken.sdmse.common.pkgs.getSettingsIntent
 import eu.darken.sdmse.common.pkgs.toPkgId
 import eu.darken.sdmse.common.uix.ViewModel4
-import eu.darken.sdmse.setup.automation.AutomationSetupCardItem
-import eu.darken.sdmse.setup.automation.AutomationSetupModule
 import eu.darken.sdmse.setup.inventory.InventorySetupCardItem
 import eu.darken.sdmse.setup.inventory.InventorySetupModule
 import eu.darken.sdmse.setup.notification.NotificationSetupCardItem
 import eu.darken.sdmse.setup.notification.NotificationSetupModule
 import eu.darken.sdmse.setup.saf.SAFSetupCardItem
 import eu.darken.sdmse.setup.saf.SAFSetupModule
-import eu.darken.sdmse.setup.shizuku.AdbManagerInstallGuide
-import eu.darken.sdmse.setup.shizuku.ShizukuSetupCardItem
-import eu.darken.sdmse.setup.shizuku.ShizukuSetupModule
 import eu.darken.sdmse.setup.storage.StorageSetupCardItem
 import eu.darken.sdmse.setup.storage.StorageSetupModule
 import eu.darken.sdmse.setup.usagestats.UsageStatsSetupCardItem
@@ -59,12 +51,9 @@ class SetupViewModel @Inject constructor(
     private val setupManager: SetupManager,
     private val storageSetupModule: StorageSetupModule,
     private val safSetupModule: SAFSetupModule,
-    private val automationSetupModule: AutomationSetupModule,
     private val webpageTool: WebpageTool,
-    private val shizukuSetupModule: ShizukuSetupModule,
     private val inventorySetupModule: InventorySetupModule,
     private val deviceDetective: DeviceDetective,
-    private val adbManagerInstallGuide: AdbManagerInstallGuide,
 ) : ViewModel4(dispatcherProvider, TAG) {
 
     // Options are driven from the Host via setScreenOptions() (the SetupRoute entry forwards the
@@ -81,22 +70,6 @@ class SetupViewModel @Inject constructor(
     init {
         log(TAG) { "Setup init: options=${screenOptionsFlow.value}" }
         setupManager.setDismissed(false)
-    }
-
-    /**
-     * Does this device match the hardware/ROM pattern behind the known upstream Shizuku problem
-     * (RikkaApps/Shizuku#1198), where Shizuku's helper process dies before it can call back?
-     *
-     * Resolved here rather than in the card because [DeviceDetective.getROMType] hits the package
-     * manager, which must not run during recomposition. Lazy + cached: the answer cannot change
-     * while the process lives, and the flow that reads it does not run on the main thread.
-     *
-     * The card only RENDERS the hint after a connection has actually failed (this value is read on
-     * every emission, it is the display that is gated), so a false positive costs one imprecise
-     * sentence rather than a wrong diagnosis.
-     */
-    private val hasKnownShizukuIssueRisk: Boolean by lazy {
-        deviceDetective.isMediatekSoc() || deviceDetective.getROMType() in KNOWN_SHIZUKU_ISSUE_ROMS
     }
 
     val events = SingleEventFlow<SetupEvents>()
@@ -125,7 +98,7 @@ class SetupViewModel @Inject constructor(
         val typeFilter = options.typeFilter
         setupState.moduleStates
             .filter { typeFilter == null || typeFilter.contains(it.type) }
-            .filter { it !is ShizukuSetupModule.Result || it.isInstalled }
+            .filter { it.type != SetupModule.Type.SHIZUKU && it.type != SetupModule.Type.AUTOMATION }
             .filter { it !is SetupModule.State.Current || !it.isComplete || options.showCompleted }
                 .mapNotNull { state ->
                     when (state.type) {
@@ -179,40 +152,7 @@ class SetupViewModel @Inject constructor(
                             is SetupModule.State.Loading -> SetupLoadingCardItem(state)
                         }
 
-                        SetupModule.Type.AUTOMATION -> when (state) {
-                            is SetupModule.State.Current -> AutomationSetupCardItem(
-                                state = state as AutomationSetupModule.Result,
-                                onGrantAction = {
-                                    launch {
-                                        automationSetupModule.setAllow(true)
-                                        automationSetupModule.refresh()
-                                        if (!state.canSelfEnable) {
-                                            events.tryEmit(SetupEvents.ConfigureAccessibilityService(state))
-                                        }
-                                    }
-                                },
-                                onDismiss = {
-                                    launch {
-                                        automationSetupModule.setAllow(false)
-                                        automationSetupModule.refresh()
-                                    }
-                                },
-                                onHelp = {
-                                    webpageTool.open("https://sdmse.darken.eu/setup#accessibility-service")
-                                },
-                                onRestrictionsShow = {
-                                    events.tryEmit(SetupEvents.ShowOurDetailsPage(state.liftRestrictionsIntent))
-                                },
-                                onRestrictionsHelp = {
-                                    webpageTool.open("https://sdmse.darken.eu/setup#acs-appops-restrictions")
-                                },
-                                onAdvancedProtectionHelp = {
-                                    webpageTool.open("https://sdmse.darken.eu/setup#acs-advanced-protection")
-                                },
-                            )
-
-                            is SetupModule.State.Loading -> SetupLoadingCardItem(state)
-                        }
+                        SetupModule.Type.AUTOMATION -> null
 
                         SetupModule.Type.NOTIFICATION -> when (state) {
                             is SetupModule.State.Current -> NotificationSetupCardItem(
@@ -230,50 +170,7 @@ class SetupViewModel @Inject constructor(
                             is SetupModule.State.Loading -> SetupLoadingCardItem(state)
                         }
 
-                        SetupModule.Type.SHIZUKU -> when (state) {
-                            is SetupModule.State.Current -> ShizukuSetupCardItem(
-                                state = state as ShizukuSetupModule.Result,
-                                onToggleUseShizuku = {
-                                    launch { shizukuSetupModule.toggleUseShizuku(it) }
-                                },
-                                onHelp = {
-                                    // Follows the active backend: a Porter user reading "ADB access
-                                    // failed" must not land on Shizuku's docs section. Which page a
-                                    // Porter user gets is the flavor's call, because Porter's setup
-                                    // guide doubles as its install instructions.
-                                    webpageTool.open(
-                                        when (state.backend) {
-                                            AdbBackend.PORTER -> adbManagerInstallGuide.porterHelpUrl
-                                            AdbBackend.SHIZUKU ->
-                                                "https://sdmse.darken.eu/setup#shizuku"
-                                        }
-                                    )
-                                },
-                                onOpen = {
-                                    // Not every manager exports a launcher entry, e.g. Shizuku+'s Compat
-                                    // Hub. Its app info page is still somewhere the user can act, and a
-                                    // button that does nothing at all is worse than the wrong screen.
-                                    val intent = state.pkg.getLaunchIntent(context)
-                                        ?: state.pkg.getSettingsIntent(context)
-                                    try {
-                                        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                                    } catch (e: ActivityNotFoundException) {
-                                        errorEvents.tryEmit(e)
-                                    } catch (e: SecurityException) {
-                                        // An exported-but-guarded launcher activity rejects us at
-                                        // startActivity() rather than failing to resolve.
-                                        errorEvents.tryEmit(e)
-                                    }
-                                },
-                                onRetry = { launch { shizukuSetupModule.refresh() } },
-                                onGrantAccess = { launch { shizukuSetupModule.grantAccess() } },
-                                showKnownIssueHint = hasKnownShizukuIssueRisk,
-                                installLabelRes = adbManagerInstallGuide.labelRes,
-                                onInstall = { webpageTool.open(adbManagerInstallGuide.url) },
-                            ).takeIf { it.state.isInstalled }
-
-                            is SetupModule.State.Loading -> SetupLoadingCardItem(state)
-                        }
+                        SetupModule.Type.SHIZUKU -> null
 
                         SetupModule.Type.INVENTORY -> when (state) {
                             is SetupModule.State.Current -> InventorySetupCardItem(
@@ -384,8 +281,6 @@ class SetupViewModel @Inject constructor(
     }
 
     companion object {
-        /** ROMs with the framework modification behind RikkaApps/Shizuku#1198. */
-        private val KNOWN_SHIZUKU_ISSUE_ROMS = setOf(RomType.HYPEROS, RomType.MIUI)
 
         private val TAG = logTag("Setup", "ViewModel")
     }

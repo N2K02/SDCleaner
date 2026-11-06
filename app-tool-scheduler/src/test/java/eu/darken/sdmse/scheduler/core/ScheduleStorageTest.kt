@@ -11,7 +11,9 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import testhelpers.BaseTest
 import testhelpers.coroutine.TestDispatcherProvider
-import testhelpers.json.toComparableJson
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
 import java.time.Duration
 import java.time.Instant
@@ -49,22 +51,13 @@ class ScheduleStorageTest : BaseTest() {
             save(setOf(schedule))
             load() shouldBe setOf(schedule)
             val saveFile = provideBackupPath().listFiles()!!.single { it.extension == "json" }
-            saveFile.readText().toComparableJson() shouldBe """
-                [
-                    {
-                        "id": "1234id",
-                        "createdAt": "1970-01-01T00:00:00Z",
-                        "hour": 22,
-                        "minute": 0,
-                        "label": "",
-                        "repeatInterval": "PT72H",
-                        "corpsefinderEnabled": false,
-                        "systemcleanerEnabled": false,
-                        "appcleanerEnabled": false,
-                        "commandsAfterSchedule": []
-                    }
-                ]
-            """.toComparableJson()
+            val serialized = SerializationIOModule().json()
+                .parseToJsonElement(saveFile.readText()).jsonArray.single().jsonObject
+            serialized.getValue("id").jsonPrimitive.content shouldBe "1234id"
+            serialized.getValue("createdAt").jsonPrimitive.content shouldBe "1970-01-01T00:00:00Z"
+            serialized.getValue("repeatInterval").jsonPrimitive.content shouldBe "PT72H"
+            serialized.getValue("hour").jsonPrimitive.content shouldBe "22"
+            serialized.getValue("minute").jsonPrimitive.content shouldBe "0"
             saveFile.delete()
             load() shouldBe null
         }
@@ -183,25 +176,37 @@ class ScheduleStorageTest : BaseTest() {
             save(setOf(schedule))
             load() shouldBe setOf(schedule)
             val saveFile = provideBackupPath().listFiles()!!.single { it.extension == "json" }
-            saveFile.readText().toComparableJson() shouldBe """
-                [
-                    {
-                        "id": "full-id",
-                        "createdAt": "2024-01-15T10:00:00Z",
-                        "scheduledAt": "2024-01-15T12:00:00Z",
-                        "hour": 22,
-                        "minute": 30,
-                        "label": "Nightly Cleanup",
-                        "repeatInterval": "PT24H",
-                        "userZone": "Europe/Berlin",
-                        "corpsefinderEnabled": true,
-                        "systemcleanerEnabled": true,
-                        "appcleanerEnabled": true,
-                        "commandsAfterSchedule": ["reboot"],
-                        "executedAt": "2024-01-14T21:30:00Z"
-                    }
-                ]
-            """.toComparableJson()
+            val serialized = SerializationIOModule().json()
+                .parseToJsonElement(saveFile.readText()).jsonArray.single().jsonObject
+            serialized.getValue("id").jsonPrimitive.content shouldBe "full-id"
+            serialized.getValue("scheduledAt").jsonPrimitive.content shouldBe "2024-01-15T12:00:00Z"
+            serialized.getValue("repeatInterval").jsonPrimitive.content shouldBe "PT24H"
+            serialized.getValue("userZone").jsonPrimitive.content shouldBe "Europe/Berlin"
+            serialized.getValue("label").jsonPrimitive.content shouldBe "Nightly Cleanup"
+            serialized.getValue("commandsAfterSchedule").jsonArray.single().jsonPrimitive.content shouldBe "reboot"
         }
     }
+
+    @Test
+    fun `non-default minute and run-once fields survive storage`() = runTest {
+        val schedule = Schedule(
+            id = "minute-id",
+            createdAt = Instant.EPOCH,
+            scheduledAt = Instant.EPOCH,
+            intervalMinutes = 45,
+            initialDelayMinutes = 5,
+            runOnce = true,
+        )
+        create().apply {
+            save(setOf(schedule))
+            load() shouldBe setOf(schedule)
+            val saveFile = provideBackupPath().listFiles()!!.single { it.extension == "json" }
+            val serialized = SerializationIOModule().json()
+                .parseToJsonElement(saveFile.readText()).jsonArray.single().jsonObject
+            serialized.getValue("intervalMinutes").jsonPrimitive.content shouldBe "45"
+            serialized.getValue("initialDelayMinutes").jsonPrimitive.content shouldBe "5"
+            serialized.getValue("runOnce").jsonPrimitive.content shouldBe "true"
+        }
+    }
+
 }

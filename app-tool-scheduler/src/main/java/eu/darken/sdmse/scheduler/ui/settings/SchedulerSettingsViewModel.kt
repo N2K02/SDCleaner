@@ -5,7 +5,7 @@ import eu.darken.sdmse.common.WebpageTool
 import eu.darken.sdmse.common.coroutine.DispatcherProvider
 import eu.darken.sdmse.common.datastore.value
 import eu.darken.sdmse.common.debug.logging.logTag
-import eu.darken.sdmse.common.flow.combine
+import kotlinx.coroutines.flow.combine
 import eu.darken.sdmse.common.uix.ViewModel4
 import eu.darken.sdmse.scheduler.core.SchedulerSettings
 import kotlinx.coroutines.flow.StateFlow
@@ -21,12 +21,10 @@ class SchedulerSettingsViewModel @Inject constructor(
     val state: StateFlow<State> = combine(
         settings.skipWhenPowerSaving.flow,
         settings.skipWhenNotCharging.flow,
-        settings.useAutomation.flow,
-    ) { skipPowerSave, skipNotCharging, useAuto ->
+    ) { skipPowerSave, skipNotCharging ->
         State(
             skipWhenPowerSaving = skipPowerSave,
             skipWhenNotCharging = skipNotCharging,
-            useAutomation = useAuto,
         )
     }.safeStateIn(
         initialValue = State(),
@@ -41,10 +39,6 @@ class SchedulerSettingsViewModel @Inject constructor(
         settings.skipWhenNotCharging.value(value)
     }
 
-    fun setUseAutomation(value: Boolean) = launch {
-        settings.useAutomation.value(value)
-    }
-
     fun onHelpClick() {
         webpageTool.open(HELP_URL)
     }
@@ -52,7 +46,6 @@ class SchedulerSettingsViewModel @Inject constructor(
     data class State(
         val skipWhenPowerSaving: Boolean = true,
         val skipWhenNotCharging: Boolean = false,
-        val useAutomation: Boolean = false,
     )
 
     companion object {

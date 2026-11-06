@@ -1,6 +1,5 @@
 package eu.darken.sdmse.appcleaner.core
 
-import eu.darken.sdmse.appcleaner.core.automation.errors.LockedAppCacheException
 import eu.darken.sdmse.appcleaner.core.forensics.ExpendablesFilter
 import eu.darken.sdmse.appcleaner.core.forensics.ExpendablesFilterIdentifier
 import eu.darken.sdmse.appcleaner.core.forensics.filter.DefaultCachesPrivateFilter
@@ -75,7 +74,7 @@ data class AppJunk(
     val isUnclearable: Boolean
         get() = (expendables.isNullOrEmpty() || expendables.values.all { it.isEmpty() }) &&
             inaccessibleCache != null &&
-            (acsError is NoSettingsWindowException || acsError is DisabledAppException || acsError is LockedAppCacheException)
+            (acsError is NoSettingsWindowException || acsError is DisabledAppException)
 
     fun isEmpty() =
         (expendables.isNullOrEmpty() || expendables.values.all { it.isEmpty() }) && inaccessibleCache == null

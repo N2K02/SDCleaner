@@ -20,6 +20,8 @@ import eu.darken.sdmse.common.flow.DynamicStateFlow
 import eu.darken.sdmse.common.flow.withPrevious
 import eu.darken.sdmse.common.toSystemTimezone
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
@@ -28,6 +30,8 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -50,6 +54,78 @@ class SchedulerManager @Inject constructor(
         State(schedules = storage.load() ?: emptySet())
     }
     val state: Flow<State> = internalState.flow
+    // Serializes all unique-work checks and mutations in this process; without
+    // this gate, cold-start reconciliation and a finishing worker can both
+    // append a successor to the same active WorkManager chain.
+    private val workGate = Mutex()
+
+    /** Read-only, event-driven WorkManager status; no polling, wake locks or background service. */
+    /** The queue policy is kept pure for race/idle-cycle regression tests. */
+    internal object QueuePolicy {
+        fun hasSuccessor(infos: List<WorkInfo>): Boolean = infos.any {
+            it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.BLOCKED
+        }
+
+        fun automaticActive(infos: List<WorkInfo>): Boolean = infos.any {
+            it.state == WorkInfo.State.RUNNING
+        }
+
+        fun snapshot(
+            id: ScheduleId,
+            label: String,
+            automatic: List<WorkInfo>,
+            manual: List<WorkInfo>,
+        ): WorkSnapshot {
+            val all = automatic + manual
+            val running = all.count { it.state == WorkInfo.State.RUNNING }
+            val pending = all.count {
+                it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.BLOCKED
+            }
+            return WorkSnapshot(
+                scheduleId = id,
+                label = label,
+                running = running,
+                pending = pending,
+                lastState = when {
+                    running > 0 -> "RUNNING"
+                    pending > 0 -> "ENQUEUED"
+                    manual.isNotEmpty() -> manual.last().state.name
+                    automatic.isNotEmpty() -> automatic.last().state.name
+                    else -> "Not scheduled"
+                },
+            )
+        }
+    }
+
+    data class WorkSnapshot(
+        val scheduleId: ScheduleId,
+        val label: String,
+        val running: Int = 0,
+        val pending: Int = 0,
+        val lastState: String = "Not scheduled",
+        val error: String? = null,
+    )
+
+    val runtimeWork: Flow<List<WorkSnapshot>> = state
+        .map { it.schedules.map { schedule -> schedule.id to schedule.label }.sortedBy { pair -> pair.first } }
+        .distinctUntilChanged()
+        .flatMapLatest { schedules ->
+            if (schedules.isEmpty()) flowOf(emptyList())
+            else combine(schedules.map { (id, label) ->
+                combine(
+                    workManager.getWorkInfosForUniqueWorkFlow("worker-schedule-$id"),
+                    workManager.getWorkInfosForUniqueWorkFlow("worker-schedule-manual-$id"),
+                ) { automatic, manual ->
+                    // Manual and automatic runs use distinct unique-work names.
+                    // Both must be visible, otherwise a manual run appears idle
+                    // in Diagnostics even when WorkManager is holding the CPU awake.
+                    QueuePolicy.snapshot(id, label, automatic, manual)
+                }.catch { error ->
+                        log(TAG, WARN) { "WorkManager status unavailable for $id: ${error.asLog()}" }
+                        emit(WorkSnapshot(id, label, error = error.javaClass.simpleName))
+                    }
+            }) { statuses -> statuses.toList() }
+        }
 
     init {
         internalState.flow
@@ -117,10 +193,11 @@ class SchedulerManager @Inject constructor(
 
     private suspend fun Schedule.isScheduled(): Boolean =
         workManager.getWorkInfosForUniqueWorkFlow(workName).firstOrNull()
-            ?.any { infos -> infos.state == WorkInfo.State.ENQUEUED || infos.state == WorkInfo.State.RUNNING }
+            ?.any { infos -> infos.state == WorkInfo.State.ENQUEUED ||
+                infos.state == WorkInfo.State.RUNNING || infos.state == WorkInfo.State.BLOCKED }
             ?: false
 
-    private suspend fun Schedule.cancel() {
+    private suspend fun Schedule.cancel() = workGate.withLock {
         workManager.cancelUniqueWork(workName).await()
         if (isScheduled()) log(TAG, WARN) { "Failed to cancel $this" }
     }
@@ -129,8 +206,16 @@ class SchedulerManager @Inject constructor(
      * A user-requested cleanup runs in its own unique work chain, without replacing the
      * next automatic occurrence. KEEP prevents duplicate taps from starting extra cleanups.
      */
-    suspend fun runNow(id: ScheduleId) {
-        val schedule = getSchedule(id) ?: return
+    suspend fun runNow(id: ScheduleId): Unit = workGate.withLock {
+        val schedule = state.first().schedules.singleOrNull { it.id == id } ?: return@withLock
+        // A manual tap while automatic cleanup is already RUNNING would create
+        // an additional JobScheduler job and a second long CPU wake-up for the
+        // same tools. The user may retry when automatic cleanup is idle.
+        val running = workManager.getWorkInfosForUniqueWorkFlow(schedule.workName).first()
+        if (QueuePolicy.automaticActive(running)) {
+            log(TAG, INFO) { "Skipping manual run for $id: automatic cleanup is already running" }
+            return@withLock
+        }
         val request = OneTimeWorkRequestBuilder<SchedulerWorker>()
             .setInputData(workDataOf(
                 SchedulerWorker.INPUT_SCHEDULE_ID to schedule.id,
@@ -142,15 +227,33 @@ class SchedulerManager @Inject constructor(
             ExistingWorkPolicy.KEEP,
             request,
         ).await()
+        Unit
     }
 
     suspend fun reschedule(id: ScheduleId) {
         log(TAG, INFO) { "Rescheduling $id" }
+        // schedule() re-reads state under workGate: a concurrently disabled or
+        // removed schedule must never be resurrected by a finishing worker.
         val schedule = getSchedule(id) ?: return
         if (schedule.isEnabled && !schedule.runOnce) schedule.schedule(reschedule = true)
     }
 
-    private suspend fun Schedule.schedule(reschedule: Boolean) {
+    private suspend fun Schedule.schedule(reschedule: Boolean) = workGate.withLock {
+        // Revalidate while serialized: disabling/deleting a schedule can race with
+        // a worker's finally block, and concurrent append calls otherwise produce
+        // multiple ENQUEUED successors instead of one.
+        val latest = state.first().schedules.singleOrNull { it.id == id }
+        if (latest == null || !latest.isEnabled || latest != this) {
+            log(TAG, WARN) { "Skipping stale schedule($label): enabled=${latest?.isEnabled}" }
+            return@withLock
+        }
+        val pending = QueuePolicy.hasSuccessor(
+            workManager.getWorkInfosForUniqueWorkFlow(workName).first()
+        )
+        if (pending) {
+            log(TAG, INFO) { "Skipping duplicate schedule($label): a pending successor already exists" }
+            return@withLock
+        }
         log(TAG, INFO) { "schedule($label): (reschedule=$reschedule) $this" }
 
         val now = Instant.now()
@@ -219,32 +322,14 @@ class SchedulerManager @Inject constructor(
     }
 
     /**
-     * Replaces the entire schedule set in a single state update (used by config restore, so a
-     * REPLACE can never leave a half-swapped set), then reconciles WorkManager explicitly: removed
-     * schedules are cancelled, changed/new ones re-armed. The state watcher in `init` only reacts
-     * to `scheduledAt` changes, so a same-id schedule restored with a different hour/interval would
-     * otherwise keep its stale queued work.
+     * Apply a restored set atomically. The *single* state reconciler above
+     * performs all WorkManager mutations. Previously this method also did
+     * explicit cancel/enqueue work, so one change raced with its own collector
+     * and repeatedly cancelled the newly enqueued successor.
      */
     suspend fun setSchedules(schedules: Set<Schedule>) {
         log(TAG, INFO) { "setSchedules(): ${schedules.size} schedules" }
-        var previous: Set<Schedule> = emptySet()
-        internalState.updateBlocking {
-            previous = this.schedules
-            copy(schedules = schedules)
-        }
-        val previousById = previous.associateBy { it.id }
-        previous.filterNot { old -> schedules.any { it.id == old.id } }.forEach { it.cancel() }
-        schedules.forEach { new ->
-            when {
-                previousById[new.id] == new -> Unit // Untouched, leave its work alone.
-                new.isEnabled -> {
-                    new.cancel()
-                    new.schedule(reschedule = false)
-                }
-
-                else -> new.cancel()
-            }
-        }
+        internalState.updateBlocking { copy(schedules = schedules) }
     }
 
     suspend fun removeSchedule(scheduleId: ScheduleId) = internalState.updateBlocking {
@@ -256,8 +341,7 @@ class SchedulerManager @Inject constructor(
             return@updateBlocking this
         }
 
-        target.cancel()
-
+        // The state observer cancels the removed unique work exactly once.
         copy(schedules = this.schedules.minus(target).toSet())
     }
 

@@ -53,6 +53,8 @@ import eu.darken.sdmse.setup.SetupHeartbeat
 import eu.darken.sdmse.setup.SetupBinding
 import eu.darken.sdmse.setup.SetupModule
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -374,6 +376,7 @@ class CorpseFinder @Inject constructor(
                         log(TAG) { "Deleted $targetContent!" }
                         deleted.add(targetContent)
                     } catch (e: WriteException) {
+                        currentCoroutineContext().ensureActive()
                         log(TAG, WARN) { "Deletion failed for $targetContent: $e" }
                     }
                 }
@@ -393,6 +396,7 @@ class CorpseFinder @Inject constructor(
                     log(TAG) { "Deleted $targetCorpse!" }
                     deletedCorpses.add(corpse)
                 } catch (e: WriteException) {
+                        currentCoroutineContext().ensureActive()
                     log(TAG, WARN) { "Deletion failed for $targetCorpse: $e" }
                 }
             }

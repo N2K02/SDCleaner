@@ -38,14 +38,12 @@ class AppCleanerSettingsViewModelTest : BaseTest() {
         otherUsers: Boolean = false,
         runningApps: Boolean = false,
         inaccessibleCache: Boolean = false,
-        acsRequired: Boolean = false,
     ): AppCleaner.State = AppCleaner.State(
         data = null,
         progress = null as Progress.Data?,
         isOtherUsersAvailable = otherUsers,
         isRunningAppsDetectionAvailable = runningApps,
         isInaccessibleCacheAvailable = inaccessibleCache,
-        isAcsRequired = acsRequired,
     )
 
     private class Values(
@@ -277,7 +275,6 @@ class AppCleanerSettingsViewModelTest : BaseTest() {
                 otherUsers = true,
                 runningApps = true,
                 inaccessibleCache = true,
-                acsRequired = true,
             ),
         )
 
@@ -285,7 +282,6 @@ class AppCleanerSettingsViewModelTest : BaseTest() {
         state.isOtherUsersAvailable shouldBe true
         state.isRunningAppsDetectionAvailable shouldBe true
         state.isInaccessibleCacheAvailable shouldBe true
-        state.isAcsRequired shouldBe true
     }
 
     @Test

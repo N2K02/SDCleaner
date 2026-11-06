@@ -121,7 +121,6 @@ class AppCleanerSettingsViewModel @Inject constructor(
             otherUsersGate = privilegedGateState(appState.isOtherUsersAvailable, listOf(rootAccess)),
             isRunningAppsDetectionAvailable = appState.isRunningAppsDetectionAvailable,
             isInaccessibleCacheAvailable = appState.isInaccessibleCacheAvailable,
-            isAcsRequired = appState.isAcsRequired,
             includeSystemApps = include.systemApps,
             includeOtherUsers = include.multiUser,
             includeRunningApps = include.runningApps,
@@ -192,8 +191,8 @@ class AppCleanerSettingsViewModel @Inject constructor(
 
     fun onOtherUsersBadgeClick() = navTo(setupRoute(setOf(SetupModule.Type.ROOT)))
     fun onRunningAppsBadgeClick() = navTo(setupRoute(setOf(SetupModule.Type.USAGE_STATS)))
-    fun onInaccessibleBadgeClick() = navTo(setupRoute(setOf(SetupModule.Type.USAGE_STATS, SetupModule.Type.AUTOMATION)))
-    fun onForceStopBadgeClick() = navTo(setupRoute(setOf(SetupModule.Type.USAGE_STATS, SetupModule.Type.AUTOMATION)))
+    fun onInaccessibleBadgeClick() = navTo(setupRoute(setOf(SetupModule.Type.USAGE_STATS)))
+    fun onForceStopBadgeClick() = navTo(setupRoute(setOf(SetupModule.Type.USAGE_STATS)))
 
     private fun setupRoute(types: Set<SetupModule.Type>) = SetupRoute(
         options = SetupScreenOptions(showCompleted = true, typeFilter = types),
@@ -209,7 +208,6 @@ class AppCleanerSettingsViewModel @Inject constructor(
         val otherUsersGate: FeatureGateState = FeatureGateState.SETUP,
         val isRunningAppsDetectionAvailable: Boolean = false,
         val isInaccessibleCacheAvailable: Boolean = false,
-        val isAcsRequired: Boolean = false,
         val includeSystemApps: Boolean = false,
         val includeOtherUsers: Boolean = false,
         val includeRunningApps: Boolean = true,

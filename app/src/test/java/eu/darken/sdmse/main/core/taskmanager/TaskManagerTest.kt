@@ -20,6 +20,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.plus
@@ -417,4 +419,105 @@ class TaskManagerTest : BaseTest() {
                 it.result shouldBeSameInstanceAs taskResult
             }
         }
+
+    @Test fun `cancelling an active scheduler task waits for final resource release`() =
+        runTest2(autoCancel = true) {
+            val scope = this + Dispatchers.IO
+            val started = CompletableDeferred<Unit>()
+            val ended = CompletableDeferred<Unit>()
+            val tool = createTool(scope)
+            coEvery { tool.submit(task) } coAnswers {
+                started.complete(Unit)
+                try {
+                    awaitCancellation()
+                } finally {
+                    ended.complete(Unit)
+                }
+            }
+            val manager = createManager(scope, tool)
+            val caller = async(Dispatchers.IO) {
+                manager.submit(task, notifyOnFinish = false, cancelOnCallerCancellation = true)
+            }
+            started.await()
+            val toolJob = manager.jobOf(task)
+            // A worker-owned job must be a *real child* of the caller's job.
+            (caller.children.any { it === toolJob }) shouldBe true
+            caller.cancel()
+            caller.join()
+            ended.await()
+            manager.state.first { it.tasks.isNotEmpty() && it.isIdle }
+            (manager.rawEntries().single().entryField("resourceLock") as KeepAlive).isClosed shouldBe true
+            coVerify(exactly = 0) { taskWorkerControl.startMonitor() }
+        }
+
+    @Test fun `scheduled cleanup returns to idle without keeping a resource lease or foreground monitor`() =
+        runTest2(autoCancel = true) {
+            val scope = this + Dispatchers.IO
+            val tool = createTool(scope)
+            coEvery { tool.submit(task) } returns taskResult
+            val manager = createManager(scope, tool)
+
+            // Three successive scheduled runs must each go RUNNING -> IDLE. The
+            // task-map intentionally retains the latest result; that must not hold
+            // any of its previous keep-alive leases or start a foreground monitor.
+            repeat(3) {
+                manager.submit(task, notifyOnFinish = false, cancelOnCallerCancellation = true)
+                    .shouldBeSameInstanceAs(taskResult)
+                val idle = manager.state.first { state ->
+                    state.tasks.isNotEmpty() && state.isIdle
+                }
+                idle.isIdle shouldBe true
+                idle.isFullyIdle shouldBe true
+                idle.hasNotifiableActiveWork shouldBe false
+                idle.tasks.none { it.resourceHeld } shouldBe true
+                manager.rawEntries().forEach { entry ->
+                    (entry.entryField("resourceLock") as KeepAlive).isClosed shouldBe true
+                }
+            }
+            coVerify(exactly = 0) { taskWorkerControl.startMonitor() }
+        }
+
+    @Test fun `stopping scoped scheduler submission cancels only its underlying job`() =
+        runTest2(autoCancel = true) {
+            val scope = this + Dispatchers.IO
+            val tool = createTool(scope)
+            val dispatcher = ParkingDispatcher()
+            val manager = createManager(scope, tool, dispatcher)
+
+            dispatcher.park()
+            val caller = async(Dispatchers.IO) {
+                manager.submit(task, notifyOnFinish = false, cancelOnCallerCancellation = true)
+            }
+            manager.state.first { it.tasks.isNotEmpty() }
+            val submittedJob = manager.jobOf(task)
+            caller.cancel()
+            // The bounded cleanup join must not complete until the parked job is
+            // allowed to execute its finalizer. No detached WorkManager-owned work.
+            dispatcher.releaseAll()
+            caller.join()
+            submittedJob.isCancelled shouldBe true
+            manager.state.first { state -> state.tasks.singleOrNull()?.isComplete == true }
+            (manager.rawEntries().single().entryField("resourceLock") as KeepAlive).isClosed shouldBe true
+        }
+
+    @Test fun `ordinary UI submission survives cancellation of its caller`() =
+        runTest2(autoCancel = true) {
+            val scope = this + Dispatchers.IO
+            val tool = createTool(scope)
+            coEvery { tool.submit(task) } returns taskResult
+            val dispatcher = ParkingDispatcher()
+            val manager = createManager(scope, tool, dispatcher)
+
+            dispatcher.park()
+            val caller = async(Dispatchers.IO) { manager.submit(task) }
+            manager.state.first { it.tasks.isNotEmpty() }
+            val submittedJob = manager.jobOf(task)
+            caller.cancel()
+            caller.join()
+            submittedJob.isCancelled shouldBe false
+            dispatcher.releaseAll()
+            submittedJob.join()
+            manager.state.first { state -> state.tasks.singleOrNull()?.isComplete == true }
+        }
+
 }

@@ -31,7 +31,7 @@ class SetupManager @Inject constructor(
         setupHealer.state,
     ) { moduleStates, isDismissed, healerState ->
         State(
-            moduleStates = moduleStates,
+            moduleStates = moduleStates.filter { it.type != SetupModule.Type.AUTOMATION && it.type != SetupModule.Type.SHIZUKU },
             isDismissed = isDismissed,
             isHealerWorking = healerState.isWorking,
         )

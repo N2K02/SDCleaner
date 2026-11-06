@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sdcleaner_adb_pairing_description">Optionally read only Android Settings Wireless debugging pairing codes to authorize SDCleaner ADB. No app cache UI automation.</string>
+</resources>

@@ -22,12 +22,10 @@ class SchedulerSettings @Inject constructor(
 
     val skipWhenPowerSaving = dataStore.createValue("requirement.notpowersaving.enabled", true)
     val skipWhenNotCharging = dataStore.createValue("requirement.charging.enabled", false)
-    val useAutomation = dataStore.createValue("option.automation.enabled", false)
 
     val createdDefaultEntry = dataStore.createValue("default.entry.created", false)
 
     val hintBatteryDismissed = dataStore.createValue("hint.battery.optimization.dismissed", false)
-    val hintAcsScreenLockedDismissed = dataStore.createValue("hint.acs.screenlocked.dismissed", false)
 
     companion object {
         internal val TAG = logTag("Scheduler", "Settings")

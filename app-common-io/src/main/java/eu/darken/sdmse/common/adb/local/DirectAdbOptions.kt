@@ -25,6 +25,7 @@ object DirectAdbOptions {
         prefs(context).edit()
             .putBoolean("previously_authorized", true)
             .putLong("verified_at", System.currentTimeMillis())
+            .putInt("verified_boot", boot)
             .putString("transport", if (port == 5555) "Local TCP/5555" else "Wireless TLS")
             .apply {
                 if (port != 5555 && boot >= 0) {
@@ -45,6 +46,9 @@ object DirectAdbOptions {
     fun markStopped(context: Context, value: Boolean) {
         prefs(context).edit().putBoolean("manual_stop", value).commit()
     }
+    fun lastVerifiedBoot(context: Context): Int =
+        prefs(context).getInt("verified_boot", -1)
+    fun currentBoot(context: Context): Int = boot(context)
     private fun boot(context: Context) = runCatching {
         Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT, -1)
     }.getOrDefault(-1)

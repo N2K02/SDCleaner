@@ -39,13 +39,14 @@ class DirectAdb @Inject constructor(@ApplicationContext private val context: Con
         true
     } catch (_: Exception) { false }
 
-    private suspend fun verifyShell(): Boolean {
+    private suspend fun verifyShell(port: Int): Boolean {
         val uid = AdbTransport.exec("id -u").getOrNull()?.trim()
         val okay = uid == "2000"
         if (!okay) {
             AdbTransport.disconnect()
             status.value = Status(message = "ADB connected but shell UID verification failed")
         } else {
+            DirectAdbOptions.rememberAuthorized(context, port)
             status.value = Status(connected = true, message = "ADB ready (shell UID 2000)")
         }
         return okay
@@ -64,7 +65,7 @@ class DirectAdb @Inject constructor(@ApplicationContext private val context: Con
                 status.value = Status(message = "ADB connection failed: ${result.exceptionOrNull()?.message}")
                 return@withContext false
             }
-            verifyShell()
+            verifyShell(5555)
         }
     }
 
@@ -88,17 +89,27 @@ class DirectAdb @Inject constructor(@ApplicationContext private val context: Con
             return@withLock false
         }
         val attached = AdbTransport.connectLocalTls(context, port)
-        if (attached.isFailure || !verifyShell()) {
+        if (attached.isFailure || !verifyShell(port)) {
             status.value = Status(message = "Wireless ADB connection or UID verification failed")
             return@withLock false
         }
+        if (!DirectAdbOptions.get(context, DirectAdbOptions.Option.TCP_5555)) return@withLock true
         if (AdbTransport.switchToTcpip().isFailure) {
             status.value = Status(message = "Shell verified, but switching to TCP/5555 failed")
             return@withLock false
         }
-        kotlinx.coroutines.delay(500)
-        val result = AdbTransport.connect(context, AdbTransport.LOOPBACK, AdbTransport.LEGACY_TCP_PORT)
-        if (result.isFailure || !verifyShell()) {
+        AdbTransport.disconnect()
+        var reverified = false
+        repeat(4) {
+            if (!reverified) {
+                kotlinx.coroutines.delay(1_100L)
+                val result = AdbTransport.connect(
+                    context, AdbTransport.LOOPBACK, AdbTransport.LEGACY_TCP_PORT)
+                reverified = result.isSuccess && verifyShell(5555)
+                if (!reverified) AdbTransport.disconnect()
+            }
+        }
+        if (!reverified) {
             status.value = Status(message = "TCP/5555 reconnect failed after TLS setup")
             return@withLock false
         }
@@ -108,7 +119,9 @@ class DirectAdb @Inject constructor(@ApplicationContext private val context: Con
     /** No scans, discovery, or keep-alive when disconnected. */
     suspend fun ensureConnected(): Boolean {
         if (status.value.connected && AdbTransport.isConnected) return true
-        return connectTcp()
+        if (connectTcp()) return true
+        val tlsPort = DirectAdbOptions.tlsPort(context)
+        return tlsPort != null && connectTls(tlsPort)
     }
 
     /**

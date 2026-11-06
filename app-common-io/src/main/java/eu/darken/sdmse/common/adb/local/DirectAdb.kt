@@ -115,7 +115,9 @@ class DirectAdb @Inject constructor(@ApplicationContext private val context: Con
             return@withLock false
         }
         if (!DirectAdbOptions.get(context, DirectAdbOptions.Option.TCP_5555)) return@withLock true
-        if (AdbTransport.switchToTcpip().isFailure) {
+        // Never restart adbd and disconnect every other authorized ADB app
+        // when its local TCP/5555 listener is already available.
+        if (!endpointAvailable() && AdbTransport.switchToTcpip().isFailure) {
             AdbTransport.disconnect()
             status.value = Status(message = "Shell verified, but switching to TCP/5555 failed")
             return@withLock false

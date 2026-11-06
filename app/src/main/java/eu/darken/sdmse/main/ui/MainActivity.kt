@@ -101,6 +101,8 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        // Explicit user launch clears the persisted Quit suppression; boot does not.
+        eu.darken.sdmse.common.adb.local.DirectAdbOptions.markStopped(this, false)
 
         eu.darken.sdmse.cleaner.CleanerUpdater.init(this) { vm.tasksIdle.value }
         curriculumVitae.updateAppOpened()

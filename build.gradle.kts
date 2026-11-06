@@ -52,13 +52,16 @@ subprojects {
     configurations.configureEach {
         if (name.endsWith("UnitTestRuntimeClasspath")) {
             exclude(group = "org.conscrypt", module = "conscrypt-android")
+            // Robolectric's HTTPS SDK downloader fails on Conscrypt 2.6+ when
+            // negotiating XDH under JDK 17. Keep the known-good host provider.
+            resolutionStrategy.force("org.conscrypt:conscrypt-openjdk-uber:2.5.2")
         }
     }
     pluginManager.withPlugin("com.android.application") {
-        dependencies.add("testRuntimeOnly", "org.conscrypt:conscrypt-openjdk-uber:2.7.0")
+        dependencies.add("testRuntimeOnly", "org.conscrypt:conscrypt-openjdk-uber:2.5.2")
     }
     pluginManager.withPlugin("com.android.library") {
-        dependencies.add("testRuntimeOnly", "org.conscrypt:conscrypt-openjdk-uber:2.7.0")
+        dependencies.add("testRuntimeOnly", "org.conscrypt:conscrypt-openjdk-uber:2.5.2")
     }
 }
 

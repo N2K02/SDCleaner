@@ -66,7 +66,6 @@ object AdbTransport {
     private const val SHELL_SERVICE = "exec:sh"
 
     @Volatile
-    @Volatile
     private var manager: AbsAdbConnectionManager? = null
 
     /** The one reused shell, and the lock that stops two commands interleaving

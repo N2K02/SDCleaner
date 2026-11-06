@@ -53,6 +53,7 @@ class MainViewModel @Inject constructor(
     private val appScope: AppCoroutineScope,
     private val sessions: eu.darken.sdmse.common.debug.recorder.core.DebugLogSessionManager,
     private val directAdb: DirectAdb,
+    private val directAdbRecovery: eu.darken.sdmse.common.adb.local.DirectAdbRecovery,
 
 ) : ViewModel4(dispatcherProvider = dispatcherProvider, tag = TAG) {
 
@@ -64,6 +65,7 @@ class MainViewModel @Inject constructor(
         if (!quitting.compareAndSet(false, true)) return
         launch {
             try {
+                directAdbRecovery.stopForQuit()
                 eu.darken.sdmse.cleaner.CleanerUpdater.cancel()
                 eu.darken.sdmse.cleaner.stopCleaner(
                     cancelBackground = { androidx.work.WorkManager.getInstance(context).cancelAllWork().await() },

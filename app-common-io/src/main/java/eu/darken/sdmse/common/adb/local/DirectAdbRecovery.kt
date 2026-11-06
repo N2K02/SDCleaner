@@ -85,7 +85,8 @@ class DirectAdbRecovery @Inject constructor(
 
     suspend fun recover() {
         if (DirectAdbOptions.stopRequested(app)) return
-        if (adb.status.value.connected && AdbTransport.isConnected) return
+        if (adb.status.value.connected && AdbTransport.isConnected &&
+            adb.ensureConnected()) return
         // Only a local listener is accepted; no TCP probes outside this phone.
         if (adb.connectTcp()) {
             stopDiscovery()
@@ -109,6 +110,7 @@ class DirectAdbRecovery @Inject constructor(
             try {
                 state.value = state.value.copy(message = "Pairing with this phone's Android settings")
                 if (adb.pair(port, code)) {
+                    DirectAdbOptions.rememberPaired(app)
                     state.value = state.value.copy(message = "Paired. Waiting for verified connection")
                     state.value.connectionPort?.let {
                         if (adb.connectTls(it)) stopDiscovery()
@@ -160,7 +162,7 @@ class DirectAdbRecovery @Inject constructor(
         }
         connectListener = listen(nsd, "_adb-tls-connect._tcp.", activeGeneration) { port ->
             state.value = state.value.copy(connectionPort = port)
-            if (DirectAdbOptions.wasAuthorized(app)) scope.launch {
+            if (DirectAdbOptions.wasAuthorized(app) || DirectAdbOptions.wasPaired(app)) scope.launch {
                 if (visible && activeGeneration == generation && adb.connectTls(port)) stopDiscovery()
             }
         }

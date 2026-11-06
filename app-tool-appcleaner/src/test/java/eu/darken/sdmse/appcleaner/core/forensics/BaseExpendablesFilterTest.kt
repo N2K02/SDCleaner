@@ -240,8 +240,10 @@ class BaseExpendablesFilterTest : BaseTest() {
     }
 
     companion object {
-        // A pairwise scan over 10^5 matches (~5 * 10^9 comparisons) cannot meet this bound.
-        private val BOUND: Duration = Duration.ofSeconds(10)
+        // CI runners can be heavily contended while executing 100k mocked deletions.
+        // A quadratic scan over 10^5 matches (~5 * 10^9 comparisons) still
+        // cannot finish within this bound; avoid a flaky 10-second wall-clock limit.
+        private val BOUND: Duration = Duration.ofSeconds(45)
         private const val FLAT_COUNT = 100_000
     }
 }

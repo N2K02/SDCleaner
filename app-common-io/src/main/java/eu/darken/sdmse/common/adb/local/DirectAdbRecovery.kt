@@ -145,7 +145,15 @@ class DirectAdbRecovery @Inject constructor(
         visible = true
         try {
             startDiscovery()
-            withTimeoutOrNull(18_000L) { adb.status.first { it.connected } }
+            // TLS UID verification is not completion while TCP promotion is pending.
+            withTimeoutOrNull(18_000L) {
+                adb.status.first {
+                    it.connected && (
+                        !DirectAdbOptions.get(app, DirectAdbOptions.Option.TCP_5555) ||
+                            it.transport == "Local TCP/5555"
+                    )
+                }
+            }
             if (adb.status.value.connected) synchronizeRestartPermission()
         } finally {
             visible = false

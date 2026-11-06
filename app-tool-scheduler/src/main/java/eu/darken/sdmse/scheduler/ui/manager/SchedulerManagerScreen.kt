@@ -322,6 +322,12 @@ private fun ScheduleListContent(
                             "${state.cleanupCancelling} cancelling",
                         style = MaterialTheme.typography.bodySmall,
                     )
+                    Text(
+                        "Scheduler leases: ${state.cleanupLeases} held" +
+                            if (state.cleanupActive == 0 && state.cleanupLeases > 0)
+                                " · Check resource cleanup" else "",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                     latest?.let { last ->
                         Text(
                             "Last: ${last.label} · ${last.lastOutcome} · ${last.lastDurationMs / 1000}s",

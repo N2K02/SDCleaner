@@ -94,6 +94,7 @@ class TaskManager @Inject constructor(
             result = result,
             error = error,
             notifyOnFinish = notifyOnFinish,
+            resourceHeld = resourceLock?.isClosed == false,
         )
 
         override fun toString(): String {

@@ -129,6 +129,7 @@ class SchedulerManagerViewModel @Inject constructor(
             current.copy(
                 cleanupActive = inFlight.size,
                 cleanupCancelling = inFlight.count { it.isCancelling },
+                cleanupLeases = tasks.tasks.count { !it.notifyOnFinish && it.resourceHeld },
             )
         }.safeStateIn(
         initialValue = State(),
@@ -301,6 +302,7 @@ class SchedulerManagerViewModel @Inject constructor(
         val work: List<SchedulerManager.WorkSnapshot> = emptyList(),
         val cleanupActive: Int = 0,
         val cleanupCancelling: Int = 0,
+        val cleanupLeases: Int = 0,
         val showAlarmHint: Boolean = false,
         val showBatteryHint: Boolean = false,
         val showCommands: Boolean = false,

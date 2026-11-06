@@ -53,6 +53,8 @@ interface TaskSubmitter {
         val result: SDMTool.Task.Result? = null,
         val error: Throwable? = null,
         val notifyOnFinish: Boolean = true,
+        /** True only while this task retains a TaskManager keep-alive lease. */
+        val resourceHeld: Boolean = false,
     ) {
         val isComplete: Boolean = completedAt != null
         val isCancelling: Boolean = cancelledAt != null && completedAt == null

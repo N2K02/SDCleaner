@@ -468,6 +468,7 @@ class TaskManagerTest : BaseTest() {
                 }
                 idle.isIdle shouldBe true
                 idle.hasNotifiableActiveWork shouldBe false
+                idle.tasks.none { it.resourceHeld } shouldBe true
                 manager.rawEntries().forEach { entry ->
                     (entry.entryField("resourceLock") as KeepAlive).isClosed shouldBe true
                 }

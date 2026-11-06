@@ -24,6 +24,13 @@ class TaskSubmitterVisibilityTest {
         assertTrue(TaskSubmitter.State(listOf(managed(false), managed(true))).hasNotifiableActiveWork)
     }
 
+    @Test fun `resource lease diagnostics identify leaks even after task completion`() {
+        val leaked = managed(false, complete = true).copy(resourceHeld = true)
+        assertTrue(leaked.isComplete)
+        assertTrue(leaked.resourceHeld)
+        assertFalse(TaskSubmitter.State(listOf(leaked)).hasNotifiableActiveWork)
+    }
+
     @Test fun `completed tasks do not keep a foreground notification alive`() {
         assertFalse(TaskSubmitter.State(listOf(managed(true, complete = true))).hasNotifiableActiveWork)
     }

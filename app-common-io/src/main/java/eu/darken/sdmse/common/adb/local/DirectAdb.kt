@@ -191,9 +191,7 @@ class DirectAdb @Inject constructor(@ApplicationContext private val context: Con
 
     /** Restore permission is granted/revoked only by a fresh verified shell. */
     suspend fun setRestartPermission(enabled: Boolean): Boolean {
-        val packageName = context.packageName.takeIf {
-            it.matches(Regex("[A-Za-z_][A-Za-z0-9_]*(\\\\.[A-Za-z_][A-Za-z0-9_]*)+"))
-        } ?: return false
+        val packageName = context.packageName.takeIf { validPackage(it) } ?: return false
         if (!ensureConnected()) return false
         val operation = if (enabled) "grant" else "revoke"
         return runCatching {

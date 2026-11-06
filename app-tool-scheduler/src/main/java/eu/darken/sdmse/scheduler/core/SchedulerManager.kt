@@ -69,6 +69,32 @@ class SchedulerManager @Inject constructor(
         fun automaticActive(infos: List<WorkInfo>): Boolean = infos.any {
             it.state == WorkInfo.State.RUNNING
         }
+
+        fun snapshot(
+            id: ScheduleId,
+            label: String,
+            automatic: List<WorkInfo>,
+            manual: List<WorkInfo>,
+        ): WorkSnapshot {
+            val all = automatic + manual
+            val running = all.count { it.state == WorkInfo.State.RUNNING }
+            val pending = all.count {
+                it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.BLOCKED
+            }
+            return WorkSnapshot(
+                scheduleId = id,
+                label = label,
+                running = running,
+                pending = pending,
+                lastState = when {
+                    running > 0 -> "RUNNING"
+                    pending > 0 -> "ENQUEUED"
+                    manual.isNotEmpty() -> manual.last().state.name
+                    automatic.isNotEmpty() -> automatic.last().state.name
+                    else -> "Not scheduled"
+                },
+            )
+        }
     }
 
     data class WorkSnapshot(
@@ -86,19 +112,15 @@ class SchedulerManager @Inject constructor(
         .flatMapLatest { schedules ->
             if (schedules.isEmpty()) flowOf(emptyList())
             else combine(schedules.map { (id, label) ->
-                workManager.getWorkInfosForUniqueWorkFlow("worker-schedule-$id")
-                    .map { infos ->
-                        WorkSnapshot(
-                            scheduleId = id,
-                            label = label,
-                            running = infos.count { it.state == WorkInfo.State.RUNNING },
-                            pending = infos.count {
-                                it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.BLOCKED
-                            },
-                            lastState = infos.lastOrNull()?.state?.name ?: "Not scheduled",
-                        )
-                    }
-                    .catch { error ->
+                combine(
+                    workManager.getWorkInfosForUniqueWorkFlow("worker-schedule-$id"),
+                    workManager.getWorkInfosForUniqueWorkFlow("worker-schedule-manual-$id"),
+                ) { automatic, manual ->
+                    // Manual and automatic runs use distinct unique-work names.
+                    // Both must be visible, otherwise a manual run appears idle
+                    // in Diagnostics even when WorkManager is holding the CPU awake.
+                    QueuePolicy.snapshot(id, label, automatic, manual)
+                }.catch { error ->
                         log(TAG, WARN) { "WorkManager status unavailable for $id: ${error.asLog()}" }
                         emit(WorkSnapshot(id, label, error = error.javaClass.simpleName))
                     }

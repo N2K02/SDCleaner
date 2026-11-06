@@ -248,6 +248,12 @@ class DirectAdbRecovery @Inject constructor(
         state.value = state.value.copy(scanning = false)
     }
 
+    /** Quit cancels future recovery, but active cleaner operations drain before socket close. */
+    fun stopForQuit() {
+        DirectAdbOptions.markStopped(app, true)
+        leaveSettings()
+    }
+
     fun manualDisconnect() {
         DirectAdbOptions.markStopped(app, true)
         leaveSettings()

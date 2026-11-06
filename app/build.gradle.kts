@@ -101,7 +101,7 @@ android {
 
     lint {
         abortOnError = true
-        // AGP 9.3: lint and lintVital skip library modules unless checkDependencies is set
+        // AGP 9: lint and lintVital skip library modules unless checkDependencies is set
         checkDependencies = true
         applySdmSeDefaults()
         fatal.add("StopShip")
@@ -210,7 +210,7 @@ afterEvaluate {
 }
 
 dependencies {
-    implementation("dev.n2k02:updater:0.1.19")
+    implementation("dev.n2k02:updater:0.1.20")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:${Versions.Desugar.core}")
 
     implementation(project(":app-common"))

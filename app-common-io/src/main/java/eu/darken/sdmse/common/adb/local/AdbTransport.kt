@@ -219,7 +219,18 @@ object AdbTransport {
                         // half-read one would mis-attribute the next command's
                         // output. Drop it; the next call opens a fresh one.
                         runCatching { session?.close() }
-                        shell = null
+                        // A closed or desynchronised shell can poison the
+                        // entire libadb connection even when mgr.isConnected
+                        // still reports true. Never reuse that manager for
+                        // the next cleanup run or silently trust its UID.
+                        synchronized(this@AdbTransport) {
+                            if (manager === mgr) {
+                                manager = null
+                                lastKnownConnected = false
+                                shell = null
+                            }
+                        }
+                        runCatching { mgr.disconnect() }
                         throw t
                     } finally {
                         watchdog.cancel()

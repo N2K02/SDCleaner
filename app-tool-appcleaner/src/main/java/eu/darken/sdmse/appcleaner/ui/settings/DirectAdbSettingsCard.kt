@@ -62,8 +62,11 @@ class DirectAdbSettingsViewModel @Inject constructor(
     fun enabled(option: DirectAdbOptions.Option) = DirectAdbOptions.get(app, option)
     fun set(option: DirectAdbOptions.Option, checked: Boolean) {
         DirectAdbOptions.set(app, option, checked)
-        if (option == DirectAdbOptions.Option.TCP_5555 && !checked) recovery.disableTcp()
-        recovery.onSettingsChanged()
+        if (option == DirectAdbOptions.Option.TCP_5555 && !checked) {
+            recovery.disableTcp()
+        } else {
+            recovery.onSettingsChanged()
+        }
     }
     fun pairedPreviously() = DirectAdbOptions.wasAuthorized(app)
     fun lastVerifiedAt() = DirectAdbOptions.verifiedAt(app)
@@ -73,7 +76,7 @@ class DirectAdbSettingsViewModel @Inject constructor(
         viewModelScope.launch { adb.pair(port.toIntOrNull() ?: -1, code) }
     fun connectTls(port: String) =
         viewModelScope.launch { adb.connectTls(port.toIntOrNull() ?: -1) }
-    fun reconnect() = viewModelScope.launch { recovery.recover() }
+    fun reconnect() = recovery.enterSettings()
     fun disconnect() = recovery.manualDisconnect()
 }
 
@@ -119,9 +122,7 @@ fun DirectAdbSettingsCard(vm: DirectAdbSettingsViewModel = hiltViewModel()) {
                     style = MaterialTheme.typography.bodyLarge,
                 )
                 Text(status.message, style = MaterialTheme.typography.bodySmall)
-                Text("Transport: " + if (status.connected) {
-                    if (vm.enabled(DirectAdbOptions.Option.TCP_5555)) "Local TCP/5555" else "Wireless TLS"
-                } else vm.previousTransport(),
+                Text("Transport: " + if (status.connected) status.transport else vm.previousTransport(),
                     style = MaterialTheme.typography.bodySmall)
                 Text("Last verified: " + vm.lastVerifiedAt().let {
                     if (it > 0) DateFormat.getDateTimeInstance(DateFormat.SHORT,

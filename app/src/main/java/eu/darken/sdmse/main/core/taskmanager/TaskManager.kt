@@ -464,6 +464,10 @@ class TaskManager @Inject constructor(
 
         try {
             currentCoroutineContext().ensureActive()
+            // LAZY jobs do not begin merely because join() is called. Start only
+            // after registration and completion hooks are installed, otherwise
+            // scheduled submissions can hang indefinitely with a held lease.
+            job.start()
             job.join()
             return outcome.await().getOrElse { error ->
                 // Callers expect an Exception: cancellations pass through unwrapped.

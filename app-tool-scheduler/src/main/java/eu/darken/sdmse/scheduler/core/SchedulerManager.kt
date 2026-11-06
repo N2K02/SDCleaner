@@ -171,7 +171,8 @@ class SchedulerManager @Inject constructor(
 
     private suspend fun Schedule.isScheduled(): Boolean =
         workManager.getWorkInfosForUniqueWorkFlow(workName).firstOrNull()
-            ?.any { infos -> infos.state == WorkInfo.State.ENQUEUED || infos.state == WorkInfo.State.RUNNING }
+            ?.any { infos -> infos.state == WorkInfo.State.ENQUEUED ||
+                infos.state == WorkInfo.State.RUNNING || infos.state == WorkInfo.State.BLOCKED }
             ?: false
 
     private suspend fun Schedule.cancel() = workGate.withLock {
@@ -298,32 +299,14 @@ class SchedulerManager @Inject constructor(
     }
 
     /**
-     * Replaces the entire schedule set in a single state update (used by config restore, so a
-     * REPLACE can never leave a half-swapped set), then reconciles WorkManager explicitly: removed
-     * schedules are cancelled, changed/new ones re-armed. The state watcher in `init` only reacts
-     * to `scheduledAt` changes, so a same-id schedule restored with a different hour/interval would
-     * otherwise keep its stale queued work.
+     * Apply a restored set atomically. The *single* state reconciler above
+     * performs all WorkManager mutations. Previously this method also did
+     * explicit cancel/enqueue work, so one change raced with its own collector
+     * and repeatedly cancelled the newly enqueued successor.
      */
     suspend fun setSchedules(schedules: Set<Schedule>) {
         log(TAG, INFO) { "setSchedules(): ${schedules.size} schedules" }
-        var previous: Set<Schedule> = emptySet()
-        internalState.updateBlocking {
-            previous = this.schedules
-            copy(schedules = schedules)
-        }
-        val previousById = previous.associateBy { it.id }
-        previous.filterNot { old -> schedules.any { it.id == old.id } }.forEach { it.cancel() }
-        schedules.forEach { new ->
-            when {
-                previousById[new.id] == new -> Unit // Untouched, leave its work alone.
-                new.isEnabled -> {
-                    new.cancel()
-                    new.schedule(reschedule = false)
-                }
-
-                else -> new.cancel()
-            }
-        }
+        internalState.updateBlocking { copy(schedules = schedules) }
     }
 
     suspend fun removeSchedule(scheduleId: ScheduleId) = internalState.updateBlocking {
@@ -335,8 +318,7 @@ class SchedulerManager @Inject constructor(
             return@updateBlocking this
         }
 
-        target.cancel()
-
+        // The state observer cancels the removed unique work exactly once.
         copy(schedules = this.schedules.minus(target).toSet())
     }
 

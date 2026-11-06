@@ -317,7 +317,7 @@ private fun ScheduleListContent(
                         )
                     }
                     Text(
-                        if (state.cleanupActive == 0) "Cleanup: Idle · Resource leases released"
+                        if (state.cleanupActive == 0) "Cleanup: Idle · No active scheduler tasks"
                         else "Cleanup: ${state.cleanupActive} active · " +
                             "${state.cleanupCancelling} cancelling",
                         style = MaterialTheme.typography.bodySmall,

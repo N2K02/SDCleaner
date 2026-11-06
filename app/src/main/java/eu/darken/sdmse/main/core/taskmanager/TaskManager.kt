@@ -345,6 +345,79 @@ class TaskManager @Inject constructor(
             throw error
         }
         var registered = false
+        // Registration installs this hook in its finally block even if a
+        // timeout/cancellation occurs immediately after the map entry is added.
+        // Otherwise a started-but-unobserved LAZY job could pin its lease forever.
+        fun installCompletionHooks() {
+            // The handler is registered AFTER the entry: if the worker was cancelled
+            // before the lazy task could start, invokeOnCompletion runs immediately
+            // and closes its lease instead of leaving a phantom active task.
+            job.invokeOnCompletion { log(TAG, VERBOSE) { "Task completion: ${taskEntries.value[taskId]}" } }
+            // Safety net for a LAZY job that is cancelled before its body (and with it the finally above)
+            // ever ran — nothing else would ever complete the deferred, and nothing would run the entry's
+            // bookkeeping either. A stranded entry is not merely stale: completedAt stays null forever, so
+            // isComplete never turns true and anything waiting for the tool to fall idle waits forever.
+            job.invokeOnCompletion { cause ->
+                if (!outcome.isCompleted) {
+                    outcome.complete(Result.failure(cause ?: IllegalStateException("Task job completed without outcome")))
+                }
+                // Cheap pre-check only; the authoritative one runs under managerLock below. A missing
+                // entry means cancellation beat registration, which leaves nothing to clean up.
+                val pending = taskEntries.value[taskId]
+                if (pending == null || pending.isComplete) return@invokeOnCompletion
+                // updateTasks() is suspend and takes managerLock, so it can't run in this handler.
+                appScope.launch {
+                    try {
+                        updateTasks {
+                            // The normal finally may have completed the entry while we waited for the lock.
+                            val entry = this[taskId] ?: return@updateTasks
+                            if (entry.isComplete) return@updateTasks
+                            runCatching {
+                                log(TAG, WARN) { "Completing entry whose body never ran: ${task.type}-$taskId" }
+                            }
+                            // Progress is tool-wide, not per-task, and this cleanup runs asynchronously
+                            // (updateTasks is suspend), so a newer task for the same tool may have taken
+                            // over the progress in the meantime — clearing it would drop the dashboard's
+                            // running state and Cancel action for work that is still going. Registration
+                            // takes managerLock too, so any such task is visible here. The rest of the
+                            // cleanup below is entry-specific and always safe to run.
+                            val hasOtherIncompleteTask = values.any {
+                                it.id != taskId &&
+                                        it.toolType == entry.toolType &&
+                                        !it.isComplete
+                            }
+                            if (!hasOtherIncompleteTask) {
+                                // Throwable, not Exception: an Error from a tool's progress reset must
+                                // not skip the resource lock release or the completion publish below.
+                                try {
+                                    entry.tool.updateProgress { null }
+                                } catch (e: Throwable) {
+                                    runCatching {
+                                        log(TAG, WARN) { "Failed to reset progress for ${task.type}-$taskId: ${e.asLog()}" }
+                                    }
+                                }
+                            }
+                            try {
+                                entry.resourceLock?.close()
+                            } catch (e: Throwable) {
+                                runCatching {
+                                    log(TAG, WARN) { "Failed to release resource lock for ${task.type}-$taskId: ${e.asLog()}" }
+                                }
+                            }
+                            this[taskId] = entry.copy(
+                                completedAt = Instant.now(),
+                                error = cause,
+                            )
+                        }
+                    } catch (e: Throwable) {
+                        runCatching {
+                            log(TAG, ERROR) { "Safety-net bookkeeping failed for ${task.type}-$taskId: ${e.asLog()}" }
+                        }
+                    }
+                }
+            }
+        }
+
         try {
             withContext(NonCancellable) {
                 withTimeout(10_000L) {
@@ -366,84 +439,22 @@ class TaskManager @Inject constructor(
                     }
                 }
             }
+        } catch (error: Throwable) {
+            // A timed-out registration must not leave a lazy child blocking its
+            // worker parent. The completion hook below will release its entry.
+            job.cancel()
+            throw error
         } finally {
-            // Registration may throw (invalid tool, addChild failure, lock timeout
-            // or an early declined submission). No task body will own this lease.
-            if (!registered) {
+            // If the entry was installed before an exception, attach cleanup
+            // even on that exceptional path. invokeOnCompletion also works when
+            // the child was already cancelled and completed.
+            if (registered) installCompletionHooks()
+            else {
                 job.cancel()
                 runCatching { keepAlive.close() }
             }
         }
         if (declined) return null
-
-        // The handler is registered AFTER the entry: if the worker was cancelled
-        // before the lazy task could start, invokeOnCompletion runs immediately
-        // and closes its lease instead of leaving a phantom active task.
-        job.invokeOnCompletion { log(TAG, VERBOSE) { "Task completion: ${taskEntries.value[taskId]}" } }
-        // Safety net for a LAZY job that is cancelled before its body (and with it the finally above)
-        // ever ran — nothing else would ever complete the deferred, and nothing would run the entry's
-        // bookkeeping either. A stranded entry is not merely stale: completedAt stays null forever, so
-        // isComplete never turns true and anything waiting for the tool to fall idle waits forever.
-        job.invokeOnCompletion { cause ->
-            if (!outcome.isCompleted) {
-                outcome.complete(Result.failure(cause ?: IllegalStateException("Task job completed without outcome")))
-            }
-            // Cheap pre-check only; the authoritative one runs under managerLock below. A missing
-            // entry means cancellation beat registration, which leaves nothing to clean up.
-            val pending = taskEntries.value[taskId]
-            if (pending == null || pending.isComplete) return@invokeOnCompletion
-            // updateTasks() is suspend and takes managerLock, so it can't run in this handler.
-            appScope.launch {
-                try {
-                    updateTasks {
-                        // The normal finally may have completed the entry while we waited for the lock.
-                        val entry = this[taskId] ?: return@updateTasks
-                        if (entry.isComplete) return@updateTasks
-                        runCatching {
-                            log(TAG, WARN) { "Completing entry whose body never ran: ${task.type}-$taskId" }
-                        }
-                        // Progress is tool-wide, not per-task, and this cleanup runs asynchronously
-                        // (updateTasks is suspend), so a newer task for the same tool may have taken
-                        // over the progress in the meantime — clearing it would drop the dashboard's
-                        // running state and Cancel action for work that is still going. Registration
-                        // takes managerLock too, so any such task is visible here. The rest of the
-                        // cleanup below is entry-specific and always safe to run.
-                        val hasOtherIncompleteTask = values.any {
-                            it.id != taskId &&
-                                    it.toolType == entry.toolType &&
-                                    !it.isComplete
-                        }
-                        if (!hasOtherIncompleteTask) {
-                            // Throwable, not Exception: an Error from a tool's progress reset must
-                            // not skip the resource lock release or the completion publish below.
-                            try {
-                                entry.tool.updateProgress { null }
-                            } catch (e: Throwable) {
-                                runCatching {
-                                    log(TAG, WARN) { "Failed to reset progress for ${task.type}-$taskId: ${e.asLog()}" }
-                                }
-                            }
-                        }
-                        try {
-                            entry.resourceLock?.close()
-                        } catch (e: Throwable) {
-                            runCatching {
-                                log(TAG, WARN) { "Failed to release resource lock for ${task.type}-$taskId: ${e.asLog()}" }
-                            }
-                        }
-                        this[taskId] = entry.copy(
-                            completedAt = Instant.now(),
-                            error = cause,
-                        )
-                    }
-                } catch (e: Throwable) {
-                    runCatching {
-                        log(TAG, ERROR) { "Safety-net bookkeeping failed for ${task.type}-$taskId: ${e.asLog()}" }
-                    }
-                }
-            }
-        }
-
 
         try {
             currentCoroutineContext().ensureActive()

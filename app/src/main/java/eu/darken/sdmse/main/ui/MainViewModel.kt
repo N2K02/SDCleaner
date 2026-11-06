@@ -9,6 +9,7 @@ import eu.darken.sdmse.common.coroutine.DispatcherProvider
 import eu.darken.sdmse.common.datastore.value
 import eu.darken.sdmse.common.debug.logging.Logging.Priority.INFO
 import eu.darken.sdmse.common.debug.logging.Logging.Priority.VERBOSE
+import eu.darken.sdmse.common.debug.logging.Logging.Priority.WARN
 import eu.darken.sdmse.common.debug.logging.log
 import eu.darken.sdmse.common.datastore.valueBlocking
 import eu.darken.sdmse.common.debug.logging.logTag
@@ -67,36 +68,22 @@ class MainViewModel @Inject constructor(
             try {
                 directAdbRecovery.stopForQuit()
                 eu.darken.sdmse.cleaner.CleanerUpdater.cancel()
-                eu.darken.sdmse.cleaner.stopCleaner(
+                val drained = eu.darken.sdmse.cleaner.stopCleaner(
                     cancelBackground = { androidx.work.WorkManager.getInstance(context).cancelAllWork().await() },
                     cancelTasks = { SDMTool.Type.entries.forEach { taskManager.cancel(it) } },
                     awaitIdle = { taskManager.state.first { it.isFullyIdle }; Unit },
                     stopRecording = { sessions.forceStopRecording(); Unit },
-                    stopHost = {
-                        // Stop privileged ADB shell before the process is terminated.
-                        directAdb.disconnect()
-                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
-                            onStopped()
-                        }
-                    },
+                    // Stop privileged ADB shell before the process is terminated.
+                    stopHost = { directAdb.disconnect() },
                 )
-            } catch (error: kotlinx.coroutines.TimeoutCancellationException) {
-                // The wait below is a suspended Flow collector, NOT a polling
-                // service or wake lock. Preserve the connected host until all
-                // tasks have released their leases; then complete Quit itself.
-                errorEvents.emit(IllegalStateException(
-                    "Cleaning is still stopping. Quit will complete automatically when cleanup finishes.", error
-                ))
-                eu.darken.sdmse.cleaner.resumeCleanerQuitAfterTimeout(
-                    awaitIdle = { taskManager.state.first { it.isFullyIdle }; Unit },
-                    stopHost = {
-                        directAdb.disconnect()
-                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
-                            onStopped()
-                        }
-                    },
-                )
-            } finally { quitting.value = false }
+                if (!drained) log(TAG, WARN) { "Quit: tasks still stopping after drain window; closing anyway" }
+            } finally {
+                // Quit must never silently do nothing.
+                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable + kotlinx.coroutines.Dispatchers.Main.immediate) {
+                    onStopped()
+                }
+                quitting.value = false
+            }
         }
     }
 

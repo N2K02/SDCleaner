@@ -16,16 +16,24 @@ class AdbStreamRecoveryContractTest {
 
     @Test fun `closed stream retires entire connection and clears identity flag`() {
         val src = source("AdbTransport.kt")
-        val failed = src.substringAfter("// A desynchronised session stays desynchronised")
-            .substringBefore("throw t")
-        assertTrue(failed.contains("session?.close()"))
-        assertTrue(failed.contains("synchronized(this@AdbTransport)"))
-        assertTrue(failed.contains("if (manager === mgr)"))
-        assertTrue(failed.contains("manager = null"))
-        assertTrue(failed.contains("lastKnownConnected = false"))
-        assertTrue(failed.contains("mgr.disconnect()"))
+        val retire = src.substringAfter("fun retire() {").substringBefore("val watchdog")
+        assertTrue(retire.contains("session?.close()"))
+        assertTrue(retire.contains("synchronized(this@AdbTransport)"))
+        assertTrue(retire.contains("if (manager === mgr)"))
+        assertTrue(retire.contains("manager = null"))
+        assertTrue(retire.contains("lastKnownConnected = false"))
+        assertTrue(retire.contains("mgr.disconnect()"))
         assertTrue(src.contains("private const val SHELL_SERVICE = \"exec:sh\""))
         assertTrue(src.contains("mutex.withLock"))
+    }
+
+    @Test fun `caller cancellation closes the stream instead of waiting for blocking read`() {
+        val src = source("AdbTransport.kt")
+        val body = src.substringAfter("val work = detached.async").substringBefore("/** Owns blocking ADB I/O")
+        assertTrue(body.contains("work.await()"))
+        val cancel = body.substringAfter("catch (e: CancellationException)").substringBefore("catch (t: Throwable)")
+        assertTrue(cancel.contains("retire()"))
+        assertTrue(cancel.contains("throw e"))
     }
 
     @Test fun `invalid completion marker is a transport failure not an app failure`() {

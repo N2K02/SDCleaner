@@ -13,7 +13,6 @@ import eu.darken.sdmse.scheduler.core.SchedulerSettings
 import eu.darken.sdmse.main.core.SDMTool
 import eu.darken.sdmse.main.core.taskmanager.TaskSubmitter
 import java.time.Instant
-import eu.darken.sdmse.main.core.taskmanager.TaskSubmitter
 import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk

@@ -39,6 +39,29 @@ allprojects {
     }
 }
 
+// JVM tests run under Robolectric on the build host, not on Android.
+// The embedded ADB client needs conscrypt-android in the real APK, but that AAR's
+// Java classes call System.loadLibrary("conscrypt_jni"), which only exists for
+// Android ABIs. When that AAR leaks into a host test runtime, Robolectric fails
+// before any test executes (hundreds of identical UnsatisfiedLinkErrors).
+//
+// Keep the production dependency untouched. Replace ONLY JVM test runtime's
+// Android JNI provider with the official host OpenJDK uber jar, in every module
+// (including modules which gain app-common-io transitively via test helpers).
+subprojects {
+    configurations.configureEach {
+        if (name.endsWith("UnitTestRuntimeClasspath")) {
+            exclude(group = "org.conscrypt", module = "conscrypt-android")
+        }
+    }
+    pluginManager.withPlugin("com.android.application") {
+        dependencies.add("testRuntimeOnly", "org.conscrypt:conscrypt-openjdk-uber:2.7.0")
+    }
+    pluginManager.withPlugin("com.android.library") {
+        dependencies.add("testRuntimeOnly", "org.conscrypt:conscrypt-openjdk-uber:2.7.0")
+    }
+}
+
 // --- Code coverage (Kover) -------------------------------------------------------------------
 // Aggregates unit-test coverage for the core library modules into one merged report. Run:
 //   ./gradlew :koverHtmlReport       (merged HTML, at build/reports/kover/html/index.html)

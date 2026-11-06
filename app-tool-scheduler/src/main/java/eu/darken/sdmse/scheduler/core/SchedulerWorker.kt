@@ -12,6 +12,7 @@ import eu.darken.sdmse.common.adb.canUseAdbNow
 import eu.darken.sdmse.common.adb.local.DirectAdb
 import eu.darken.sdmse.common.coroutine.DispatcherProvider
 import eu.darken.sdmse.common.debug.Bugs
+import eu.darken.sdmse.common.hasApiLevel
 import eu.darken.sdmse.common.debug.logging.Logging.Priority.ERROR
 import eu.darken.sdmse.common.debug.logging.Logging.Priority.INFO
 import eu.darken.sdmse.common.debug.logging.Logging.Priority.VERBOSE
@@ -42,7 +43,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.first
 
 @HiltWorker
@@ -151,6 +151,12 @@ class SchedulerWorker @AssistedInject constructor(
         // The OS or user has stopped this worker. Do not convert the signal to
         // Result.success(), and do not append a successor while cancelling.
         wasInterrupted = true
+        if (hasApiLevel(31)) {
+            @Suppress("NewApi")
+            log(TAG, WARN) { "WorkManager stopped schedule id=$scheduleId, stopReason=$stopReason" }
+        } else {
+            log(TAG, WARN) { "WorkManager stopped schedule id=$scheduleId" }
+        }
         lastOutcome = RunOutcome.WARNING
         lastError = "Cancelled by Android or user"
         throw e
@@ -226,10 +232,9 @@ class SchedulerWorker @AssistedInject constructor(
         val taskResults = coroutineScope {
             val taskJobs = tasks.map { task ->
                 async {
-                try {
+                    try {
                     log(TAG) { "Launching $task" }
-                    // Scheduler aggregates results into its own notification (SchedulerNotifications.notifyResult),
-                    // so opt out of the per-task background completion notification.
+                    // Quiet scheduled jobs do not create completion or foreground notifications.
                     val result = taskSubmitter.submit(task,
                         notifyOnFinish = false, cancelOnCallerCancellation = true)
                     log(TAG) { "Finished $task -> $result" }
@@ -244,8 +249,8 @@ class SchedulerWorker @AssistedInject constructor(
                         e
                     }
                     SchedulerNotifications.Results(task, error = wrappedError)
+                    }
                 }
-            }
             }
             log(TAG) { "Waiting for scheduled cleanup tasks: $taskJobs" }
             taskJobs.awaitAll().toSet()

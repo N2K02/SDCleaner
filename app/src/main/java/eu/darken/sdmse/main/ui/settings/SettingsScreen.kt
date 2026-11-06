@@ -40,6 +40,7 @@ import kotlinx.coroutines.delay
 import eu.darken.sdmse.corpsefinder.ui.CorpseFinderSettingsRoute
 import eu.darken.sdmse.systemcleaner.ui.SystemCleanerSettingsRoute
 import eu.darken.sdmse.appcleaner.ui.AppCleanerSettingsRoute
+import eu.darken.sdmse.appcleaner.ui.settings.DirectAdbSettingsCard
 import eu.darken.sdmse.deduplicator.ui.DeduplicatorSettingsRoute
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 
@@ -103,6 +104,9 @@ fun SettingsScreenHost() {
         )
         CompactSettingsLink("Appearance", "System, light, or dark theme", Icons.Rounded.Palette) {
             nav.goTo(CleanerSettingsRoute("appearance"))
+        }
+        CompactSettingsLink("ADB connection", "Automatic pairing and recovery", Icons.Rounded.SettingsInputAntenna) {
+            nav.goTo(CleanerSettingsRoute("adb"))
         }
         CompactSettingsLink("Permissions & setup", "Access needed by cleaning tools", Icons.Rounded.Security) {
             nav.goTo(SetupRoute(options = SetupScreenOptions(showCompleted = true)))
@@ -202,6 +206,7 @@ private fun CompactSettingsLink(
 internal fun cleanerSettingsTitle(section: String): String? = when (section) {
     "appearance" -> "Appearance"
     "tools" -> "Cleaning tools"
+    "adb" -> "ADB connection"
     "updates" -> "Updates"
     "about" -> "About"
     else -> null
@@ -259,6 +264,7 @@ fun CleanerSettingsScreenHost(section: String) {
                 SettingsPreferenceItem(title = "App cleaner", subtitle = "Cache and app cleaning options", icon = Icons.Rounded.Apps, onClick = { nav.goTo(AppCleanerSettingsRoute) })
                 SettingsPreferenceItem(title = "Duplicate files", subtitle = "Find redundant copies for review", icon = Icons.Rounded.ContentCopy, onClick = { nav.goTo(DeduplicatorSettingsRoute) })
             }
+            "adb" -> DirectAdbSettingsCard()
             "appearance" -> AppearanceSettings()
             "about" -> InstalledAppAbout()
         }
@@ -284,6 +290,7 @@ private fun SettingsHeader(title: String, root: Boolean = false) {
             Icon(when (title) {
                 "Appearance" -> Icons.Rounded.Palette
                 "Cleaning tools" -> Icons.Rounded.CleaningServices
+                "ADB connection" -> Icons.Rounded.SettingsInputAntenna
                 "Updates" -> Icons.Rounded.SystemUpdate
                 "About" -> Icons.Rounded.Info
                 else -> Icons.Rounded.Settings

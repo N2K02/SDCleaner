@@ -79,7 +79,21 @@ class MainViewModel @Inject constructor(
                     },
                 )
             } catch (error: kotlinx.coroutines.TimeoutCancellationException) {
-                errorEvents.emit(IllegalStateException("Cleaning is still stopping. Try Quit again once the active task finishes.", error))
+                // The wait below is a suspended Flow collector, NOT a polling
+                // service or wake lock. Preserve the connected host until all
+                // tasks have released their leases; then complete Quit itself.
+                errorEvents.emit(IllegalStateException(
+                    "Cleaning is still stopping. Quit will complete automatically when cleanup finishes.", error
+                ))
+                eu.darken.sdmse.cleaner.resumeCleanerQuitAfterTimeout(
+                    awaitIdle = { taskManager.state.first { it.isIdle }; Unit },
+                    stopHost = {
+                        directAdb.disconnect()
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
+                            onStopped()
+                        }
+                    },
+                )
             } finally { quitting.value = false }
         }
     }

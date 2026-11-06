@@ -68,6 +68,8 @@ import eu.darken.sdmse.exclusion.core.pkgExclusions
 import eu.darken.sdmse.exclusion.core.types.PathExclusionIndex
 import eu.darken.sdmse.main.core.SDMTool
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.catch
@@ -371,6 +373,7 @@ class AppScanner @Inject constructor(
                 try {
                     area to area.path.listFiles(gatewaySwitch)
                 } catch (e: ReadException) {
+                    currentCoroutineContext().ensureActive()
                     log(TAG, ERROR) { "Failed to list $area: ${e.asLog()}" }
                     null
                 }
@@ -405,6 +408,7 @@ class AppScanner @Inject constructor(
                 try {
                     area to area.path.lookupFiles(gatewaySwitch)
                 } catch (e: ReadException) {
+                    currentCoroutineContext().ensureActive()
                     log(TAG, ERROR) { "Failed to lookup $area: ${e.asLog()}" }
                     null
                 }
@@ -479,6 +483,7 @@ class AppScanner @Inject constructor(
                     )
                 )
             } catch (e: ReadException) {
+                    currentCoroutineContext().ensureActive()
                 log(TAG, WARN) { "Failed to read ${searchPath.file}: ${e.asLog()}" }
                 emptyFlow()
             }

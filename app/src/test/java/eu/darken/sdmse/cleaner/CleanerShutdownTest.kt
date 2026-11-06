@@ -25,6 +25,19 @@ class CleanerShutdownTest {
         assertEquals(listOf("background", "cancel", "recording", "host"), events)
     }
 
+    @Test fun `late idle automatically resumes Quit exactly once without closing an active host`() = runTest {
+        val idle = CompletableDeferred<Unit>()
+        var hostCloses = 0
+        val job = launch {
+            resumeCleanerQuitAfterTimeout({ idle.await() }, { hostCloses++ })
+        }
+        runCurrent()
+        assertEquals(0, hostCloses)
+        idle.complete(Unit)
+        job.join()
+        assertEquals(1, hostCloses)
+    }
+
     @Test fun `stalled cleanup stops recording but retains active cleaner host`() = runTest {
         var closed = false
         var recorded = false

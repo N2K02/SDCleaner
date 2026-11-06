@@ -290,6 +290,48 @@ private fun ScheduleListContent(
                 }
             }
         }
+        item("scheduler-diagnostics") {
+            val running = state.work.sumOf { it.running }
+            val pending = state.work.sumOf { it.pending }
+            val latest = state.history.maxByOrNull { it.lastAt }
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+            ) {
+                androidx.compose.foundation.layout.Column(
+                    Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text("Scheduler Diagnostics", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "WorkManager: $running running · $pending queued" +
+                            if (running == 0 && pending == 0) " · Idle" else "",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    state.work.filter { it.running > 0 || it.pending > 0 || it.error != null }.take(3).forEach { status ->
+                        Text(
+                            "${status.label.ifBlank { "Schedule" }}: " +
+                                "${status.running} running, ${status.pending} queued" +
+                                (status.error?.let { " · $it" } ?: ""),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    latest?.let { last ->
+                        Text(
+                            "Last: ${last.label} · ${last.lastOutcome} · ${last.lastDurationMs / 1000}s",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        last.lastError?.let { error ->
+                            Text("Cleanup/stop: $error", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                    Text(
+                        "Live WorkManager status · no background polling",
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
+            }
+        }
         item("scheduler-history-title") {
             Text("Recent runs", style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))

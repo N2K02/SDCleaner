@@ -200,8 +200,12 @@ object AdbTransport {
                         lastKnownConnected = false
                         shell = null
                     }
-                    session = session ?: ShellSession(mgr.openStream(SHELL_SERVICE)).also { shell = it }
                     try {
+                        // Include openStream in the try/finally: opening a dead
+                        // native stream may throw before the command can start.
+                        // The watchdog must not survive that exception and later
+                        // disconnect a *new* healthy manager.
+                        session = session ?: ShellSession(mgr.openStream(SHELL_SERVICE)).also { shell = it }
                         session!!.run(command)
                     } catch (t: Throwable) {
                         // A desynchronised session stays desynchronised, and a

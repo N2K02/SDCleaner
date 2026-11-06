@@ -48,6 +48,7 @@ class SchedulerManagerViewModelTest : BaseTest() {
         )
         val schedulerManager = mockk<SchedulerManager>(relaxed = true).apply {
             every { state } returns schedules
+            every { runtimeWork } returns flowOf(emptyList())
         }
         val settings = mockk<SchedulerSettings>().apply {
             every { createdDefaultEntry } returns mockDataStoreValue(true)

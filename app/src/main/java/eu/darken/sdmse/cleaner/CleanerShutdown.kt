@@ -26,3 +26,14 @@ internal suspend fun stopCleaner(
     }
     stopHost()
 }
+
+/** After the initial shutdown deadline, wait without keeping the CPU awake.
+ * A finishing task must release its resource lease before the ADB host closes.
+ */
+internal suspend fun resumeCleanerQuitAfterTimeout(
+    awaitIdle: suspend () -> Unit,
+    stopHost: suspend () -> Unit,
+) {
+    awaitIdle()
+    stopHost()
+}

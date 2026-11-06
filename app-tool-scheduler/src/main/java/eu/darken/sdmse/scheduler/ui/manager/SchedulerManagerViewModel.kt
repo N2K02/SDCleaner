@@ -119,7 +119,10 @@ class SchedulerManagerViewModel @Inject constructor(
             showCommands = showCommands,
             isLoading = false,
         )
-    }.combine(runHistory.history) { current, daily -> current.copy(history = daily) }.safeStateIn(
+    }.combine(runHistory.history) { current, daily -> current.copy(history = daily) }
+        .combine(schedulerManager.runtimeWork) { current, work ->
+            current.copy(work = work)
+        }.safeStateIn(
         initialValue = State(),
         onError = { State(isLoading = false) },
     )
@@ -287,6 +290,7 @@ class SchedulerManagerViewModel @Inject constructor(
     data class State(
         val schedules: List<Schedule> = emptyList(),
         val history: List<SchedulerDailyRun> = emptyList(),
+        val work: List<SchedulerManager.WorkSnapshot> = emptyList(),
         val showAlarmHint: Boolean = false,
         val showBatteryHint: Boolean = false,
         val showCommands: Boolean = false,

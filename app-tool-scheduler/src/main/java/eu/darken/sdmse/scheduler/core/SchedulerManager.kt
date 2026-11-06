@@ -30,6 +30,8 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -56,6 +58,41 @@ class SchedulerManager @Inject constructor(
     // this gate, cold-start reconciliation and a finishing worker can both
     // append a successor to the same active WorkManager chain.
     private val workGate = Mutex()
+
+    /** Read-only, event-driven WorkManager status; no polling, wake locks or background service. */
+    data class WorkSnapshot(
+        val scheduleId: ScheduleId,
+        val label: String,
+        val running: Int = 0,
+        val pending: Int = 0,
+        val lastState: String = "Not scheduled",
+        val error: String? = null,
+    )
+
+    val runtimeWork: Flow<List<WorkSnapshot>> = state
+        .map { it.schedules.map { schedule -> schedule.id to schedule.label }.sortedBy { pair -> pair.first } }
+        .distinctUntilChanged()
+        .flatMapLatest { schedules ->
+            if (schedules.isEmpty()) flowOf(emptyList())
+            else combine(schedules.map { (id, label) ->
+                workManager.getWorkInfosForUniqueWorkFlow("worker-schedule-$id")
+                    .map { infos ->
+                        WorkSnapshot(
+                            scheduleId = id,
+                            label = label,
+                            running = infos.count { it.state == WorkInfo.State.RUNNING },
+                            pending = infos.count {
+                                it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.BLOCKED
+                            },
+                            lastState = infos.lastOrNull()?.state?.name ?: "Not scheduled",
+                        )
+                    }
+                    .catch { error ->
+                        log(TAG, WARN) { "WorkManager status unavailable for $id: ${error.asLog()}" }
+                        emit(WorkSnapshot(id, label, error = error.javaClass.simpleName))
+                    }
+            }) { statuses -> statuses.toList() }
+        }
 
     init {
         internalState.flow

@@ -184,7 +184,11 @@ object AdbTransport {
                     // can hang too, and then only closing the whole
                     // connection lets it go.
                     var session: ShellSession? = shell
-                    val watchdog = launch {
+                    // Independent timeout owner: cancellation of the calling
+                    // coroutine must NOT cancel the watchdog while a blocking
+                    // native ADB read is still stuck. Its deadline closes the
+                    // stream, unblocking the worker and allowing resource release.
+                    val watchdog = kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
                         kotlinx.coroutines.delay(timeoutMs)
                         // The command's first word only: the daemon's launch
                         // line carries its token.

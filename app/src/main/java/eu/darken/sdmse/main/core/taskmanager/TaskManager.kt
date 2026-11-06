@@ -21,6 +21,8 @@ import eu.darken.sdmse.main.core.SDMTool
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
@@ -257,7 +259,14 @@ class TaskManager @Inject constructor(
         // state that is never published.
         val outcome = CompletableDeferred<Result<SDMTool.Task.Result>>()
 
-        val job = appScope.launch(
+        // Scheduler-owned work is a real child of the CoroutineWorker's task coroutine.
+        // Manual work deliberately remains in AppScope to survive Activity recreation.
+        // The cleanup callback is installed AFTER entry registration below so a caller
+        // cancelled during registration cannot strand a completed LAZY job's resource lease.
+        val ownerScope = if (cancelOnCallerCancellation) {
+            CoroutineScope(currentCoroutineContext())
+        } else appScope
+        val job = ownerScope.launch(
             context = dispatcherProvider.IO,
             start = CoroutineStart.LAZY,
         ) {
@@ -323,6 +332,52 @@ class TaskManager @Inject constructor(
             }
         }
 
+        var declined = false
+
+        // Do NOT acquire a long-lived resource lease under an unbounded
+        // NonCancellable section. SharedResource.get() itself releases provisional
+        // leases when this caller is cancelled.
+        val keepAlive = try {
+            withTimeout(10_000L) { sharedResource.get() }
+        } catch (error: Throwable) {
+            job.cancel()
+            throw error
+        }
+        var registered = false
+        try {
+            withContext(NonCancellable) {
+                withTimeout(10_000L) {
+                    val tool = tools.single { it.type == task.type }
+                    sharedResource.addChild(tool.sharedResource)
+                    updateTasks {
+                        if (declineIfToolBusy && values.any { it.toolType == task.type && !it.isComplete }) {
+                            declined = true
+                            log(TAG, INFO) { "submit(): Declined, ${task.type} already has an incomplete task" }
+                            return@updateTasks
+                        }
+                        val entry = TaskEntry(
+                            id = taskId, task = task, tool = tool, job = job,
+                            resourceLock = keepAlive, notifyOnFinish = notifyOnFinish,
+                        )
+                        this[entry.id] = entry
+                        registered = true
+                        log(TAG) { "submit(): Queued: $entry" }
+                    }
+                }
+            }
+        } finally {
+            // Registration may throw (invalid tool, addChild failure, lock timeout
+            // or an early declined submission). No task body will own this lease.
+            if (!registered) {
+                job.cancel()
+                runCatching { keepAlive.close() }
+            }
+        }
+        if (declined) return null
+
+        // The handler is registered AFTER the entry: if the worker was cancelled
+        // before the lazy task could start, invokeOnCompletion runs immediately
+        // and closes its lease instead of leaving a phantom active task.
         job.invokeOnCompletion { log(TAG, VERBOSE) { "Task completion: ${taskEntries.value[taskId]}" } }
         // Safety net for a LAZY job that is cancelled before its body (and with it the finally above)
         // ever ran — nothing else would ever complete the deferred, and nothing would run the entry's
@@ -388,49 +443,9 @@ class TaskManager @Inject constructor(
             }
         }
 
-        var declined = false
-
-        withContext(NonCancellable) {
-            // Any task causes the taskmanager to stay "alive" and with it any depending resources
-            // Only release all resources once all tasks are finished.
-            val keepAlive = sharedResource.get()
-
-            val tool = tools.single { it.type == task.type }
-            sharedResource.addChild(tool.sharedResource)
-
-            updateTasks {
-                if (declineIfToolBusy && values.any { it.toolType == task.type && !it.isComplete }) {
-                    declined = true
-                    log(TAG, INFO) { "submit(): Declined, ${task.type} already has an incomplete task" }
-                    return@updateTasks
-                }
-
-                val entry = TaskEntry(
-                    id = taskId,
-                    task = task,
-                    tool = tool,
-                    job = job,
-                    resourceLock = keepAlive,
-                    notifyOnFinish = notifyOnFinish,
-                )
-
-                this[entry.id] = entry
-
-                log(TAG) { "submit(): Queued: $entry" }
-            }
-
-            if (declined) {
-                // The job is LAZY and was never registered, so nothing would ever start it.
-                // Cancelling it completes the outcome deferred, and the safety net above no-ops on
-                // the missing entry; the keep-alive taken for it has to go back here.
-                job.cancel()
-                runCatching { keepAlive.close() }
-            }
-        }
-
-        if (declined) return null
 
         try {
+            currentCoroutineContext().ensureActive()
             job.join()
             return outcome.await().getOrElse { error ->
                 // Callers expect an Exception: cancellations pass through unwrapped.
@@ -443,6 +458,15 @@ class TaskManager @Inject constructor(
             // The deadline is essential: buggy I/O must never trap WorkManager's wakelock forever.
             if (cancelOnCallerCancellation) {
                 job.cancel(e)
+                withContext(NonCancellable) {
+                    updateTasks {
+                        this[taskId]?.let { entry ->
+                            if (!entry.isComplete && entry.cancelledAt == null) {
+                                this[taskId] = entry.copy(cancelledAt = Instant.now())
+                            }
+                        }
+                    }
+                }
                 val drained = withContext(NonCancellable) {
                     withTimeoutOrNull(SCHEDULED_DRAIN_TIMEOUT_MS) {
                         job.join()

@@ -20,6 +20,8 @@ import eu.darken.sdmse.common.flow.DynamicStateFlow
 import eu.darken.sdmse.common.flow.withPrevious
 import eu.darken.sdmse.common.toSystemTimezone
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
@@ -50,6 +52,10 @@ class SchedulerManager @Inject constructor(
         State(schedules = storage.load() ?: emptySet())
     }
     val state: Flow<State> = internalState.flow
+    // Serializes all unique-work checks and mutations in this process; without
+    // this gate, cold-start reconciliation and a finishing worker can both
+    // append a successor to the same active WorkManager chain.
+    private val workGate = Mutex()
 
     init {
         internalState.flow
@@ -120,7 +126,7 @@ class SchedulerManager @Inject constructor(
             ?.any { infos -> infos.state == WorkInfo.State.ENQUEUED || infos.state == WorkInfo.State.RUNNING }
             ?: false
 
-    private suspend fun Schedule.cancel() {
+    private suspend fun Schedule.cancel() = workGate.withLock {
         workManager.cancelUniqueWork(workName).await()
         if (isScheduled()) log(TAG, WARN) { "Failed to cancel $this" }
     }
@@ -146,11 +152,27 @@ class SchedulerManager @Inject constructor(
 
     suspend fun reschedule(id: ScheduleId) {
         log(TAG, INFO) { "Rescheduling $id" }
+        // schedule() re-reads state under workGate: a concurrently disabled or
+        // removed schedule must never be resurrected by a finishing worker.
         val schedule = getSchedule(id) ?: return
         if (schedule.isEnabled && !schedule.runOnce) schedule.schedule(reschedule = true)
     }
 
-    private suspend fun Schedule.schedule(reschedule: Boolean) {
+    private suspend fun Schedule.schedule(reschedule: Boolean) = workGate.withLock {
+        // Revalidate while serialized: disabling/deleting a schedule can race with
+        // a worker's finally block, and concurrent append calls otherwise produce
+        // multiple ENQUEUED successors instead of one.
+        val latest = state.first().schedules.singleOrNull { it.id == id }
+        if (latest == null || !latest.isEnabled || latest != this) {
+            log(TAG, WARN) { "Skipping stale schedule($label): enabled=${latest?.isEnabled}" }
+            return@withLock
+        }
+        val pending = workManager.getWorkInfosForUniqueWorkFlow(workName).first()
+            .any { it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.BLOCKED }
+        if (pending) {
+            log(TAG, INFO) { "Skipping duplicate schedule($label): a pending successor already exists" }
+            return@withLock
+        }
         log(TAG, INFO) { "schedule($label): (reschedule=$reschedule) $this" }
 
         val now = Instant.now()

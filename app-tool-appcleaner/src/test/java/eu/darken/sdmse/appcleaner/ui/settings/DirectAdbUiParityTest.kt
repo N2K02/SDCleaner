@@ -18,7 +18,7 @@ class DirectAdbUiParityTest {
         val ui = read()
         for (label in listOf("ADB connection", "Pairing & recovery", "Connection & security",
             "Shell UID 2000 verified", "Last verified", "Discovery", "Transport")) {
-            assertTrue(label, ui.contains(label))
+            assertTrue(ui.contains(label), label)
         }
     }
 
@@ -26,7 +26,7 @@ class DirectAdbUiParityTest {
         val ui = read()
         for (label in listOf("Auto-detect pairing code", "Connection watchdog",
             "Start on boot", "Restore after restart", "Keep ADB without Wi-Fi (TCP/5555)")) {
-            assertTrue(label, ui.contains(label))
+            assertTrue(ui.contains(label), label)
         }
         assertEquals(5, "option = DirectAdbOptions.Option.".toRegex()
             .findAll(ui).count())

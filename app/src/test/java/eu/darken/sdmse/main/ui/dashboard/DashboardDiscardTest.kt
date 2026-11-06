@@ -235,7 +235,7 @@ internal class DashboardDiscardTest : BaseTest() {
         isOtherUsersAvailable = false,
         isRunningAppsDetectionAvailable = false,
         isInaccessibleCacheAvailable = false,
-        isAcsRequired = false,
+
     )
 
     // Every card builder opens with onStart { emit(null) } as its loading state. Take the first

@@ -56,7 +56,7 @@ class MainViewModel @Inject constructor(
 
 ) : ViewModel4(dispatcherProvider = dispatcherProvider, tag = TAG) {
 
-    val tasksIdle = taskManager.state.map { it.isIdle }
+    val tasksIdle = taskManager.state.map { it.isFullyIdle }
         .stateIn(vmScope, SharingStarted.Eagerly, false)
 
     private val quitting = MutableStateFlow(false)
@@ -68,7 +68,7 @@ class MainViewModel @Inject constructor(
                 eu.darken.sdmse.cleaner.stopCleaner(
                     cancelBackground = { androidx.work.WorkManager.getInstance(context).cancelAllWork().await() },
                     cancelTasks = { SDMTool.Type.entries.forEach { taskManager.cancel(it) } },
-                    awaitIdle = { taskManager.state.first { it.isIdle }; Unit },
+                    awaitIdle = { taskManager.state.first { it.isFullyIdle }; Unit },
                     stopRecording = { sessions.forceStopRecording(); Unit },
                     stopHost = {
                         // Stop privileged ADB shell before the process is terminated.
@@ -86,7 +86,7 @@ class MainViewModel @Inject constructor(
                     "Cleaning is still stopping. Quit will complete automatically when cleanup finishes.", error
                 ))
                 eu.darken.sdmse.cleaner.resumeCleanerQuitAfterTimeout(
-                    awaitIdle = { taskManager.state.first { it.isIdle }; Unit },
+                    awaitIdle = { taskManager.state.first { it.isFullyIdle }; Unit },
                     stopHost = {
                         directAdb.disconnect()
                         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {

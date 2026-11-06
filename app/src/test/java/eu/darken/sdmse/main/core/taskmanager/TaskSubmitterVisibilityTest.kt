@@ -29,6 +29,9 @@ class TaskSubmitterVisibilityTest {
         assertTrue(leaked.isComplete)
         assertTrue(leaked.resourceHeld)
         assertFalse(TaskSubmitter.State(listOf(leaked)).hasNotifiableActiveWork)
+        assertTrue(TaskSubmitter.State(listOf(leaked)).isIdle)
+        assertFalse(TaskSubmitter.State(listOf(leaked)).isFullyIdle)
+        assertTrue(TaskSubmitter.State(listOf(leaked.copy(resourceHeld = false))).isFullyIdle)
     }
 
     @Test fun `completed tasks do not keep a foreground notification alive`() {

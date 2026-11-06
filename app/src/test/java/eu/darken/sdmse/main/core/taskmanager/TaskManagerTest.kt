@@ -467,6 +467,7 @@ class TaskManagerTest : BaseTest() {
                     state.tasks.isNotEmpty() && state.isIdle
                 }
                 idle.isIdle shouldBe true
+                idle.isFullyIdle shouldBe true
                 idle.hasNotifiableActiveWork shouldBe false
                 idle.tasks.none { it.resourceHeld } shouldBe true
                 manager.rawEntries().forEach { entry ->

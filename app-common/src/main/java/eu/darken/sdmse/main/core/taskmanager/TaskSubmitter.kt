@@ -34,6 +34,10 @@ interface TaskSubmitter {
         val isIdle: Boolean
             get() = tasks.all { it.isComplete }
 
+        /** Quit must not close the privileged host until every task's lease was released. */
+        val isFullyIdle: Boolean
+            get() = isIdle && tasks.none { it.resourceHeld }
+
         val hasCancellable: Boolean
             get() = tasks.any { !it.isComplete && !it.isCancelling }
 

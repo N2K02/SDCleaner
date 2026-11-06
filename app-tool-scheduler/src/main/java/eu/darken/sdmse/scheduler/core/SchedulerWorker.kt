@@ -191,6 +191,15 @@ class SchedulerWorker @AssistedInject constructor(
             if (!wasInterrupted && !isStopped) {
                 try {
                     withTimeout(3_000) { schedulerManager.updateExecutedNow(scheduleId, manual = isManual) }
+                } catch (e: TimeoutCancellationException) {
+                    // A slow persistence operation must not strand this worker;
+                    // the enabled schedule still needs its next occurrence.
+                    log(TAG, ERROR) { "Timed out updating schedule execution time: ${e.asLog()}" }
+                } catch (e: CancellationException) {
+                    // A cancelled persistence step must not be converted into
+                    // an apparently successful job followed by a new schedule.
+                    wasInterrupted = true
+                    throw e
                 } catch (e: Exception) {
                     log(TAG, ERROR) { "Failed to update execution time: ${e.asLog()}" }
                 }

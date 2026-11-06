@@ -125,7 +125,7 @@ class SchedulerWorkerTest : BaseTest() {
         coVerify(exactly = 1) { schedulerManager.reschedule(scheduleId) }
         coVerify(exactly = 1) { runHistory.record(any(), any(), any(), RunOutcome.SUCCESS, any(), any(), false) }
         coVerify(exactly = 0) { schedulerNotifications.notifyError(any()) }
-        coVerify(exactly = 0) { schedulerNotifications.notifyResult(any()) }
+        coVerify(exactly = 0) { schedulerNotifications.notifyResult(any(), any()) }
     }
 
     @Test

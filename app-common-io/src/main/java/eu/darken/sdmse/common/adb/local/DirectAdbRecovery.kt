@@ -13,6 +13,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
 import java.net.InetAddress
 import java.net.NetworkInterface
@@ -121,6 +123,33 @@ class DirectAdbRecovery @Inject constructor(
             state.value = state.value.copy(message =
                 if (desired) "Android denied optional Wireless debugging restore permission"
                 else "Could not revoke optional Wireless debugging restore permission")
+        }
+    }
+
+    /**
+     * One-shot boot recovery: discover only the phone's own verified TLS endpoint.
+     * WorkManager owns the deadline; no persistent multicast lock or watchdog.
+     */
+    suspend fun recoverForBackground() {
+        if (DirectAdbOptions.stopRequested(app) ||
+            !DirectAdbOptions.wasAuthorized(app)) return
+        if (adb.ensureConnected()) {
+            synchronizeRestartPermission()
+            return
+        }
+        val openedByUi = visible
+        if (openedByUi) {
+            recover()
+            return
+        }
+        visible = true
+        try {
+            startDiscovery()
+            withTimeoutOrNull(18_000L) { adb.status.first { it.connected } }
+            if (adb.status.value.connected) synchronizeRestartPermission()
+        } finally {
+            visible = false
+            stopDiscovery()
         }
     }
 

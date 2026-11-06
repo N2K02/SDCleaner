@@ -127,9 +127,17 @@ class DirectAdb @Inject constructor(@ApplicationContext private val context: Con
         currentCoroutineContext().ensureActive()
         val lines = raw.lines()
         val last = lines.lastOrNull { it.startsWith(tag) }
-            ?: throw TransportException("ADB stream lost command exit marker")
-        val code = last.removePrefix(tag).trim().toIntOrNull()
-            ?: throw TransportException("ADB stream returned malformed exit marker")
+        val code = last?.removePrefix(tag)?.trim()?.toIntOrNull()
+        if (code == null) {
+            // Do not treat a missing/malformed command completion marker as
+            // an ordinary package error. The shell's output boundaries are
+            // untrustworthy until a new UID-2000 verified connection exists.
+            status.value = Status(message = "ADB command completion invalid; session retired")
+            AdbTransport.disconnect()
+            throw TransportException(if (last == null)
+                "ADB stream lost command exit marker" else
+                "ADB stream returned malformed exit marker")
+        }
         return CommandResult(code, lines.filterNot { it.startsWith(tag) }.joinToString("\n").trim())
     }
 

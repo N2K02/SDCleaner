@@ -63,7 +63,8 @@ class DirectAdbParityContractTest {
         val adb = source("DirectAdb.kt")
         val recovery = source("DirectAdbRecovery.kt")
         assertTrue(adb.contains("if (!ensureConnected()) return false"))
-        assertTrue(adb.contains("pm $operation $packageName android.permission.WRITE_SECURE_SETTINGS"))
+        assertTrue(adb.contains("val operation = if (enabled) \"grant\" else \"revoke\""))
+        assertTrue(adb.contains("android.permission.WRITE_SECURE_SETTINGS"))
         assertTrue(recovery.contains("if (!adb.status.value.connected || !AdbTransport.isConnected) return"))
         assertTrue(recovery.contains("if (desired == permission) return"))
     }

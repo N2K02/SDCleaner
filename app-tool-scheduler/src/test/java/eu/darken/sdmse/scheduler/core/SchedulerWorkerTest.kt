@@ -26,6 +26,7 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import eu.darken.sdmse.main.core.SDMTool
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -220,7 +221,10 @@ class SchedulerWorkerTest : BaseTest() {
 
     @Test
     fun `setup healer never completing does not hold background worker indefinitely`() = runTest {
-        every { setupHealer.state } returns flowOf(SetupHealerSource.State(healAttemptCount = 0))
+        // A StateFlow with no ready emission stays active. A finite flowOf()
+        // completes immediately and throws NoSuchElementException instead of
+        // testing the intended 5-second timeout path.
+        every { setupHealer.state } returns MutableStateFlow(SetupHealerSource.State(healAttemptCount = 0))
         val result = createWorker().doWork()
         result.shouldBeInstanceOf<ListenableWorker.Result.Success>()
         coVerify { schedulerManager.reschedule(scheduleId) }

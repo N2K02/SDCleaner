@@ -47,8 +47,6 @@ import eu.darken.sdmse.common.adb.local.DirectAdb
 import eu.darken.sdmse.common.adb.local.DirectAdbOptions
 import eu.darken.sdmse.common.adb.local.DirectAdbRecovery
 import kotlinx.coroutines.launch
-import java.text.DateFormat
-import java.util.Date
 import javax.inject.Inject
 
 @HiltViewModel
@@ -273,51 +271,6 @@ fun DirectAdbHomeSetupCard(vm: DirectAdbSettingsViewModel = hiltViewModel()) {
             }
             if (note.isNotBlank()) Text(note, style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error)
-        }
-    }
-}
-
-/** Detailed status has its own Settings > Diagnostics submenu, not duplicate recovery cards. */
-@Composable
-fun DirectAdbDiagnosticsCard(vm: DirectAdbSettingsViewModel = hiltViewModel()) {
-    val status by vm.status.collectAsStateWithLifecycle()
-    val discovery by vm.discovery.collectAsStateWithLifecycle()
-    DisposableEffect(vm) {
-        vm.enterSettings()
-        onDispose { vm.leaveSettings() }
-    }
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        DirectAdbSettingSection("ADB connection") {
-            Text(when {
-                status.connected && status.verifiedUid == 2000 -> "Shell UID 2000 verified • Connected"
-                vm.pairedPreviously() -> "Previously authorized • Disconnected"
-                else -> "ADB setup required"
-            }, style = MaterialTheme.typography.bodyLarge)
-            Text(status.message, style = MaterialTheme.typography.bodySmall)
-            Text("Transport: " + if (status.connected) status.transport else vm.previousTransport(),
-                style = MaterialTheme.typography.bodySmall)
-            Text("Last verified: " + vm.lastVerifiedAt().let {
-                if (it > 0L) DateFormat.getDateTimeInstance(DateFormat.SHORT,
-                    DateFormat.SHORT).format(Date(it)) else "Never"
-            }, style = MaterialTheme.typography.bodySmall)
-            Text("Discovery: " + if (discovery.scanning) "Scanning" else "Idle",
-                style = MaterialTheme.typography.bodySmall)
-            Text("Pairing port: " + (discovery.pairingPort?.toString() ?: "Not detected") +
-                " • Connection port: " + (discovery.connectionPort?.toString() ?: "Not detected"),
-                style = MaterialTheme.typography.bodySmall)
-            Text(discovery.message, style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = vm::reconnect, modifier = Modifier.weight(1f)) {
-                    Text("Retry")
-                }
-                OutlinedButton(onClick = vm::disconnect, modifier = Modifier.weight(1f)) {
-                    Text("Disconnect")
-                }
-            }
         }
     }
 }

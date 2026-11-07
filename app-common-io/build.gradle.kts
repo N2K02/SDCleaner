@@ -57,7 +57,7 @@ dependencies {
     addIOApi()
 
     implementation("com.github.MuntashirAkon:libadb-android:3.1.1")
-    implementation("dev.n2k02:adb-core:0.1.2")
+    implementation("dev.n2k02:adb-core:0.1.3")
     implementation("org.bouncycastle:bcprov-jdk15to18:1.81")
     implementation("org.bouncycastle:bcpkix-jdk15to18:1.81")
     implementation("org.conscrypt:conscrypt-android:2.7.0")

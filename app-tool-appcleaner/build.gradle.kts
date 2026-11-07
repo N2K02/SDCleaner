@@ -46,7 +46,7 @@ dependencies {
     implementation(project(":app-common"))
     implementation(project(":app-common-ui"))
     implementation(project(":app-common-io"))
-    implementation("dev.n2k02:adb-core:0.1.2")
+    implementation("dev.n2k02:adb-core:0.1.3")
     implementation(project(":app-common-coil"))
     implementation(project(":app-common-pkgs"))
     implementation(project(":app-common-root"))

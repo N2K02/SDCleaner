@@ -210,7 +210,7 @@ afterEvaluate {
 }
 
 dependencies {
-    implementation("dev.n2k02:adb-core:0.1.2")
+    implementation("dev.n2k02:adb-core:0.1.3")
     implementation("dev.n2k02:updater:0.1.20")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:${Versions.Desugar.core}")
 

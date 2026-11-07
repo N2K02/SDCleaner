@@ -3,6 +3,8 @@ package eu.darken.sdmse.appcleaner.ui.settings
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -105,7 +107,7 @@ fun DirectAdbSettingsCard(vm: DirectAdbSettingsViewModel = hiltViewModel()) {
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Card(modifier = Modifier.fillMaxWidth(),
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
             Column(Modifier.fillMaxWidth().padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -113,7 +115,7 @@ fun DirectAdbSettingsCard(vm: DirectAdbSettingsViewModel = hiltViewModel()) {
                     horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     androidx.compose.material3.Icon(Icons.Rounded.SettingsInputAntenna,
                         contentDescription = null)
-                    Text("Pairing & recovery", style = MaterialTheme.typography.titleMedium,
+                    Text("Pairing & recovery", style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold)
                 }
                 DirectAdbSettingRow(
@@ -147,14 +149,14 @@ fun DirectAdbSettingsCard(vm: DirectAdbSettingsViewModel = hiltViewModel()) {
                 )
             }
         }
-        Card(modifier = Modifier.fillMaxWidth(),
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
             Column(Modifier.fillMaxWidth().padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     androidx.compose.material3.Icon(Icons.Rounded.Security, contentDescription = null)
-                    Text("Connection & security", style = MaterialTheme.typography.titleMedium,
+                    Text("Connection & security", style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold)
                 }
                 DirectAdbSettingRow(
@@ -174,7 +176,7 @@ fun DirectAdbSettingsCard(vm: DirectAdbSettingsViewModel = hiltViewModel()) {
             Text(if (showDiagnostics) "Hide ADB diagnostics" else "ADB diagnostics & connection controls")
         }
         if (showDiagnostics) {
-        Card(modifier = Modifier.fillMaxWidth(),
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically,

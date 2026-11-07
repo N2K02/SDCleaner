@@ -107,45 +107,8 @@ fun DirectAdbSettingsCard(vm: DirectAdbSettingsViewModel = hiltViewModel()) {
     ) {
         Card(modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    androidx.compose.material3.Icon(Icons.Rounded.Info, contentDescription = null)
-                    Text("ADB connection", style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold)
-                }
-                Text(
-                    when {
-                        status.connected && status.verifiedUid == 2000 -> "Shell UID 2000 verified • Connected"
-                        vm.pairedPreviously() -> "Previously authorized • Disconnected"
-                        else -> "ADB setup required"
-                    },
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-                Text(status.message, style = MaterialTheme.typography.bodySmall)
-                Text("Transport: " + if (status.connected) status.transport else vm.previousTransport(),
-                    style = MaterialTheme.typography.bodySmall)
-                Text("Last verified: " + vm.lastVerifiedAt().let {
-                    if (it > 0) DateFormat.getDateTimeInstance(DateFormat.SHORT,
-                        DateFormat.SHORT).format(Date(it)) else "Never"
-                }, style = MaterialTheme.typography.bodySmall)
-                Text("Discovery: " + if (discovery.scanning) "Scanning" else "Idle",
-                    style = MaterialTheme.typography.bodySmall)
-                Text("Pairing port: " + (discovery.pairingPort?.toString() ?: "Not detected") +
-                    " • Connection port: " + (discovery.connectionPort?.toString() ?: "Not detected"),
-                    style = MaterialTheme.typography.bodySmall)
-                Text(discovery.message, style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = vm::reconnect) { Text("Retry") }
-                    OutlinedButton(onClick = vm::disconnect) { Text("Disconnect") }
-                }
-            }
-        }
-        Card(modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
             Column(Modifier.fillMaxWidth().padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     androidx.compose.material3.Icon(Icons.Rounded.SettingsInputAntenna,
@@ -205,6 +168,49 @@ fun DirectAdbSettingsCard(vm: DirectAdbSettingsViewModel = hiltViewModel()) {
                     option = DirectAdbOptions.Option.TCP_5555, vm = vm,
                 )
             }
+        }
+        var showDiagnostics by remember { mutableStateOf(false) }
+        OutlinedButton(onClick = { showDiagnostics = !showDiagnostics }) {
+            Text(if (showDiagnostics) "Hide ADB diagnostics" else "ADB diagnostics & connection controls")
+        }
+        if (showDiagnostics) {
+        Card(modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    androidx.compose.material3.Icon(Icons.Rounded.Info, contentDescription = null)
+                    Text("ADB connection", style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold)
+                }
+                Text(
+                    when {
+                        status.connected && status.verifiedUid == 2000 -> "Shell UID 2000 verified • Connected"
+                        vm.pairedPreviously() -> "Previously authorized • Disconnected"
+                        else -> "ADB setup required"
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Text(status.message, style = MaterialTheme.typography.bodySmall)
+                Text("Transport: " + if (status.connected) status.transport else vm.previousTransport(),
+                    style = MaterialTheme.typography.bodySmall)
+                Text("Last verified: " + vm.lastVerifiedAt().let {
+                    if (it > 0) DateFormat.getDateTimeInstance(DateFormat.SHORT,
+                        DateFormat.SHORT).format(Date(it)) else "Never"
+                }, style = MaterialTheme.typography.bodySmall)
+                Text("Discovery: " + if (discovery.scanning) "Scanning" else "Idle",
+                    style = MaterialTheme.typography.bodySmall)
+                Text("Pairing port: " + (discovery.pairingPort?.toString() ?: "Not detected") +
+                    " • Connection port: " + (discovery.connectionPort?.toString() ?: "Not detected"),
+                    style = MaterialTheme.typography.bodySmall)
+                Text(discovery.message, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = vm::reconnect) { Text("Retry") }
+                    OutlinedButton(onClick = vm::disconnect) { Text("Disconnect") }
+                }
+            }
+        }
         }
         OutlinedButton(onClick = { manualSetup = !manualSetup }) {
             Text(if (manualSetup) "Hide manual pairing" else "Manual pairing (fallback)")

@@ -144,7 +144,7 @@ class DirectAdb @Inject constructor(@ApplicationContext private val context: Con
     suspend fun ensureConnected(): Boolean {
         if (status.value.connected && AdbTransport.isConnected &&
             AdbTransport.exec("id -u").getOrNull()?.trim() == "2000") return true
-        if (connectTcp()) return true
+        if (DirectAdbOptions.get(context, DirectAdbOptions.Option.TCP_5555) && connectTcp()) return true
         val tlsPort = DirectAdbOptions.tlsPort(context)
         return tlsPort != null && connectTls(tlsPort)
     }

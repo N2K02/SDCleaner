@@ -56,6 +56,9 @@ class DirectAdbParityContractTest {
         assertTrue(adb.contains("throw TransportException"))
         assertTrue(adb.contains("if (attached.isFailure || !verifyShell(port))"))
         assertTrue(adb.contains("if (!reverified) AdbTransport.disconnect()"))
+        assertTrue(adb.contains("if (DirectAdbOptions.get(context, DirectAdbOptions.Option.TCP_5555) && connectTcp())"))
+        assertTrue(source("DirectAdbRecovery.kt").contains(
+            "if (DirectAdbOptions.get(app, DirectAdbOptions.Option.TCP_5555) && adb.connectTcp())"))
     }
 
     @Test

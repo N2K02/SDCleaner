@@ -34,5 +34,10 @@ class DirectAdbUiParityTest {
         assertTrue(ui.contains("DisposableEffect(vm)"))
         assertTrue(ui.contains("vm.enterSettings()"))
         assertTrue(ui.contains("vm.leaveSettings()"))
+        assertTrue(ui.contains("Disable TCP/5555"))
+        assertTrue(ui.contains("vm.disableTcp()"))
+        assertTrue(ui.contains("status.verifiedUid == 2000"))
+        assertTrue(ui.contains("status.transport == \"Local TCP/5555\""))
+        assertTrue(ui.contains("securityNote"))
     }
 }

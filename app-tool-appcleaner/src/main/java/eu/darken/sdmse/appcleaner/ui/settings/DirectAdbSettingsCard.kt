@@ -80,6 +80,10 @@ class DirectAdbSettingsViewModel @Inject constructor(
         viewModelScope.launch { adb.connectTls(port.toIntOrNull() ?: -1) }
     fun reconnect() = recovery.enterSettings()
     fun disconnect() = recovery.manualDisconnect()
+    fun disableTcp() {
+        DirectAdbOptions.set(app, DirectAdbOptions.Option.TCP_5555, false)
+        recovery.disableTcp()
+    }
 }
 
 @Composable
@@ -92,6 +96,7 @@ fun DirectAdbSettingsCard(vm: DirectAdbSettingsViewModel = hiltViewModel()) {
         onDispose { vm.leaveSettings() }
     }
     var manualSetup by remember { mutableStateOf(false) }
+    var securityNote by remember { mutableStateOf("") }
     var pairingPort by remember { mutableStateOf("") }
     var pairingCode by remember { mutableStateOf("") }
     var connectPort by remember { mutableStateOf("") }
@@ -159,7 +164,25 @@ fun DirectAdbSettingsCard(vm: DirectAdbSettingsViewModel = hiltViewModel()) {
                     title = "Keep ADB without Wi-Fi (TCP/5555)",
                     detail = "TCP/5555 may be reachable from your network. Disable it when not needed.",
                     option = DirectAdbOptions.Option.TCP_5555, vm = vm,
+                    onChange = { enabled ->
+                        securityNote = if (enabled) "Automatic TCP/5555 enabled for the next verified connection."
+                        else "Automatic TCP/5555 disabled; requested closure of the existing listener."
+                    },
                 )
+                if (status.connected && status.verifiedUid == 2000 &&
+                    status.transport == "Local TCP/5555") {
+                    OutlinedButton(
+                        onClick = {
+                            vm.disableTcp()
+                            securityNote = "Requested TCP/5555 shutdown. Verify the connection status before relying on closure."
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Disable TCP/5555") }
+                }
+                if (securityNote.isNotBlank()) {
+                    Text(securityNote, style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
         var showDiagnostics by remember { mutableStateOf(false) }

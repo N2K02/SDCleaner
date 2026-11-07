@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-/** Parity with VRec: two settings cards, first-time setup on Home, diagnostics separate. */
+/** Parity with VRec: two settings cards, first-time pairing on Home, no duplicate diagnostics. */
 class DirectAdbUiParityTest {
     private fun read(): String {
         val relative = "src/main/java/eu/darken/sdmse/appcleaner/ui/settings/DirectAdbSettingsCard.kt"
@@ -39,23 +39,19 @@ class DirectAdbUiParityTest {
         assertTrue(settings.contains("Lifecycle.Event.ON_RESUME"))
     }
 
-    @Test fun `home owns initial pairing and diagnostics own detailed status`() {
+    @Test fun `home owns first-time pairing and deleted diagnostics screen stays absent`() {
         val ui = read()
         val home = ui.substringAfter("fun DirectAdbHomeSetupCard(")
-            .substringBefore("fun DirectAdbDiagnosticsCard(")
-        val diagnostics = ui.substringAfter("fun DirectAdbDiagnosticsCard(")
             .substringBefore("fun DirectAdbSettingSection(")
         for (label in listOf("Manual pairing (fallback)", "Six-digit pairing code",
-                "Open Developer options", "Find / Retry", "Pair", "Connect")) {
+                "Open Developer options", "Find / Retry", "Pair", "Connect",
+                "shell UID 2000", "Discovery:", "Pairing port:")) {
             assertTrue(home.contains(label), label)
         }
-        for (label in listOf("Shell UID 2000 verified", "Last verified", "Discovery",
-            "Transport", "Pairing port", "Disconnect")) {
-            assertTrue(diagnostics.contains(label), label)
-        }
-        assertFalse(diagnostics.contains("Pairing & recovery"))
-        assertFalse(diagnostics.contains("Connection & security"))
+        assertFalse("Diagnostics must not repeat the ADB cards",
+            ui.contains("fun DirectAdbDiagnosticsCard("))
         assertFalse(home.contains("DirectAdbSettingRow("))
+        // Lifecycle belongs to the stable Home root, not the lazy card itself.
         assertFalse(home.contains("DisposableEffect(vm)"))
         assertTrue(ui.contains("vm.enterSettings()"))
         assertTrue(ui.contains("vm.leaveSettings()"))

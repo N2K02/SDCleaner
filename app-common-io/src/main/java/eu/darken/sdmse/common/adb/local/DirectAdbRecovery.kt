@@ -104,26 +104,6 @@ class DirectAdbRecovery @Inject constructor(
         }
     }
 
-    fun submitPairingCode(code: String) {
-        val port = state.value.pairingPort ?: return
-        if (!visible || pairingInProgress ||
-            !DirectAdbOptions.get(app, DirectAdbOptions.Option.AUTO_PAIR) ||
-            !code.matches(Regex("[0-9]{6}"))) return
-        pairingInProgress = true
-        scope.launch {
-            try {
-                if (core.pair(port, code)) {
-                    DirectAdbOptions.rememberPaired(app)
-                    state.value.connectionPort?.let { core.connectTls(it) }
-                }
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } finally {
-                pairingInProgress = false
-            }
-        }
-    }
-
     /** User Stop remains sticky; ordinary worker disconnect never calls stop. */
     fun stopForQuit() {
         DirectAdbOptions.markStopped(app, true)

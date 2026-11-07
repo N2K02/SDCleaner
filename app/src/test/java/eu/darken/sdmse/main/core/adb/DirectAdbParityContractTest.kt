@@ -42,8 +42,8 @@ class DirectAdbParityContractTest {
 
     @Test fun pairingAccessibilityStillReadsOnlySystemSettings() {
         val reader = source("app-tool-appcleaner/src/main/java/eu/darken/sdmse/appcleaner/ui/settings/DirectAdbPairingAccessibilityService.kt")
-        assertTrue(reader.contains("isAndroidSettings(root.packageName"))
-        assertTrue(reader.contains("DirectAdbRecovery"))
+        assertTrue(reader.contains("SharedAdbPairingAccessibilityService()"))
+        assertTrue(reader.contains("SharedAdbHostAdapter.core(applicationContext)"))
         assertFalse(reader.contains("performAction("))
         assertFalse(reader.contains("Settings.Secure.putString"))
         val opts = source("app-common-io/src/main/java/eu/darken/sdmse/common/adb/local/DirectAdbOptions.kt")

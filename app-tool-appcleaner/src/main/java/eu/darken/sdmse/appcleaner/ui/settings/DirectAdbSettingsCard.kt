@@ -52,10 +52,6 @@ class DirectAdbSettingsViewModel @Inject constructor(
     fun pairedPreviously() = DirectAdbOptions.wasAuthorized(app)
     fun lastVerifiedAt() = DirectAdbOptions.verifiedAt(app)
     fun previousTransport() = DirectAdbOptions.transport(app)
-    fun pair(port: String, code: String) =
-        viewModelScope.launch { adb.pair(port.toIntOrNull() ?: -1, code) }
-    fun connectTls(port: String) =
-        viewModelScope.launch { adb.connectTls(port.toIntOrNull() ?: -1) }
     fun reconnect() = viewModelScope.launch { sharedCore.retry(auto = false) }
     fun disconnect() = recovery.manualDisconnect()
     fun disableTcp() = viewModelScope.launch { sharedCore.disableTcp() }

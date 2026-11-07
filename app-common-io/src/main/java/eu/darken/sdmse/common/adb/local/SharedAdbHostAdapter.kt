@@ -13,7 +13,7 @@ import dev.n2k02.adb.core.LibAdbWire
 import dev.n2k02.adb.core.LocalAdbDiscovery
 
 /** Only one embedded libadb socket per process, even across concurrent workers. */
-internal object SharedAdbHostAdapter {
+object SharedAdbHostAdapter {
     @Volatile private var active: AdbCore? = null
 
     fun core(context: Context): AdbCore =

@@ -85,11 +85,15 @@ class InaccessibleDeleter @Inject constructor(
         val succeeded = mutableSetOf<InstallId>()
         val failed = mutableMapOf<InstallId, Exception>()
         val freedBytes = mutableMapOf<InstallId, Long>()
+        val unchanged = mutableSetOf<InstallId>()
+        val unverified = mutableSetOf<InstallId>()
 
         fun snapshotResult(): InaccDelResult = InaccDelResult(
             succesful = succeeded.toSet(),
             failed = failed.filterKeys { it !in succeeded && it !in limitedIds },
             freedBytes = freedBytes.toMap(),
+            unchanged = unchanged.filterNot { it in limitedIds }.toSet(),
+            unverified = unverified.filterNot { it in limitedIds }.toSet(),
         )
 
         fun failAll(cause: (InstallId) -> Exception) = targets.forEach { failed[it.identifier] = cause(it.identifier) }
@@ -102,6 +106,13 @@ class InaccessibleDeleter @Inject constructor(
             if (!directAdb.ensureConnected()) {
                 failAll { IllegalStateException("ADB shell UID 2000 unavailable") }
                 return snapshotResult()
+            }
+
+            // Capture a fresh baseline; scanner values may be stale by the time cleanup starts.
+            val baseline = targets.associate { junk ->
+                currentCoroutineContext().ensureActive()
+                junk.identifier to (runCatching { inaccessibleCacheProvider.determineCache(junk.pkg)?.totalSize }
+                    .getOrNull() ?: junk.inaccessibleCache!!.totalSize)
             }
 
             val trim = try {
@@ -131,7 +142,7 @@ class InaccessibleDeleter @Inject constructor(
                 while (pending.isNotEmpty()) {
                     currentCoroutineContext().ensureActive()
                     val settled = pending.filter { junk ->
-                        val before = junk.inaccessibleCache!!.totalSize
+                        val before = baseline.getValue(junk.identifier)
                         val after = inaccessibleCacheProvider.determineCache(junk.pkg)?.totalSize
                             ?: return@filter false
                         observed[junk.identifier] = after
@@ -153,13 +164,11 @@ class InaccessibleDeleter @Inject constructor(
                         succeeded.add(id)
                         freedBytes[id] = (before - after).coerceAtLeast(0)
                     }
-                    after == null -> failed[id] = IllegalStateException("Could not measure cache after ADB trim for $id")
-                    else -> failed[id] = IllegalStateException(
-                        "Cache unchanged after ADB trim for $id (app may be in use)"
-                    )
+                    after == null -> unverified.add(id)
+                    else -> unchanged.add(id)
                 }
             }
-            log(TAG, INFO) { "ADB trim verified ${succeeded.size}/${targets.size} apps" }
+            log(TAG, INFO) { "ADB trim: reclaimed=${succeeded.size}, unchanged=${unchanged.size}, unverified=${unverified.size}" }
         } catch (e: CancellationException) {
             onPartialResult(snapshotResult())
             throw e
@@ -191,6 +200,10 @@ class InaccessibleDeleter @Inject constructor(
         val succesful: Set<InstallId> = emptySet(),
         val failed: Map<InstallId, Exception> = emptyMap(),
         val freedBytes: Map<InstallId, Long> = emptyMap(),
+        /** ADB completed, but the observed cache did not decrease. Not a command failure. */
+        val unchanged: Set<InstallId> = emptySet(),
+        /** ADB completed, but storage statistics were unavailable. */
+        val unverified: Set<InstallId> = emptySet(),
         /** Retained only for backward-compatible task result bookkeeping. No ACS stage exists. */
         val skippedNoConsent: Set<InstallId> = emptySet(),
     )

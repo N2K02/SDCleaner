@@ -16,6 +16,6 @@ class SharedAdbHostAdapterContractTest {
             "DirectAdbOptions.stopRequested(app)", "DirectAdbOptions.tlsPort(app)",
             "DirectAdbOptions.markAuthorized(app)", "AdbCoreRegistry.install(it)",
             "AdbCoreRegistry.uninstall(it)", "LibAdbWire"))
-            assertTrue(required, s.contains(required))
+            assertTrue(s.contains(required), required)
     }
 }

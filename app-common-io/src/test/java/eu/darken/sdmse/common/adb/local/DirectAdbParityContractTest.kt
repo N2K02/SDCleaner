@@ -30,10 +30,10 @@ class DirectAdbParityContractTest {
         for (text in listOf("SharedAdbHostAdapter.core(app)", "core.enterPage()",
             "core.leavePage()", "core.acquireService()", "core.releaseService()",
             "core.startAfterBoot()", "core.retry(auto = true)", "core.pair(port, code)"))
-            assertTrue(text, recovery.contains(text))
+            assertTrue(recovery.contains(text), text)
         for (forbidden in listOf("NsdManager", "NetworkInterface", "WifiManager",
             "startDiscovery()", "delay(120_000L)"))
-            assertFalse(forbidden, recovery.contains(forbidden))
+            assertFalse(recovery.contains(forbidden), forbidden)
         val adapter = source("SharedAdbHostAdapter.kt")
         assertTrue(adapter.contains("LocalAdbDiscovery(app)"))
         assertTrue(adapter.contains("AdbCoreRegistry.install(it)"))

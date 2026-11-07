@@ -17,7 +17,7 @@ class AdbStreamRecoveryContractTest {
         assertTrue(s.contains("core().execVerified(command, timeoutMs)"))
         for (forbidden in listOf("AbsAdbConnectionManager", "AdbStream",
             "private var manager", "private var shell", "detached.async"))
-            assertFalse(forbidden, s.contains(forbidden))
+            assertFalse(s.contains(forbidden), forbidden)
     }
 
     @Test fun cancelledCleanupRetiresStreamWithoutStickyStop() {

@@ -1,23 +1,18 @@
 package eu.darken.sdmse.common.adb.local
 
 import android.content.Context
-import android.content.pm.PackageManager
-import android.net.nsd.NsdManager
-import android.net.nsd.NsdServiceInfo
-import android.net.wifi.WifiManager
-import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.n2k02.adb.core.AdbOption
+import dev.n2k02.adb.core.AdbTransportMode
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
-import java.net.InetAddress
-import java.net.NetworkInterface
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -29,8 +24,8 @@ data class DirectAdbRecoveryState(
 )
 
 /**
- * Settings-scoped, local-device-only mDNS discovery and authorized ADB recovery.
- * No remote host scans, no stored pairing codes, and no permanent multicast lock.
+ * Host adapter for the ONE shared discovery, watchdog, TLS/TCP and recovery
+ * implementation. Settings owns a page; one-shot WorkManager owns a service.
  */
 @Singleton
 class DirectAdbRecovery @Inject constructor(
@@ -39,125 +34,73 @@ class DirectAdbRecovery @Inject constructor(
 ) {
     val state = MutableStateFlow(DirectAdbRecoveryState())
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private var mgr: NsdManager? = null
-    private var wifiLock: WifiManager.MulticastLock? = null
-    private var pairingListener: NsdManager.DiscoveryListener? = null
-    private var connectListener: NsdManager.DiscoveryListener? = null
-    private var scanTimeout: Job? = null
-    private var watchdog: Job? = null
-    private var connectionAttempt: Job? = null
-    private var generation = 0
+    private val core = SharedAdbHostAdapter.core(app)
     @Volatile private var visible = false
     @Volatile private var pairingInProgress = false
 
-    fun enterSettings() {
-        visible = true
-        DirectAdbOptions.markStopped(app, false)
-        connectionAttempt?.cancel()
-        connectionAttempt = scope.launch { recover() }
-        configureWatchdog()
-    }
-
-    fun onSettingsChanged() {
-        configureWatchdog()
-        if (visible && !DirectAdbOptions.stopRequested(app)) {
-            connectionAttempt?.cancel()
-            connectionAttempt = scope.launch { recover() }
-        }
-    }
-
-    /** Disposes timers and Wi-Fi discovery when the user leaves this page. */
-    fun leaveSettings() {
-        visible = false
-        watchdog?.cancel()
-        watchdog = null
-        connectionAttempt?.cancel()
-        connectionAttempt = null
-        stopDiscovery()
-    }
-
-    private fun configureWatchdog() {
-        watchdog?.cancel()
-        watchdog = null
-        if (!visible || !DirectAdbOptions.get(app, DirectAdbOptions.Option.WATCHDOG)) return
-        watchdog = scope.launch {
-            while (visible && DirectAdbOptions.get(app, DirectAdbOptions.Option.WATCHDOG)) {
-                delay(120_000L)
-                if (!visible) break
-                if (!adb.status.value.connected || !AdbTransport.isConnected) recover()
+    init {
+        scope.launch {
+            core.state.collect { current ->
+                state.value = DirectAdbRecoveryState(
+                    scanning = current.scanning,
+                    pairingPort = current.pairingPort,
+                    connectionPort = current.connectionPort,
+                    message = current.message,
+                )
             }
         }
     }
 
-    suspend fun recover() {
-        if (DirectAdbOptions.stopRequested(app)) return
-        if (adb.status.value.connected && AdbTransport.isConnected &&
-            adb.ensureConnected()) {
-            synchronizeRestartPermission()
-            return
+    @Synchronized fun enterSettings() {
+        if (!visible) {
+            visible = true
+            DirectAdbOptions.markStopped(app, false)
+            core.enterPage()
         }
-        // Only a local listener is accepted; no TCP probes outside this phone.
-        if (DirectAdbOptions.get(app, DirectAdbOptions.Option.TCP_5555) && adb.connectTcp()) {
-            stopDiscovery()
-            synchronizeRestartPermission()
-            return
-        }
-        val tls = DirectAdbOptions.tlsPort(app)
-        if (tls != null && adb.connectTls(tls)) {
-            stopDiscovery()
-            synchronizeRestartPermission()
-            return
-        }
-        if (visible) startDiscovery()
+        scope.launch { core.retry(auto = false) }
     }
 
-    /** WRITE_SECURE_SETTINGS is never granted unless explicitly enabled. */
-    private suspend fun synchronizeRestartPermission() {
-        if (!adb.status.value.connected || !AdbTransport.isConnected) return
-        val desired = DirectAdbOptions.get(app, DirectAdbOptions.Option.RESTORE_AFTER_RESTART)
-        val permission = app.checkSelfPermission("android.permission.WRITE_SECURE_SETTINGS") ==
-            PackageManager.PERMISSION_GRANTED
-        if (desired == permission) return
-        val changed = adb.setRestartPermission(desired)
-        if (!changed) {
-            state.value = state.value.copy(message =
-                if (desired) "Android denied optional Wireless debugging restore permission"
-                else "Could not revoke optional Wireless debugging restore permission")
+    fun onSettingsChanged() {
+        scope.launch {
+            for (option in AdbOption.entries) {
+                core.setOption(option,
+                    DirectAdbOptions.get(app, DirectAdbOptions.Option.valueOf(option.name)))
+            }
+            if (visible && !DirectAdbOptions.stopRequested(app)) core.retry(auto = true)
         }
+    }
+
+    /** LeaveSettings is idempotent and never cancels another service's ADB. */
+    @Synchronized fun leaveSettings() {
+        if (!visible) return
+        visible = false
+        core.leavePage()
+    }
+
+    suspend fun recover() {
+        if (!DirectAdbOptions.stopRequested(app)) core.retry(auto = true)
     }
 
     /**
-     * One-shot boot recovery: discover only the phone's own verified TLS endpoint.
-     * WorkManager owns the deadline; no persistent multicast lock or watchdog.
+     * Boot discovery belongs to a bounded WorkManager owner, not an activity
+     * or a second mDNS scanner. DirectAdbBootWorker closes only this connection.
      */
     suspend fun recoverForBackground() {
         if (DirectAdbOptions.stopRequested(app) ||
             !DirectAdbOptions.wasAuthorized(app)) return
-        if (adb.ensureConnected()) {
-            synchronizeRestartPermission()
-            return
-        }
-        val openedByUi = visible
-        if (openedByUi) {
-            recover()
-            return
-        }
-        visible = true
+        core.acquireService()
         try {
-            startDiscovery()
-            // TLS UID verification is not completion while TCP promotion is pending.
+            core.startAfterBoot()
             withTimeoutOrNull(18_000L) {
-                adb.status.first {
-                    it.connected && (
+                core.state.first { current ->
+                    current.connected && (
                         !DirectAdbOptions.get(app, DirectAdbOptions.Option.TCP_5555) ||
-                            it.transport == "Local TCP/5555"
+                            current.transport == AdbTransportMode.LOCAL_TCP_5555
                     )
                 }
             }
-            if (adb.status.value.connected) synchronizeRestartPermission()
         } finally {
-            visible = false
-            stopDiscovery()
+            core.releaseService()
         }
     }
 
@@ -169,141 +112,36 @@ class DirectAdbRecovery @Inject constructor(
         pairingInProgress = true
         scope.launch {
             try {
-                state.value = state.value.copy(message = "Pairing with this phone's Android settings")
-                if (adb.pair(port, code)) {
+                if (core.pair(port, code)) {
                     DirectAdbOptions.rememberPaired(app)
-                    state.value = state.value.copy(message = "Paired. Waiting for verified connection")
-                    state.value.connectionPort?.let {
-                        if (adb.connectTls(it)) {
-                            stopDiscovery()
-                            synchronizeRestartPermission()
-                        }
-                    }
+                    state.value.connectionPort?.let { core.connectTls(it) }
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } finally {
                 pairingInProgress = false
             }
         }
     }
 
-    private fun onDevice(host: InetAddress): Boolean {
-        if (host.isLoopbackAddress) return true
-        return runCatching {
-            val interfaces = NetworkInterface.getNetworkInterfaces() ?: return@runCatching false
-            while (interfaces.hasMoreElements()) {
-                val interfaceInfo = interfaces.nextElement()
-                if (!interfaceInfo.isUp) continue
-                val addresses = interfaceInfo.inetAddresses
-                while (addresses.hasMoreElements()) {
-                    if (addresses.nextElement() == host) return@runCatching true
-                }
-            }
-            false
-        }.getOrDefault(false)
-    }
-
-    private fun startDiscovery() {
-        if (!visible || Build.VERSION.SDK_INT < 30) {
-            state.value = state.value.copy(message = "Wireless ADB discovery requires Android 11+")
-            return
-        }
-        if (mgr != null) return
-        val nsd = app.getSystemService(Context.NSD_SERVICE) as? NsdManager ?: return
-        mgr = nsd
-        val wifi = app.getSystemService(Context.WIFI_SERVICE) as? WifiManager
-        wifiLock = runCatching {
-            wifi?.createMulticastLock("sdcleaner-adb-mdns")?.apply {
-                setReferenceCounted(false)
-                acquire()
-            }
-        }.getOrNull()
-        val activeGeneration = ++generation
-        state.value = state.value.copy(scanning = true,
-            message = "Discovering Android Wireless debugging on this device…")
-        pairingListener = listen(nsd, "_adb-tls-pairing._tcp.", activeGeneration) { port ->
-            state.value = state.value.copy(pairingPort = port,
-                message = "Android pairing port discovered")
-        }
-        connectListener = listen(nsd, "_adb-tls-connect._tcp.", activeGeneration) { port ->
-            state.value = state.value.copy(connectionPort = port)
-            if (DirectAdbOptions.wasAuthorized(app) || DirectAdbOptions.wasPaired(app)) scope.launch {
-                if (visible && activeGeneration == generation && adb.connectTls(port)) {
-                    stopDiscovery()
-                    synchronizeRestartPermission()
-                }
-            }
-        }
-        scanTimeout = scope.launch {
-            delay(90_000L)
-            if (activeGeneration == generation) stopDiscovery()
-        }
-    }
-
-    private fun listen(
-        nsd: NsdManager, type: String, activeGeneration: Int, portFound: (Int) -> Unit
-    ): NsdManager.DiscoveryListener {
-        val listener = object : NsdManager.DiscoveryListener {
-            override fun onDiscoveryStarted(type: String) = Unit
-            override fun onDiscoveryStopped(type: String) = Unit
-            override fun onStartDiscoveryFailed(type: String, code: Int) = Unit
-            override fun onStopDiscoveryFailed(type: String, code: Int) = Unit
-            override fun onServiceLost(service: NsdServiceInfo) = Unit
-            override fun onServiceFound(service: NsdServiceInfo) {
-                if (!visible || activeGeneration != generation) return
-                @Suppress("DEPRECATION")
-                nsd.resolveService(service, object : NsdManager.ResolveListener {
-                    override fun onResolveFailed(service: NsdServiceInfo, code: Int) = Unit
-                    override fun onServiceResolved(service: NsdServiceInfo) {
-                        if (!visible || activeGeneration != generation) return
-                        @Suppress("DEPRECATION")
-                        val host = service.host
-                        if (host != null && onDevice(host) && service.port in 1..65535) {
-                            portFound(service.port)
-                        }
-                    }
-                })
-            }
-        }
-        runCatching { nsd.discoverServices(type, NsdManager.PROTOCOL_DNS_SD, listener) }
-        return listener
-    }
-
-    private fun stopDiscovery() {
-        ++generation
-        scanTimeout?.cancel()
-        scanTimeout = null
-        mgr?.let { manager ->
-            listOfNotNull(pairingListener, connectListener).forEach { listener ->
-                runCatching { manager.stopServiceDiscovery(listener) }
-            }
-        }
-        pairingListener = null
-        connectListener = null
-        mgr = null
-        runCatching { wifiLock?.release() }
-        wifiLock = null
-        state.value = state.value.copy(scanning = false)
-    }
-
-    /** Quit cancels future recovery, but active cleaner operations drain before socket close. */
+    /** User Stop remains sticky; ordinary worker disconnect never calls stop. */
     fun stopForQuit() {
         DirectAdbOptions.markStopped(app, true)
         leaveSettings()
+        scope.launch { core.stop() }
     }
 
     fun manualDisconnect() {
         DirectAdbOptions.markStopped(app, true)
         leaveSettings()
-        scope.launch { adb.disconnect() }
+        scope.launch { core.stop() }
     }
 
     fun disableTcp() {
         scope.launch {
-            if (adb.status.value.connected && AdbTransport.isConnected) {
-                AdbTransport.switchToUsb()
-            }
-            adb.disconnect()
-            if (visible) recover()
+            core.disableTcp()
+            if (visible && !DirectAdbOptions.stopRequested(app))
+                core.retry(auto = true)
         }
     }
 }

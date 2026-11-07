@@ -94,12 +94,34 @@ class InaccessibleDeleterTest : BaseTest() {
         coVerify(exactly = 1) { adb.disconnect() }
     }
 
-    @Test fun `unchanged cache after trim is a failure, not a success`() {
+    @Test fun `unchanged cache after successful trim is not an ADB failure`() {
         val item = junk("com.example.busy", 500L)
         coEvery { provider.determineCache(item.pkg) } returns item.inaccessibleCache
         run(item)
-        result.failed shouldContainKey item.identifier
+        result.failed shouldNotContainKey item.identifier
+        result.unchanged shouldContain item.identifier
         result.succesful shouldNotContain item.identifier
+    }
+
+    @Test fun `missing post trim stats is unverified rather than command failure`() {
+        val item = junk("com.example.unverified")
+        coEvery { provider.determineCache(item.pkg) } returnsMany listOf(
+            item.inaccessibleCache, null
+        )
+        run(item)
+        result.failed shouldNotContainKey item.identifier
+        result.unverified shouldContain item.identifier
+        result.succesful shouldNotContain item.identifier
+    }
+
+    @Test fun `fresh baseline prevents stale scanner bytes from overstating reclaimed cache`() {
+        val item = junk("com.example.stale", 900L)
+        coEvery { provider.determineCache(item.pkg) } returnsMany listOf(
+            item.inaccessibleCache!!.copy(totalSize = 400L),
+            item.inaccessibleCache!!.copy(totalSize = 100L)
+        )
+        run(item)
+        result.freedBytes[item.identifier] shouldBe 300L
     }
 
     @Test fun `rejected trim reports failures without verification`() {

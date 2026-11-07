@@ -48,8 +48,8 @@ class DirectAdbUiParityTest {
                 "shell UID 2000", "Discovery:", "Pairing port:")) {
             assertTrue(home.contains(label), label)
         }
-        assertFalse("Diagnostics must not repeat the ADB cards",
-            ui.contains("fun DirectAdbDiagnosticsCard("))
+        assertFalse(ui.contains("fun DirectAdbDiagnosticsCard("),
+            "Diagnostics must not repeat the ADB cards")
         assertFalse(home.contains("DirectAdbSettingRow("))
         // Lifecycle belongs to the stable Home root, not the lazy card itself.
         assertFalse(home.contains("DisposableEffect(vm)"))

@@ -214,10 +214,10 @@ fun DirectAdbSettingsCard(vm: DirectAdbSettingsViewModel = hiltViewModel()) {
             }
         }
         }
-        OutlinedButton(onClick = { manualSetup = !manualSetup }) {
+        if (showDiagnostics) OutlinedButton(onClick = { manualSetup = !manualSetup }) {
             Text(if (manualSetup) "Hide manual pairing" else "Manual pairing (fallback)")
         }
-        if (manualSetup) {
+        if (showDiagnostics && manualSetup) {
             Card(modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
@@ -263,14 +263,18 @@ private fun DirectAdbSettingRow(
     onChange: ((Boolean) -> Unit)? = null,
 ) {
     var checked by remember(option) { mutableStateOf(vm.enabled(option)) }
-    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp),
+    Row(Modifier.fillMaxWidth().clickable {
+        val next = !checked
+        checked = next
+        vm.set(option, next)
+        onChange?.invoke(next)
+    },
         verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(Modifier.weight(1f).padding(end = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
             Text(detail, style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Spacer(Modifier.width(12.dp))
         Switch(checked = checked, onCheckedChange = {
             checked = it
             vm.set(option, it)

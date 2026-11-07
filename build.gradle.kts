@@ -26,7 +26,7 @@ allprojects {
         google()
         mavenCentral()
         maven { setUrl("https://jitpack.io") }
-        listOf("n2k02theme", "n2k02updater").forEach { library ->
+        listOf("n2k02theme", "n2k02updater", "n2k02AdbCoreLibrary").forEach { library ->
             maven {
                 url = uri("https://maven.pkg.github.com/N2K02/$library")
                 credentials {

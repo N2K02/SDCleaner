@@ -118,6 +118,7 @@ fun DirectAdbSettingsCard(vm: DirectAdbSettingsViewModel = hiltViewModel()) {
     }
     var autoPair by remember { mutableStateOf(vm.enabled(DirectAdbOptions.Option.AUTO_PAIR)) }
     var securityNote by remember { mutableStateOf("") }
+    var tcpRefresh by remember { mutableIntStateOf(0) }
 
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
@@ -170,6 +171,7 @@ fun DirectAdbSettingsCard(vm: DirectAdbSettingsViewModel = hiltViewModel()) {
                 detail = "Keeps ADB available without Wi-Fi. TCP/5555 may be " +
                     "reachable by devices on your network.",
                 option = DirectAdbOptions.Option.TCP_5555, vm = vm,
+                refreshKey = tcpRefresh,
                 onChange = { enabled ->
                     securityNote = if (enabled) "Automatic TCP/5555 enabled for the next verified connection."
                         else "Automatic TCP/5555 disabled; requested closure of the existing listener."
@@ -180,6 +182,7 @@ fun DirectAdbSettingsCard(vm: DirectAdbSettingsViewModel = hiltViewModel()) {
                 OutlinedButton(
                     onClick = {
                         vm.disableTcp()
+                        tcpRefresh++ // Explicit action also refreshes the TCP preference switch.
                         securityNote = "Requested TCP/5555 shutdown. Verify the connection status before relying on closure."
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -199,10 +202,7 @@ fun DirectAdbHomeSetupCard(vm: DirectAdbSettingsViewModel = hiltViewModel()) {
     val context = LocalContext.current
     val status by vm.status.collectAsStateWithLifecycle()
     val discovery by vm.discovery.collectAsStateWithLifecycle()
-    DisposableEffect(vm) {
-        vm.enterSettings()
-        onDispose { vm.leaveSettings() }
-    }
+    // Lifecycle is owned by CleanerHome, not this LazyColumn item.
     var manualSetup by remember { mutableStateOf(false) }
     var pairingPort by remember { mutableStateOf("") }
     var pairingCode by remember { mutableStateOf("") }
@@ -344,8 +344,9 @@ private fun DirectAdbSettingRow(
     option: DirectAdbOptions.Option,
     vm: DirectAdbSettingsViewModel,
     onChange: ((Boolean) -> Unit)? = null,
+    refreshKey: Int = 0,
 ) {
-    var checked by remember(option) { mutableStateOf(vm.enabled(option)) }
+    var checked by remember(option, refreshKey) { mutableStateOf(vm.enabled(option)) }
     Row(Modifier.fillMaxWidth().clickable {
         val next = !checked
         checked = next

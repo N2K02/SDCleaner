@@ -28,6 +28,8 @@ import eu.darken.sdmse.main.ui.dashboard.BottomBarState
 import eu.darken.sdmse.main.ui.dashboard.DashboardViewModel
 import eu.darken.sdmse.main.ui.dashboard.cards.*
 import eu.darken.sdmse.appcleaner.ui.settings.DirectAdbHomeSetupCard
+import eu.darken.sdmse.appcleaner.ui.settings.DirectAdbSettingsViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import java.time.Instant
 import kotlinx.coroutines.delay
 
@@ -60,6 +62,14 @@ internal fun CleanerHome(
     snackbarHostState: SnackbarHostState,
     onMainAction: () -> Unit,
 ) {
+    // Keep ADB recovery alive while Home is visible, even when the LazyColumn
+    // virtualizes the off-screen setup card. A card-level effect would stop
+    // discovery and its watchdog simply because the user scrolled down.
+    val adbVm: DirectAdbSettingsViewModel = hiltViewModel()
+    DisposableEffect(adbVm) {
+        adbVm.enterSettings()
+        onDispose { adbVm.leaveSettings() }
+    }
     val busy = bottomBarState?.actionState in setOf(
         BottomBarState.Action.WORKING,
         BottomBarState.Action.WORKING_CANCELABLE,
@@ -92,7 +102,7 @@ internal fun CleanerHome(
             item(key = "storage-overview") {
                 DeviceStorageCard(bottomBarState, busy, onMainAction)
             }
-            item(key = "adb-setup") { DirectAdbHomeSetupCard() }
+            item(key = "adb-setup") { DirectAdbHomeSetupCard(vm = adbVm) }
             item(key = "cleaning-title") {
                 Text(
                     "Cleaning tools",

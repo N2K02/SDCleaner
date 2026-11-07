@@ -34,6 +34,8 @@ class DirectAdbUiParityTest {
         assertFalse(settings.contains("Discovery:"))
         assertTrue(settings.contains("status.verifiedUid == 2000"))
         assertTrue(settings.contains("securityNote"))
+        assertTrue(settings.contains("tcpRefresh++"))
+        assertTrue(ui.contains("remember(option, refreshKey)"))
         assertTrue(settings.contains("Lifecycle.Event.ON_RESUME"))
     }
 
@@ -54,6 +56,7 @@ class DirectAdbUiParityTest {
         assertFalse(diagnostics.contains("Pairing & recovery"))
         assertFalse(diagnostics.contains("Connection & security"))
         assertFalse(home.contains("DirectAdbSettingRow("))
+        assertFalse(home.contains("DisposableEffect(vm)"))
         assertTrue(ui.contains("vm.enterSettings()"))
         assertTrue(ui.contains("vm.leaveSettings()"))
     }

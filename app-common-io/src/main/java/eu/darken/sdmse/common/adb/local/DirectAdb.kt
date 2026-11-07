@@ -37,7 +37,8 @@ class DirectAdb @Inject constructor(@ApplicationContext private val context: Con
     }
 
     val status = MutableStateFlow(Status())
-    private val core = SharedAdbHostAdapter.core(context)
+    val sharedCore = SharedAdbHostAdapter.core(context)
+    private val core get() = sharedCore
     private val observer = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     init {

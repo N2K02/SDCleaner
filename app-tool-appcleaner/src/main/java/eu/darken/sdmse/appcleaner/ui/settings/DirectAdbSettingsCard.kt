@@ -110,14 +110,9 @@ fun DirectAdbSettingsCard(vm: DirectAdbSettingsViewModel = hiltViewModel()) {
         Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
             Column(Modifier.fillMaxWidth().padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    androidx.compose.material3.Icon(Icons.Rounded.SettingsInputAntenna,
-                        contentDescription = null)
-                    Text("Pairing & recovery", style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold)
-                }
+                verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Pairing & recovery", style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold)
                 DirectAdbSettingRow(
                     title = "Auto-detect pairing code",
                     detail = "Read only Android Settings' Wireless debugging pairing dialog.",
@@ -152,13 +147,9 @@ fun DirectAdbSettingsCard(vm: DirectAdbSettingsViewModel = hiltViewModel()) {
         Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
             Column(Modifier.fillMaxWidth().padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    androidx.compose.material3.Icon(Icons.Rounded.Security, contentDescription = null)
-                    Text("Connection & security", style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold)
-                }
+                verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Connection & security", style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold)
                 DirectAdbSettingRow(
                     title = "Restore after restart",
                     detail = "Restore Wireless debugging using saved authorization, when permitted by Android.",

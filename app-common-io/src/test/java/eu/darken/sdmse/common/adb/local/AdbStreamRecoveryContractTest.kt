@@ -35,6 +35,6 @@ class AdbStreamRecoveryContractTest {
         assertTrue(s.contains("if (code == null || code !in 0..255)"))
         assertTrue(s.contains("throw TransportException(if (last == null)"))
         assertTrue(s.contains("lines.filterNot { it.startsWith(tag) }"))
-        assertTrue(s.contains("CommandResult(code,"))
+        assertTrue(s.contains("CommandResult(confirmedCode,"))
     }
 }

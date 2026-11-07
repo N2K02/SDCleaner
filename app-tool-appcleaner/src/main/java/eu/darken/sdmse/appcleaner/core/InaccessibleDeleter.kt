@@ -157,7 +157,8 @@ class InaccessibleDeleter @Inject constructor(
 
             targets.forEach { junk ->
                 val id = junk.identifier
-                val before = junk.inaccessibleCache!!.totalSize
+                // Same fresh baseline as the polling loop; the scanner value may be stale.
+                val before = baseline.getValue(id)
                 val after = observed[id]
                 when {
                     after != null && (after == 0L || after < before) -> {

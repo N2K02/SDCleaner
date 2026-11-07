@@ -83,8 +83,11 @@ class InaccessibleDeleterTest : BaseTest() {
     @Test fun `whole-tool clean issues exactly one trim and verifies each app`() {
         val a = junk("com.example.a", 500L)
         val b = junk("com.example.b", 300L)
-        coEvery { provider.determineCache(a.pkg) } returns a.inaccessibleCache!!.copy(totalSize = 100L)
-        coEvery { provider.determineCache(b.pkg) } returns b.inaccessibleCache!!.copy(totalSize = 0L)
+        // First read is the fresh pre-trim baseline, then the post-trim measurement.
+        coEvery { provider.determineCache(a.pkg) } returnsMany listOf(
+            a.inaccessibleCache, a.inaccessibleCache!!.copy(totalSize = 100L))
+        coEvery { provider.determineCache(b.pkg) } returnsMany listOf(
+            b.inaccessibleCache, b.inaccessibleCache!!.copy(totalSize = 0L))
         run(a, b)
         result.succesful shouldContain a.identifier
         result.succesful shouldContain b.identifier
@@ -129,7 +132,8 @@ class InaccessibleDeleterTest : BaseTest() {
         coEvery { adb.trimCaches() } returns DirectAdb.CommandResult(255, "Error: SecurityException")
         run(item)
         result.failed shouldContainKey item.identifier
-        coVerify(exactly = 0) { provider.determineCache(any()) }
+        // Only the pre-trim baseline is read; no post-trim verification.
+        coVerify(exactly = 1) { provider.determineCache(any()) }
     }
 
     @Test fun `transport failure on trim fails the run once without retries`() {

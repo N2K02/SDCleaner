@@ -24,6 +24,6 @@ class AdbCoreKotlinToolchainContractTest {
         assertTrue(buildLogic.contains("kotlin-gradle-plugin:2.4.21"))
         assertTrue(build.contains("org.jetbrains.kotlin.plugin.compose\") version \"2.4.21"))
         assertTrue(build.contains("com.google.devtools.ksp\") version \"2.3.10"))
-        assertTrue(io.contains("dev.n2k02:adb-core:0.1.1"))
+        assertTrue(io.contains("dev.n2k02:adb-core:0.1.2"))
     }
 }

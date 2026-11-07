@@ -71,11 +71,9 @@ fun DirectAdbSettingsCard(vm: DirectAdbSettingsViewModel = hiltViewModel()) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     val accessibilityEnabled = remember(context, resumeTick) {
-        runCatching {
-            Settings.Secure.getString(context.contentResolver,
-                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
-                .contains("DirectAdbPairingAccessibilityService", ignoreCase = true)
-        }.getOrDefault(false)
+        dev.n2k02.adb.core.SharedAdbPairingAccessibilityService.isEnabled(
+            context, DirectAdbPairingAccessibilityService::class.java
+        )
     }
     AdbConnectionSettingsPage(
         adb = vm.sharedCore,

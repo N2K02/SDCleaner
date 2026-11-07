@@ -27,6 +27,7 @@ import eu.darken.sdmse.main.core.SDMTool
 import eu.darken.sdmse.main.ui.dashboard.BottomBarState
 import eu.darken.sdmse.main.ui.dashboard.DashboardViewModel
 import eu.darken.sdmse.main.ui.dashboard.cards.*
+import eu.darken.sdmse.appcleaner.ui.settings.DirectAdbHomeSetupCard
 import java.time.Instant
 import kotlinx.coroutines.delay
 
@@ -91,6 +92,7 @@ internal fun CleanerHome(
             item(key = "storage-overview") {
                 DeviceStorageCard(bottomBarState, busy, onMainAction)
             }
+            item(key = "adb-setup") { DirectAdbHomeSetupCard() }
             item(key = "cleaning-title") {
                 Text(
                     "Cleaning tools",

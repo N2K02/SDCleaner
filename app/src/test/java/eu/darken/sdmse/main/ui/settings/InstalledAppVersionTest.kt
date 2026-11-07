@@ -23,6 +23,7 @@ class InstalledAppVersionTest {
     @Test
     fun `diagnostics is no longer a supported settings page`() {
         cleanerSettingsTitle("diagnostics") shouldBe null
+        cleanerSettingsTitle("adb-diagnostics") shouldBe "ADB diagnostics"
         cleanerSettingsTitle("about") shouldBe "About"
         cleanerSettingsTitle("updates") shouldBe "Updates"
     }

@@ -41,6 +41,7 @@ import eu.darken.sdmse.corpsefinder.ui.CorpseFinderSettingsRoute
 import eu.darken.sdmse.systemcleaner.ui.SystemCleanerSettingsRoute
 import eu.darken.sdmse.appcleaner.ui.AppCleanerSettingsRoute
 import eu.darken.sdmse.appcleaner.ui.settings.DirectAdbSettingsCard
+import eu.darken.sdmse.appcleaner.ui.settings.DirectAdbDiagnosticsCard
 import eu.darken.sdmse.deduplicator.ui.DeduplicatorSettingsRoute
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 
@@ -87,6 +88,10 @@ fun SettingsScreenHost() {
         )
         CompactSettingsLink("About", "App info and version", Icons.Rounded.Info) {
             nav.goTo(CleanerSettingsRoute("about"))
+        }
+        HorizontalDivider(Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+        CompactSettingsLink("Diagnostics", "ADB shell UID, discovery and transport", Icons.Rounded.MonitorHeart) {
+            nav.goTo(CleanerSettingsRoute("adb-diagnostics"))
         }
         CompactSettingsLink(
             "Updates",
@@ -207,6 +212,7 @@ internal fun cleanerSettingsTitle(section: String): String? = when (section) {
     "appearance" -> "Appearance"
     "tools" -> "Cleaning tools"
     "adb" -> "ADB connection"
+    "adb-diagnostics" -> "ADB diagnostics"
     "updates" -> "Updates"
     "about" -> "About"
     else -> null
@@ -265,6 +271,7 @@ fun CleanerSettingsScreenHost(section: String) {
                 SettingsPreferenceItem(title = "Duplicate files", subtitle = "Find redundant copies for review", icon = Icons.Rounded.ContentCopy, onClick = { nav.goTo(DeduplicatorSettingsRoute) })
             }
             "adb" -> DirectAdbSettingsCard()
+            "adb-diagnostics" -> DirectAdbDiagnosticsCard()
             "appearance" -> AppearanceSettings()
             "about" -> InstalledAppAbout()
         }
@@ -291,6 +298,7 @@ private fun SettingsHeader(title: String, root: Boolean = false) {
                 "Appearance" -> Icons.Rounded.Palette
                 "Cleaning tools" -> Icons.Rounded.CleaningServices
                 "ADB connection" -> Icons.Rounded.SettingsInputAntenna
+                "ADB diagnostics" -> Icons.Rounded.MonitorHeart
                 "Updates" -> Icons.Rounded.SystemUpdate
                 "About" -> Icons.Rounded.Info
                 else -> Icons.Rounded.Settings

@@ -23,7 +23,7 @@ class DirectAdbParityContractTest {
             "discovery.pairingPort",
         )) assertTrue(ui.contains(required), required)
         // Connection port is a diagnostic detail, not a duplicate Settings card.
-        val diagnostics = source("app-tool-appcleaner/src/main/java/eu/darken/sdmse/appcleaner/ui/settings/DirectAdbSettingsCard.kt")
+        val diagnostics = source("app-common-io/src/main/java/eu/darken/sdmse/common/adb/local/DirectAdbRecovery.kt")
         assertTrue(diagnostics.contains("connectionPort"))
         assertTrue(ui.contains("Manual pairing (fallback)"))
         val settings = source("app/src/main/java/eu/darken/sdmse/main/ui/settings/SettingsScreen.kt")

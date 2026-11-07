@@ -20,8 +20,11 @@ class DirectAdbParityContractTest {
             "Auto-detect pairing code", "Connection watchdog", "Start on boot",
             "Restore after restart", "Keep ADB without Wi-Fi (TCP/5555)",
             "status.connected", "status.verifiedUid", "discovery.scanning",
-            "discovery.pairingPort", "discovery.connectionPort",
+            "discovery.pairingPort",
         )) assertTrue(ui.contains(required), required)
+        // Connection port is a diagnostic detail, not a duplicate Settings card.
+        val diagnostics = source("app-tool-appcleaner/src/main/java/eu/darken/sdmse/appcleaner/ui/settings/DirectAdbSettingsCard.kt")
+        assertTrue(diagnostics.contains("connectionPort"))
         assertTrue(ui.contains("Manual pairing (fallback)"))
         val settings = source("app/src/main/java/eu/darken/sdmse/main/ui/settings/SettingsScreen.kt")
         assertTrue(settings.contains("CleanerSettingsRoute(\"adb\")"))

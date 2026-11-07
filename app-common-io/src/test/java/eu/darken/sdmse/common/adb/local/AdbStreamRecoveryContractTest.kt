@@ -1,47 +1,40 @@
 package eu.darken.sdmse.common.adb.local
 
-import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Test
 import java.io.File
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Test
 
-/** A dropped shell must never be reused after native libadb says Stream closed. */
+/** Never resurrect a second libadb manager alongside the shared core. */
 class AdbStreamRecoveryContractTest {
-    private fun source(path: String): String {
-        val candidates = listOf(
-            File("src/main/java/eu/darken/sdmse/common/adb/local/$path"),
-            File("app-common-io/src/main/java/eu/darken/sdmse/common/adb/local/$path")
-        )
-        return candidates.first { it.isFile }.readText()
+    private fun source(name: String): String {
+        val path = "src/main/java/eu/darken/sdmse/common/adb/local/" + name
+        return listOf(File(path), File("app-common-io/" + path)).first { it.isFile }.readText()
     }
 
-    @Test fun `closed stream retires entire connection and clears identity flag`() {
-        val src = source("AdbTransport.kt")
-        val retire = src.substringAfter("fun retire() {").substringBefore("val watchdog")
-        assertTrue(retire.contains("session?.close()"))
-        assertTrue(retire.contains("synchronized(this@AdbTransport)"))
-        assertTrue(retire.contains("if (manager === mgr)"))
-        assertTrue(retire.contains("manager = null"))
-        assertTrue(retire.contains("lastKnownConnected = false"))
-        assertTrue(retire.contains("mgr.disconnect()"))
-        assertTrue(src.contains("private const val SHELL_SERVICE = \"exec:sh\""))
-        assertTrue(src.contains("mutex.withLock"))
+    @Test fun transportHasNoPrivateAdbWire() {
+        val s = source("AdbTransport.kt")
+        assertTrue(s.contains("SharedAdbHostAdapter.current()"))
+        assertTrue(s.contains("core().execVerified(command, timeoutMs)"))
+        for (forbidden in listOf("AbsAdbConnectionManager", "AdbStream",
+            "private var manager", "private var shell", "detached.async"))
+            assertFalse(forbidden, s.contains(forbidden))
     }
 
-    @Test fun `caller cancellation closes the stream instead of waiting for blocking read`() {
-        val src = source("AdbTransport.kt")
-        val body = src.substringAfter("val work = detached.async").substringBefore("/** Owns blocking ADB I/O")
-        assertTrue(body.contains("work.await()"))
-        val cancel = body.substringAfter("catch (e: CancellationException)").substringBefore("catch (t: Throwable)")
-        assertTrue(cancel.contains("retire()"))
-        assertTrue(cancel.contains("throw e"))
+    @Test fun cancelledCleanupRetiresStreamWithoutStickyStop() {
+        val s = source("DirectAdb.kt")
+        assertTrue(s.contains("catch (cancelled: CancellationException)"))
+        assertTrue(s.contains("withContext(NonCancellable) { core.disconnectIdle() }"))
+        assertTrue(s.contains("throw cancelled"))
+        assertTrue(s.contains("core.execVerified(wrapped, timeoutMs)"))
+        assertTrue(s.contains("suspend fun disconnect()"))
+        assertFalse(s.contains("core.stop()"))
     }
 
-    @Test fun `invalid completion marker is a transport failure not an app failure`() {
-        val src = source("DirectAdb.kt")
-        assertTrue(src.contains("if (code == null)"))
-        assertTrue(src.contains("AdbTransport.disconnect()"))
-        assertTrue(src.contains("throw TransportException(if (last == null)"))
-        assertTrue(src.contains("if (error is CancellationException) throw error"))
-        assertTrue(src.contains("status.value = Status(message = \"ADB command stream interrupted\")"))
+    @Test fun invalidCommandCompletionIsFatal() {
+        val s = source("DirectAdb.kt")
+        assertTrue(s.contains("if (code == null || code !in 0..255)"))
+        assertTrue(s.contains("throw TransportException(if (last == null)"))
+        assertTrue(s.contains("lines.filterNot { it.startsWith(tag) }"))
+        assertTrue(s.contains("CommandResult(code,"))
     }
 }

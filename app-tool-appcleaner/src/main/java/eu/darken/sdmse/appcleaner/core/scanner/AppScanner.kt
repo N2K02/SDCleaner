@@ -13,6 +13,7 @@ import eu.darken.sdmse.appcleaner.core.forensics.filter.DefaultCachesPublicFilte
 import eu.darken.sdmse.common.ModeUnavailableException
 import eu.darken.sdmse.common.adb.AdbManager
 import eu.darken.sdmse.common.adb.canUseAdbNow
+import eu.darken.sdmse.common.adb.local.DirectAdbOptions
 import eu.darken.sdmse.common.areas.DataArea
 import eu.darken.sdmse.common.areas.DataAreaManager
 import eu.darken.sdmse.common.areas.currentAreas
@@ -138,7 +139,9 @@ class AppScanner @Inject constructor(
         // Whether a whole-tool clean would issue the device-global ADB cache trim, which carries no
         // package identity and so reaches excluded apps too. Mirrors the skip conditions of
         // `determineInaccessibleCaches(...)` plus ADB availability.
-        val trimBlastRadiusPossible = adbManager.canUseAdbNow()
+        // The embedded direct-ADB client (not Shizuku) issues the trim now.
+        val directAdbUsable = runCatching { DirectAdbOptions.wasAuthorized(context) }.getOrDefault(false)
+        val trimBlastRadiusPossible = (directAdbUsable || adbManager.canUseAdbNow())
             && !rootManager.canUseRootNow()
             && settings.includeInaccessibleEnabled.value()
             && settings.filterDefaultCachesPublicEnabled.value()

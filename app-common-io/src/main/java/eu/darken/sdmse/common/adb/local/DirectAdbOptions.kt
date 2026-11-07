@@ -39,6 +39,15 @@ object DirectAdbOptions {
                 }
             }.apply()
     }
+    /** A verified shell may be authorized before its TLS port is persisted.
+     * Do not fabricate port 5555 or claim a TCP transport here. */
+    fun markAuthorized(context: Context) {
+        prefs(context).edit()
+            .putBoolean("previously_authorized", true)
+            .putLong("verified_at", System.currentTimeMillis())
+            .putInt("verified_boot", boot(context))
+            .apply()
+    }
     fun verifiedAt(context: Context): Long = prefs(context).getLong("verified_at", 0L)
     fun transport(context: Context): String = prefs(context).getString("transport", "None") ?: "None"
     fun tlsPort(context: Context): Int? {

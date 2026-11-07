@@ -5,7 +5,11 @@ import android.os.Build
 import android.util.Log
 import io.github.muntashirakon.adb.AbsAdbConnectionManager
 import io.github.muntashirakon.adb.AdbStream
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -180,64 +184,62 @@ object AdbTransport {
             }
 
             mutex.withLock {
-                runCatching {
-                    // Watching from before the stream is opened: opening one
-                    // can hang too, and then only closing the whole
-                    // connection lets it go.
-                    var session: ShellSession? = shell
-                    // Independent timeout owner: cancellation of the calling
-                    // coroutine must NOT cancel the watchdog while a blocking
-                    // native ADB read is still stuck. Its deadline closes the
-                    // stream, unblocking the worker and allowing resource release.
-                    val watchdog = kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
-                        kotlinx.coroutines.delay(timeoutMs)
-                        // The command's first word only: the daemon's launch
-                        // line carries its token.
-                        Log.w(TAG, "exec: '${command.substringBefore(' ')} ...' timed out after ${timeoutMs}ms")
-                        // A timed-out shell is desynchronized: retire its entire transport.
-                        runCatching { session?.close() }
-                        runCatching { mgr.disconnect() }
-                        synchronized(this@AdbTransport) {
-                            // An older command's watchdog must not tear down
-                            // the newer manager that recovered in the meantime.
-                            if (manager === mgr) {
-                                manager = null
-                                lastKnownConnected = false
-                                shell = null
-                            }
+                // Watching from before the stream is opened: opening one
+                // can hang too, and then only closing the whole
+                // connection lets it go.
+                var session: ShellSession? = shell
+
+                /** A desynchronised/closed shell can poison the whole libadb
+                 *  connection even when isConnected still reports true. */
+                fun retire() {
+                    runCatching { session?.close() }
+                    synchronized(this@AdbTransport) {
+                        // An older command must not tear down a newer manager
+                        // that recovered in the meantime.
+                        if (manager === mgr) {
+                            manager = null
+                            lastKnownConnected = false
+                            shell = null
                         }
                     }
-                    try {
-                        // Include openStream in the try/finally: opening a dead
-                        // native stream may throw before the command can start.
-                        // The watchdog must not survive that exception and later
-                        // disconnect a *new* healthy manager.
-                        session = session ?: ShellSession(mgr.openStream(SHELL_SERVICE)).also { shell = it }
-                        session!!.run(command)
-                    } catch (t: Throwable) {
-                        // A desynchronised session stays desynchronised, and a
-                        // half-read one would mis-attribute the next command's
-                        // output. Drop it; the next call opens a fresh one.
-                        runCatching { session?.close() }
-                        // A closed or desynchronised shell can poison the
-                        // entire libadb connection even when mgr.isConnected
-                        // still reports true. Never reuse that manager for
-                        // the next cleanup run or silently trust its UID.
-                        synchronized(this@AdbTransport) {
-                            if (manager === mgr) {
-                                manager = null
-                                lastKnownConnected = false
-                                shell = null
-                            }
-                        }
-                        runCatching { mgr.disconnect() }
-                        throw t
-                    } finally {
-                        watchdog.cancel()
-                    }
+                    // mgr.disconnect() can wait on libadb's lock; never make the
+                    // cancelling caller (Cancel / Quit) wait for it.
+                    detached.launch { runCatching { mgr.disconnect() } }
+                }
+
+                // Independent timeout owner: its deadline closes the stream,
+                // unblocking a stuck native read.
+                val watchdog = detached.launch {
+                    delay(timeoutMs)
+                    // The command's first word only.
+                    Log.w(TAG, "exec: '${command.substringBefore(' ')} ...' timed out after ${timeoutMs}ms")
+                    retire()
+                }
+                // The read is blocking native I/O that coroutine cancellation
+                // cannot interrupt. Run it detached and *await* it: await() is
+                // cancellable, so Cancel/Quit return immediately and then close
+                // the stream, which wakes the blocked reader.
+                val work = detached.async {
+                    session = session ?: ShellSession(mgr.openStream(SHELL_SERVICE)).also { shell = it }
+                    session!!.run(command)
+                }
+                try {
+                    Result.success(work.await())
+                } catch (e: CancellationException) {
+                    Log.i(TAG, "exec: cancelled by caller; closing ADB stream")
+                    retire()
+                    throw e
+                } catch (t: Throwable) {
+                    retire()
+                    Result.failure(t)
+                } finally {
+                    watchdog.cancel()
                 }
             }
         }
+
+    /** Owns blocking ADB I/O and timeouts, independent of any caller's cancellation. */
+    private val detached = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /**
      * ONE shell stream, reused for every command, because opening one per

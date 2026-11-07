@@ -24,10 +24,10 @@ import testhelpers.BaseTest
 import testhelpers.mockDataStoreValue
 
 /**
- * ADB-only replacement for the legacy global-cache/Accessibility regression
- * tests. Whole-tool cleanup must never target an excluded package; explicit
- * user selections may still target it. A broken stream must never reconnect
- * once per remaining package and must retain their failure records.
+ * Exclusion semantics for the device-wide ADB trim. The trim reaches excluded
+ * apps regardless, so an exclusion-limited junk may be credited when its cache
+ * dropped, but it is never reported as a failed attempt. A broken stream fails
+ * the run once, without per-package reconnects.
  */
 class ExclusionLimitedRegressionTest : BaseTest() {
     private val handle = UserHandle2(handleId = 0)
@@ -56,52 +56,43 @@ class ExclusionLimitedRegressionTest : BaseTest() {
         every { settings.forceStopBeforeClearing } returns mockDataStoreValue(false)
         coEvery { adb.ensureConnected() } returns true
         coJustRun { adb.disconnect() }
+        coEvery { adb.trimCaches() } returns DirectAdb.CommandResult(0, "")
         return InaccessibleDeleter(userManager, adb, cacheProvider, settings)
     }
 
-    @Test fun `whole tool clean does not touch excluded app even when its cache is large`() = runTest {
+    @Test fun `excluded app is never reported as a failed attempt`() = runTest {
         val normal = junk("com.example.normal", bytes = 10_000L)
         val limited = junk("com.example.limited", limited = true, bytes = 100_000L)
         val d = deleter()
-        coEvery { cacheProvider.determineCache(normal.pkg) } returnsMany listOf(
-            normal.inaccessibleCache, normal.inaccessibleCache?.copy(totalSize = 0L, itemCount = 0))
-        coEvery { adb.clearCache("com.example.normal", 0) } returns
-            DirectAdb.CommandResult(0, "Success")
+        coEvery { cacheProvider.determineCache(normal.pkg) } returns normal.inaccessibleCache?.copy(totalSize = 0L)
+        coEvery { cacheProvider.determineCache(limited.pkg) } returns limited.inaccessibleCache
         val result = d.deleteInaccessible(
             AppCleaner.Data(junks = listOf(limited, normal)), null, false, false)
         result.succesful shouldContain normal.identifier
         result.failed shouldNotContainKey limited.identifier
-        coVerify(exactly = 1) { adb.clearCache("com.example.normal", 0) }
-        coVerify(exactly = 0) { adb.clearCache("com.example.limited", any()) }
+        coVerify(exactly = 1) { adb.trimCaches() }
     }
 
-    @Test fun `explicit selection retains ability to clear excluded app cache`() = runTest {
+    @Test fun `explicit selection of an excluded app does not trigger the device-wide trim`() = runTest {
         val limited = junk("com.example.limited", limited = true)
         val d = deleter()
-        coEvery { cacheProvider.determineCache(limited.pkg) } returnsMany listOf(
-            limited.inaccessibleCache, limited.inaccessibleCache?.copy(totalSize = 0L, itemCount = 0))
-        coEvery { adb.clearCache("com.example.limited", 0) } returns
-            DirectAdb.CommandResult(0, "Success")
         val result = d.deleteInaccessible(
             AppCleaner.Data(junks = listOf(limited)), listOf(limited.identifier), false, false)
-        result.succesful shouldContain limited.identifier
-        coVerify(exactly = 1) { adb.clearCache("com.example.limited", 0) }
+        result.failed.containsKey(limited.identifier) shouldBe true
+        coVerify(exactly = 0) { adb.trimCaches() }
     }
 
-    @Test fun `closed stream aborts remaining packages without per-app reconnection loop`() = runTest {
+    @Test fun `closed stream fails the run once without per-app reconnection loop`() = runTest {
         val first = junk("com.example.first", bytes = 80_000L)
         val second = junk("com.example.second", bytes = 40_000L)
         val d = deleter()
-        coEvery { cacheProvider.determineCache(first.pkg) } returns first.inaccessibleCache
-        coEvery { adb.clearCache("com.example.first", 0) } throws
-            DirectAdb.TransportException("Stream closed")
+        coEvery { adb.trimCaches() } throws DirectAdb.TransportException("Stream closed")
         val result = d.deleteInaccessible(
             AppCleaner.Data(junks = listOf(first, second)), null, false, false)
         result.failed.containsKey(first.identifier) shouldBe true
         result.failed.containsKey(second.identifier) shouldBe true
         coVerify(exactly = 1) { adb.ensureConnected() }
-        coVerify(exactly = 1) { adb.clearCache("com.example.first", 0) }
-        coVerify(exactly = 0) { adb.clearCache("com.example.second", any()) }
+        coVerify(exactly = 1) { adb.trimCaches() }
         coVerify(exactly = 1) { adb.disconnect() }
     }
 }

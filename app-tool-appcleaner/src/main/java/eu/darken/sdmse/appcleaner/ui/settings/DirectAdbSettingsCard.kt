@@ -3,6 +3,8 @@ package eu.darken.sdmse.appcleaner.ui.settings
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -44,8 +47,6 @@ import eu.darken.sdmse.common.adb.local.DirectAdb
 import eu.darken.sdmse.common.adb.local.DirectAdbOptions
 import eu.darken.sdmse.common.adb.local.DirectAdbRecovery
 import kotlinx.coroutines.launch
-import java.text.DateFormat
-import java.util.Date
 import javax.inject.Inject
 
 @HiltViewModel
@@ -78,170 +79,213 @@ class DirectAdbSettingsViewModel @Inject constructor(
         viewModelScope.launch { adb.connectTls(port.toIntOrNull() ?: -1) }
     fun reconnect() = recovery.enterSettings()
     fun disconnect() = recovery.manualDisconnect()
+    fun disableTcp() {
+        DirectAdbOptions.set(app, DirectAdbOptions.Option.TCP_5555, false)
+        recovery.disableTcp()
+    }
 }
 
+/**
+ * Mirrors VRec Settings > ADB connection: only the five recovery/security choices.
+ * First-time pairing lives on Home; connection details belong to Diagnostics.
+ */
 @Composable
 fun DirectAdbSettingsCard(vm: DirectAdbSettingsViewModel = hiltViewModel()) {
     val context = LocalContext.current
     val status by vm.status.collectAsStateWithLifecycle()
-    val discovery by vm.discovery.collectAsStateWithLifecycle()
     DisposableEffect(vm) {
         vm.enterSettings()
         onDispose { vm.leaveSettings() }
     }
-    var manualSetup by remember { mutableStateOf(false) }
-    var pairingPort by remember { mutableStateOf("") }
-    var pairingCode by remember { mutableStateOf("") }
-    var connectPort by remember { mutableStateOf("") }
+
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    var resumeTick by remember { mutableIntStateOf(0) }
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) resumeTick++
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    val accessibilityEnabled = remember(resumeTick) {
+        runCatching {
+            Settings.Secure.getString(context.contentResolver,
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
+                .contains("DirectAdbPairingAccessibilityService", ignoreCase = true)
+        }.getOrDefault(false)
+    }
     var autoPair by remember { mutableStateOf(vm.enabled(DirectAdbOptions.Option.AUTO_PAIR)) }
-    val enabledServices = runCatching {
-        Settings.Secure.getString(context.contentResolver,
-            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
-    }.getOrDefault("")
-    val accessibilityEnabled = enabledServices.contains(
-        "DirectAdbPairingAccessibilityService", ignoreCase = true)
+    var securityNote by remember { mutableStateOf("") }
+    var tcpRefresh by remember { mutableIntStateOf(0) }
 
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Card(modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    androidx.compose.material3.Icon(Icons.Rounded.Info, contentDescription = null)
-                    Text("ADB connection", style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold)
-                }
-                Text(
-                    when {
-                        status.connected && status.verifiedUid == 2000 -> "Shell UID 2000 verified • Connected"
-                        vm.pairedPreviously() -> "Previously authorized • Disconnected"
-                        else -> "ADB setup required"
-                    },
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-                Text(status.message, style = MaterialTheme.typography.bodySmall)
-                Text("Transport: " + if (status.connected) status.transport else vm.previousTransport(),
-                    style = MaterialTheme.typography.bodySmall)
-                Text("Last verified: " + vm.lastVerifiedAt().let {
-                    if (it > 0) DateFormat.getDateTimeInstance(DateFormat.SHORT,
-                        DateFormat.SHORT).format(Date(it)) else "Never"
-                }, style = MaterialTheme.typography.bodySmall)
-                Text("Discovery: " + if (discovery.scanning) "Scanning" else "Idle",
-                    style = MaterialTheme.typography.bodySmall)
-                Text("Pairing port: " + (discovery.pairingPort?.toString() ?: "Not detected") +
-                    " • Connection port: " + (discovery.connectionPort?.toString() ?: "Not detected"),
-                    style = MaterialTheme.typography.bodySmall)
-                Text(discovery.message, style = MaterialTheme.typography.bodySmall,
+        DirectAdbSettingSection("Pairing & recovery") {
+            DirectAdbSettingRow(
+                title = "Auto-detect pairing code",
+                detail = "Read the Android pairing dialog with Accessibility.",
+                option = DirectAdbOptions.Option.AUTO_PAIR, vm = vm,
+                onChange = { autoPair = it },
+            )
+            if (autoPair && !accessibilityEnabled) {
+                Text("Accessibility is needed for automatic pairing. Manual pairing is on Home.",
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = vm::reconnect) { Text("Retry") }
-                    OutlinedButton(onClick = vm::disconnect) { Text("Disconnect") }
-                }
+                OutlinedButton(onClick = {
+                    runCatching {
+                        context.startActivity(
+                            Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    }.onFailure { securityNote = "Unable to open Accessibility settings." }
+                }) { Text("Enable Accessibility") }
+            }
+            HorizontalDivider()
+            DirectAdbSettingRow(
+                title = "Connection watchdog",
+                detail = "Check connection health and recover automatically when possible.",
+                option = DirectAdbOptions.Option.WATCHDOG, vm = vm,
+            )
+            DirectAdbSettingRow(
+                title = "Start on boot",
+                detail = "Try to restore the helper after restarting and unlocking.",
+                option = DirectAdbOptions.Option.START_ON_BOOT, vm = vm,
+            )
+        }
+        DirectAdbSettingSection("Connection & security") {
+            DirectAdbSettingRow(
+                title = "Restore after restart",
+                detail = "Restore Wireless debugging after reboot, using saved pairing. " +
+                    "Requires Android permission; never overrides a manual off setting.",
+                option = DirectAdbOptions.Option.RESTORE_AFTER_RESTART, vm = vm,
+                onChange = { enabled ->
+                    securityNote = if (enabled) "Restore requested. Android permission is applied after a verified ADB connection."
+                        else "Restore after restart is off. Optional permission revocation requested."
+                },
+            )
+            DirectAdbSettingRow(
+                title = "Keep ADB without Wi-Fi (TCP/5555)",
+                detail = "Keeps ADB available without Wi-Fi. TCP/5555 may be " +
+                    "reachable by devices on your network.",
+                option = DirectAdbOptions.Option.TCP_5555, vm = vm,
+                refreshKey = tcpRefresh,
+                onChange = { enabled ->
+                    securityNote = if (enabled) "Automatic TCP/5555 enabled for the next verified connection."
+                        else "Automatic TCP/5555 disabled; requested closure of the existing listener."
+                },
+            )
+            if (status.connected && status.verifiedUid == 2000 &&
+                status.transport == "Local TCP/5555") {
+                OutlinedButton(
+                    onClick = {
+                        vm.disableTcp()
+                        tcpRefresh++ // Explicit action also refreshes the TCP preference switch.
+                        securityNote = "Requested TCP/5555 shutdown. Verify the connection status before relying on closure."
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Disable TCP/5555") }
+            }
+            if (securityNote.isNotBlank()) {
+                Text(securityNote, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        Card(modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-            Column(Modifier.fillMaxWidth().padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    androidx.compose.material3.Icon(Icons.Rounded.SettingsInputAntenna,
-                        contentDescription = null)
-                    Text("Pairing & recovery", style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold)
-                }
-                DirectAdbSettingRow(
-                    title = "Auto-detect pairing code",
-                    detail = "Read only Android Settings' Wireless debugging pairing dialog.",
-                    option = DirectAdbOptions.Option.AUTO_PAIR, vm = vm,
-                    onChange = { autoPair = it },
-                )
-                if (autoPair && !accessibilityEnabled) {
-                    Text("Accessibility is needed only to read Android's pairing code. " +
-                        "It is never used to automate cache cleaning.",
-                        style = MaterialTheme.typography.bodySmall)
-                    OutlinedButton(onClick = {
-                        runCatching {
-                            context.startActivity(
-                                Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                        }
-                    }) { Text("Enable Accessibility") }
-                }
-                HorizontalDivider()
-                DirectAdbSettingRow(
-                    title = "Connection watchdog",
-                    detail = "Check connection health and recover automatically when possible.",
-                    option = DirectAdbOptions.Option.WATCHDOG, vm = vm,
-                )
-                DirectAdbSettingRow(
-                    title = "Start on boot",
-                    detail = "Attempt authorized ADB recovery after restart.",
-                    option = DirectAdbOptions.Option.START_ON_BOOT, vm = vm,
-                )
+    }
+}
+
+/** First-time authorization and explicit manual pairing fallback live on Home, like VRec. */
+@Composable
+fun DirectAdbHomeSetupCard(vm: DirectAdbSettingsViewModel = hiltViewModel()) {
+    val context = LocalContext.current
+    val status by vm.status.collectAsStateWithLifecycle()
+    val discovery by vm.discovery.collectAsStateWithLifecycle()
+    // Lifecycle is owned by CleanerHome, not this LazyColumn item.
+    var manualSetup by remember { mutableStateOf(false) }
+    var pairingPort by remember { mutableStateOf("") }
+    var pairingCode by remember { mutableStateOf("") }
+    var connectPort by remember { mutableStateOf("") }
+    var note by remember { mutableStateOf("") }
+
+    DirectAdbSettingSection("ADB setup") {
+        val verified = status.connected && status.verifiedUid == 2000
+        Text(if (verified) "Connected • shell UID 2000 verified" else
+            if (vm.pairedPreviously()) "Previously authorized • reconnecting or needs verification"
+            else "ADB setup required • shell UID 2000 not verified",
+            style = MaterialTheme.typography.bodyLarge)
+        if (verified) {
+            Text("ADB is ready for authorized cache cleaning.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            Text("Enable Wireless debugging and USB debugging in Developer options. " +
+                "Pair with this phone once; automatic recovery can reconnect later.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(status.message, style = MaterialTheme.typography.bodySmall)
+            Text("Discovery: " + (if (discovery.scanning) "Scanning" else "Idle") +
+                " • Pairing port: " + (discovery.pairingPort?.toString() ?: "Not detected"),
+                style = MaterialTheme.typography.bodySmall)
+            OutlinedButton(onClick = {
+                runCatching {
+                    context.startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                }.onFailure { note = "Unable to open Developer options." }
+            }, modifier = Modifier.fillMaxWidth()) { Text("Open Developer options") }
+            OutlinedButton(onClick = vm::reconnect, modifier = Modifier.fillMaxWidth()) {
+                Text("Find / Retry")
             }
-        }
-        Card(modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-            Column(Modifier.fillMaxWidth().padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    androidx.compose.material3.Icon(Icons.Rounded.Security, contentDescription = null)
-                    Text("Connection & security", style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold)
-                }
-                DirectAdbSettingRow(
-                    title = "Restore after restart",
-                    detail = "Restore Wireless debugging using saved authorization, when permitted by Android.",
-                    option = DirectAdbOptions.Option.RESTORE_AFTER_RESTART, vm = vm,
-                )
-                DirectAdbSettingRow(
-                    title = "Keep ADB without Wi-Fi (TCP/5555)",
-                    detail = "TCP/5555 may be reachable from your network. Disable it when not needed.",
-                    option = DirectAdbOptions.Option.TCP_5555, vm = vm,
-                )
+            OutlinedButton(onClick = { manualSetup = !manualSetup }, modifier = Modifier.fillMaxWidth()) {
+                Text(if (manualSetup) "Hide manual pairing" else "Manual pairing (fallback)")
             }
-        }
-        OutlinedButton(onClick = { manualSetup = !manualSetup }) {
-            Text(if (manualSetup) "Hide manual pairing" else "Manual pairing (fallback)")
-        }
-        if (manualSetup) {
-            Card(modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-                Column(Modifier.fillMaxWidth().padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Manual Wireless debugging setup",
-                        style = MaterialTheme.typography.titleMedium)
-                    OutlinedButton(onClick = {
-                        runCatching {
-                            context.startActivity(
-                                Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
-                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                        }
-                    }) { Text("Open Developer options") }
-                    OutlinedTextField(pairingPort,
-                        { pairingPort = it.filter(Char::isDigit).take(5) },
-                        label = { Text("Pairing port") }, singleLine = true)
-                    OutlinedTextField(pairingCode,
-                        { pairingCode = it.filter(Char::isDigit).take(6) },
-                        label = { Text("Six-digit pairing code") }, singleLine = true)
-                    Button(onClick = { vm.pair(pairingPort, pairingCode) }) {
-                        Text("Pair")
-                    }
-                    OutlinedTextField(connectPort,
-                        { connectPort = it.filter(Char::isDigit).take(5) },
-                        label = { Text("Wireless debugging connection port") },
-                        singleLine = true)
-                    Button(onClick = { vm.connectTls(connectPort) }) {
-                        Text("Connect")
-                    }
-                }
+            if (manualSetup) {
+                Text("Use the pairing and connection ports shown by Android Wireless debugging.",
+                    style = MaterialTheme.typography.bodySmall)
+                OutlinedTextField(
+                    value = pairingPort,
+                    onValueChange = { pairingPort = it.filter(Char::isDigit).take(5) },
+                    label = { Text("Pairing port") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = pairingCode,
+                    onValueChange = { pairingCode = it.filter(Char::isDigit).take(6) },
+                    label = { Text("Six-digit pairing code") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Button(onClick = { vm.pair(pairingPort, pairingCode) },
+                    enabled = pairingPort.toIntOrNull() in 1..65535 && pairingCode.length == 6,
+                    modifier = Modifier.fillMaxWidth()) { Text("Pair") }
+                OutlinedTextField(
+                    value = connectPort,
+                    onValueChange = { connectPort = it.filter(Char::isDigit).take(5) },
+                    label = { Text("Wireless debugging connection port") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Button(onClick = { vm.connectTls(connectPort) },
+                    enabled = connectPort.toIntOrNull() in 1..65535,
+                    modifier = Modifier.fillMaxWidth()) { Text("Connect") }
             }
+            if (note.isNotBlank()) Text(note, style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error)
+        }
+    }
+}
+
+@Composable
+private fun DirectAdbSettingSection(title: String, content: @Composable () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Column(Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            content()
         }
     }
 }
@@ -253,16 +297,21 @@ private fun DirectAdbSettingRow(
     option: DirectAdbOptions.Option,
     vm: DirectAdbSettingsViewModel,
     onChange: ((Boolean) -> Unit)? = null,
+    refreshKey: Int = 0,
 ) {
-    var checked by remember(option) { mutableStateOf(vm.enabled(option)) }
-    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp),
+    var checked by remember(option, refreshKey) { mutableStateOf(vm.enabled(option)) }
+    Row(Modifier.fillMaxWidth().clickable {
+        val next = !checked
+        checked = next
+        vm.set(option, next)
+        onChange?.invoke(next)
+    },
         verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(Modifier.weight(1f).padding(end = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
             Text(detail, style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Spacer(Modifier.width(12.dp))
         Switch(checked = checked, onCheckedChange = {
             checked = it
             vm.set(option, it)

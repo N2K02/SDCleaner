@@ -97,7 +97,7 @@ class DirectAdbRecovery @Inject constructor(
             return
         }
         // Only a local listener is accepted; no TCP probes outside this phone.
-        if (adb.connectTcp()) {
+        if (DirectAdbOptions.get(app, DirectAdbOptions.Option.TCP_5555) && adb.connectTcp()) {
             stopDiscovery()
             synchronizeRestartPermission()
             return

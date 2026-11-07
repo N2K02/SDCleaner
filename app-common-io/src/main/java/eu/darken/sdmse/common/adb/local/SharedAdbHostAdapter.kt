@@ -38,7 +38,7 @@ internal object SharedAdbHostAdapter {
         }
         override fun wasAuthorized() = DirectAdbOptions.wasAuthorized(app)
         override fun setAuthorized() {
-            DirectAdbOptions.rememberAuthorized(app, DirectAdbOptions.tlsPort(app) ?: 5555)
+            DirectAdbOptions.markAuthorized(app)
         }
     }
 }

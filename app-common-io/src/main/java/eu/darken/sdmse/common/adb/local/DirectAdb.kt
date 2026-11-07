@@ -2,6 +2,7 @@ package eu.darken.sdmse.common.adb.local
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.n2k02.adb.core.AdbCore
 import dev.n2k02.adb.core.AdbTransportMode
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -37,8 +38,8 @@ class DirectAdb @Inject constructor(@ApplicationContext private val context: Con
     }
 
     val status = MutableStateFlow(Status())
-    val sharedCore = SharedAdbHostAdapter.core(context)
-    private val core get() = sharedCore
+    val sharedCore: AdbCore = SharedAdbHostAdapter.core(context)
+    private val core: AdbCore get() = sharedCore
     private val observer = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     init {
@@ -124,7 +125,8 @@ class DirectAdb @Inject constructor(@ApplicationContext private val context: Con
                 "ADB stream lost command exit marker" else
                 "ADB stream returned malformed exit marker")
         }
-        return CommandResult(code, lines.filterNot { it.startsWith(tag) }.joinToString("\n").trim())
+        val confirmedCode: Int = code ?: throw TransportException("ADB exit status missing")
+        return CommandResult(confirmedCode, lines.filterNot { it.startsWith(tag) }.joinToString("\n").trim())
     }
 
     suspend fun trimCaches(): CommandResult =

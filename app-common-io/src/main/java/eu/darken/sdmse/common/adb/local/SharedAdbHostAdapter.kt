@@ -43,7 +43,9 @@ internal object SharedAdbHostAdapter {
                 val granted = app.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
                 if (enabled == granted) return
                 val pkg = app.packageName.takeIf {
-                    DirectAdb.validPackage(it)
+                    it.length <= 255 && it.matches(
+                        Regex("[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+")
+                    )
                 } ?: return
                 val operation = if (enabled) "grant" else "revoke"
                 // The core schedules verification callbacks after releasing its mutex.

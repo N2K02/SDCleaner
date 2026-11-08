@@ -21,7 +21,6 @@ class SpaceMonitorControl @Inject constructor(
     @AppScope private val appScope: CoroutineScope,
     // Resolved on use, not at construction: resolving WorkManager initializes it (Room database, trackers).
     private val workManager: Provider<WorkManager>,
-    private val spaceTracker: SpaceTracker,
 ) {
 
     private val started = AtomicBoolean(false)

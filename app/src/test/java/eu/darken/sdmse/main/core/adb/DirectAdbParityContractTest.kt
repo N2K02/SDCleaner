@@ -53,6 +53,15 @@ class DirectAdbParityContractTest {
         assertTrue(opts.contains("option != Option.RESTORE_AFTER_RESTART"))
     }
 
+    @Test fun bootWorkerCannotDisconnectForegroundAdbSession() {
+        val worker = source("app/src/main/java/eu/darken/sdmse/main/core/adb/DirectAdbBootWorker.kt")
+        val recovery = source("app-common-io/src/main/java/eu/darken/sdmse/common/adb/local/DirectAdbRecovery.kt")
+        assertTrue(recovery.contains("fun isSettingsVisible(): Boolean = visible"))
+        assertTrue(worker.contains("if (!recovery.isSettingsVisible())"))
+        assertTrue(worker.contains("withTimeoutOrNull(5_000L) { adb.disconnect() }"))
+        assertTrue(worker.contains("withContext(NonCancellable)"))
+    }
+
     @Test fun cleanupCommandsMustReverifyUidAndDisconnectTransiently() {
         val wire = source("app-common-io/src/main/java/eu/darken/sdmse/common/adb/local/AdbTransport.kt")
         val direct = source("app-common-io/src/main/java/eu/darken/sdmse/common/adb/local/DirectAdb.kt")

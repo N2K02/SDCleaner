@@ -10,6 +10,7 @@ import eu.darken.sdmse.common.debug.logging.log
 import eu.darken.sdmse.common.debug.logging.logTag
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Provider
@@ -23,13 +24,14 @@ class SpaceMonitorControl @Inject constructor(
     private val spaceTracker: SpaceTracker,
 ) {
 
+    private val started = AtomicBoolean(false)
+
     fun start() {
+        if (!started.compareAndSet(false, true)) return
         log(TAG, VERBOSE) { "start()" }
 
-        appScope.launch {
-            spaceTracker.recordSnapshot()
-        }
-
+        // The periodic worker owns storage snapshots. Process creation can be triggered by
+        // background receivers or widget updates; avoid a redundant disk/storage read each time.
         appScope.launch {
             val workRequest = PeriodicWorkRequestBuilder<SpaceMonitorWorker>(
                 INTERVAL_HOURS,

@@ -41,6 +41,17 @@ class DirectAdbParityContractTest {
         assertFalse(recovery.contains("fun submitPairingCode("))
     }
 
+    @Test fun openingSettingsCannotUndoExplicitManualStop() {
+        val recovery = source("DirectAdbRecovery.kt")
+        val enterSettings = recovery.substringAfter("@Synchronized fun enterSettings()")
+            .substringBefore("fun onSettingsChanged()")
+        assertTrue(enterSettings.contains("core.enterPage()"))
+        assertTrue(enterSettings.contains("if (!DirectAdbOptions.stopRequested(app))"))
+        assertTrue(enterSettings.contains("core.retry(auto = true)"))
+        assertFalse(enterSettings.contains("markStopped(app, false)"))
+        assertFalse(enterSettings.contains("core.retry(auto = false)"))
+    }
+
     @Test fun shellCommandsRequireFreshUidAndMalformedMarkersRetireTheSession() {
         val direct = source("DirectAdb.kt")
         assertTrue(direct.contains("core.execVerified(wrapped, timeoutMs)"))

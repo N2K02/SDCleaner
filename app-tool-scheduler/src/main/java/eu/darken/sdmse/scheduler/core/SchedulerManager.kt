@@ -311,6 +311,14 @@ class SchedulerManager @Inject constructor(
         }
     }
 
+    /** Wait for boot/update schedule reconciliation instead of holding the receiver for a fixed delay.
+     *  WorkManager's unique-work and [workGate] checks keep this idempotent alongside the
+     *  init-time observer and a finishing worker.
+     */
+    suspend fun reconcileSchedules() {
+        state.first().schedules.forEach { it.checkSchedulingState() }
+    }
+
     suspend fun getSchedule(scheduleId: ScheduleId): Schedule? {
         return state.first().schedules.singleOrNull { it.id == scheduleId }
     }

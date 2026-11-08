@@ -72,6 +72,9 @@ class DirectAdbRecovery @Inject constructor(
         }
     }
 
+    /** A boot worker must not close ADB after Settings takes foreground ownership. */
+    fun isSettingsVisible(): Boolean = visible
+
     /** LeaveSettings is idempotent and never cancels another service's ADB. */
     @Synchronized fun leaveSettings() {
         if (!visible) return

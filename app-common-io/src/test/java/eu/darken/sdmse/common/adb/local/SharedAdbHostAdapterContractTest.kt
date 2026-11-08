@@ -11,7 +11,7 @@ class SharedAdbHostAdapterContractTest {
         }
         val build = module.resolve("build.gradle.kts").readText()
         val s = module.resolve("src/main/java/eu/darken/sdmse/common/adb/local/SharedAdbHostAdapter.kt").readText()
-        assertTrue(build.contains("dev.n2k02:adb-core:0.1.5"))
+        assertTrue(build.contains("dev.n2k02:adb-core:0.1.6"))
         for (required in listOf("AdbIdentity.getOrCreate(ctx)",
             "DirectAdbOptions.stopRequested(app)", "DirectAdbOptions.tlsPort(app)",
             "DirectAdbOptions.markAuthorized(app)", "AdbCoreRegistry.install(it)",

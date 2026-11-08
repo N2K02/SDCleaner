@@ -2,8 +2,8 @@ import kotlinx.kover.gradle.plugin.dsl.KoverProjectExtension
 
 plugins {
     id("projectConfig")
-    id("com.google.devtools.ksp") version "2.3.6" apply false
-    id("org.jetbrains.kotlin.plugin.compose") version "2.2.10" apply false
+    id("com.google.devtools.ksp") version "2.3.10" apply false
+    id("org.jetbrains.kotlin.plugin.compose") version "2.4.21" apply false
     id("com.android.compose.screenshot") version "0.0.1-alpha15" apply false
 }
 
@@ -26,7 +26,7 @@ allprojects {
         google()
         mavenCentral()
         maven { setUrl("https://jitpack.io") }
-        listOf("n2k02theme", "n2k02updater").forEach { library ->
+        listOf("n2k02theme", "n2k02updater", "n2k02AdbCoreLibrary").forEach { library ->
             maven {
                 url = uri("https://maven.pkg.github.com/N2K02/$library")
                 credentials {

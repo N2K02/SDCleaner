@@ -50,7 +50,10 @@ class DirectAdbBootWorker @AssistedInject constructor(
         } finally {
             // Boot recovery is a one-shot connection test, never an idle daemon.
             withContext(NonCancellable) {
-                withTimeoutOrNull(5_000L) { adb.disconnect() }
+                // The user may have opened Settings during this boot recovery.
+                // Only a worker-owned, unobserved connection may be retired.
+                if (!recovery.isSettingsVisible())
+                    withTimeoutOrNull(5_000L) { adb.disconnect() }
             }
         }
         return Result.success()

@@ -1,39 +1,40 @@
 package eu.darken.sdmse.common.adb.local
 
-import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Test
 import java.io.File
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Test
 
-/** A dropped shell must never be reused after native libadb says Stream closed. */
+/** Never resurrect a second libadb manager alongside the shared core. */
 class AdbStreamRecoveryContractTest {
-    private fun source(path: String): String {
-        val candidates = listOf(
-            File("src/main/java/eu/darken/sdmse/common/adb/local/$path"),
-            File("app-common-io/src/main/java/eu/darken/sdmse/common/adb/local/$path")
-        )
-        return candidates.first { it.isFile }.readText()
+    private fun source(name: String): String {
+        val path = "src/main/java/eu/darken/sdmse/common/adb/local/" + name
+        return listOf(File(path), File("app-common-io/" + path)).first { it.isFile }.readText()
     }
 
-    @Test fun `closed stream retires entire connection and clears identity flag`() {
-        val src = source("AdbTransport.kt")
-        val failed = src.substringAfter("// A desynchronised session stays desynchronised")
-            .substringBefore("throw t")
-        assertTrue(failed.contains("session?.close()"))
-        assertTrue(failed.contains("synchronized(this@AdbTransport)"))
-        assertTrue(failed.contains("if (manager === mgr)"))
-        assertTrue(failed.contains("manager = null"))
-        assertTrue(failed.contains("lastKnownConnected = false"))
-        assertTrue(failed.contains("mgr.disconnect()"))
-        assertTrue(src.contains("private const val SHELL_SERVICE = \"exec:sh\""))
-        assertTrue(src.contains("mutex.withLock"))
+    @Test fun transportHasNoPrivateAdbWire() {
+        val s = source("AdbTransport.kt")
+        assertTrue(s.contains("SharedAdbHostAdapter.current()"))
+        assertTrue(s.contains("core().execVerified(command, timeoutMs)"))
+        for (forbidden in listOf("AbsAdbConnectionManager", "AdbStream",
+            "private var manager", "private var shell", "detached.async"))
+            assertFalse(s.contains(forbidden), forbidden)
     }
 
-    @Test fun `invalid completion marker is a transport failure not an app failure`() {
-        val src = source("DirectAdb.kt")
-        assertTrue(src.contains("if (code == null)"))
-        assertTrue(src.contains("AdbTransport.disconnect()"))
-        assertTrue(src.contains("throw TransportException(if (last == null)"))
-        assertTrue(src.contains("if (error is CancellationException) throw error"))
-        assertTrue(src.contains("status.value = Status(message = \"ADB command stream interrupted\")"))
+    @Test fun cancelledCleanupRetiresStreamWithoutStickyStop() {
+        val s = source("DirectAdb.kt")
+        assertTrue(s.contains("catch (cancelled: CancellationException)"))
+        assertTrue(s.contains("withContext(NonCancellable) { core.disconnectIdle() }"))
+        assertTrue(s.contains("throw cancelled"))
+        assertTrue(s.contains("core.execVerified(wrapped, timeoutMs)"))
+        assertTrue(s.contains("suspend fun disconnect()"))
+        assertFalse(s.contains("core.stop()"))
+    }
+
+    @Test fun invalidCommandCompletionIsFatal() {
+        val s = source("DirectAdb.kt")
+        assertTrue(s.contains("if (code == null || code !in 0..255)"))
+        assertTrue(s.contains("throw TransportException(if (last == null)"))
+        assertTrue(s.contains("lines.filterNot { it.startsWith(tag) }"))
+        assertTrue(s.contains("CommandResult(confirmedCode,"))
     }
 }

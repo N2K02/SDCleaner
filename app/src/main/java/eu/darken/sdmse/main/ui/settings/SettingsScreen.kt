@@ -88,6 +88,7 @@ fun SettingsScreenHost() {
         CompactSettingsLink("About", "App info and version", Icons.Rounded.Info) {
             nav.goTo(CleanerSettingsRoute("about"))
         }
+        HorizontalDivider(Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
         CompactSettingsLink(
             "Updates",
             if (status.hasPendingUpdate()) "A new update is available" else "Check for app updates",
@@ -243,7 +244,7 @@ private fun InstalledAppAbout() {
 @Composable
 fun CleanerSettingsScreenHost(section: String) {
     val title = cleanerSettingsTitle(section)
-    // Saved back stacks from older builds may still contain "diagnostics".
+    // Saved back stacks from older builds may still contain removed diagnostics routes.
     // Navigate those users to real Settings rather than recreating a removed page.
     if (title == null) {
         SettingsScreenHost()

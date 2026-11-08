@@ -157,7 +157,6 @@ internal fun AppCleanerSettingsScreen(
     onFilterViberChanged: (Boolean) -> Unit = {},
     onFilterMobileQQChanged: (Boolean) -> Unit = {},
     onHelp: () -> Unit = {},
-    adbSetupCard: @Composable () -> Unit = {},
 ) {
     var showSizeDialog by remember { mutableStateOf(false) }
     var showAgeDialog by remember { mutableStateOf(false) }
@@ -221,7 +220,6 @@ internal fun AppCleanerSettingsScreen(
             modifier = Modifier.fillMaxSize(),
             contentPadding = paddingValues,
         ) {
-            item { adbSetupCard() }
             item {
                 SettingsSwitchItem(
                     icon = Icons.TwoTone.Apps,

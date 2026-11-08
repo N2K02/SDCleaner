@@ -18,6 +18,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.CompletableDeferred
@@ -461,8 +462,12 @@ class TaskManagerTest : BaseTest() {
             // task-map intentionally retains the latest result; that must not hold
             // any of its previous keep-alive leases or start a foreground monitor.
             repeat(3) {
-                manager.submit(task, notifyOnFinish = false, cancelOnCallerCancellation = true)
-                    .shouldBeSameInstanceAs(taskResult)
+                // Submit from a real dispatcher like a CoroutineWorker does. The scoped lease
+                // acquisition is bounded by withTimeout; on the virtual-time test dispatcher an
+                // idle scheduler jumps that 10s instantly while the lease is taken on IO.
+                withContext(Dispatchers.IO) {
+                    manager.submit(task, notifyOnFinish = false, cancelOnCallerCancellation = true)
+                }.shouldBeSameInstanceAs(taskResult)
                 val idle = manager.state.first { state ->
                     state.tasks.isNotEmpty() && state.isIdle
                 }

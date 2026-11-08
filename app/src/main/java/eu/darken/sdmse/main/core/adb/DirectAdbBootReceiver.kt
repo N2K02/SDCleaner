@@ -21,7 +21,7 @@ class DirectAdbBootReceiver : BroadcastReceiver() {
 
         WorkManager.getInstance(app).enqueueUniqueWork(
             WORK_NAME,
-            ExistingWorkPolicy.REPLACE,
+            ExistingWorkPolicy.KEEP,
             OneTimeWorkRequestBuilder<DirectAdbBootWorker>()
                 .setInitialDelay(5, TimeUnit.SECONDS)
                 .build(),

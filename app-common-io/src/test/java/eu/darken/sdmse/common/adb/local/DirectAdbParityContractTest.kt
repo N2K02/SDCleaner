@@ -29,7 +29,7 @@ class DirectAdbParityContractTest {
         val recovery = source("DirectAdbRecovery.kt")
         for (text in listOf("SharedAdbHostAdapter.core(app)", "core.enterPage()",
             "core.leavePage()", "core.acquireService()", "core.releaseService()",
-            "core.startAfterBoot()", "core.retry(auto = true)", "core.pair(port, code)"))
+            "core.startAfterBoot()", "core.retry(auto = true)"))
             assertTrue(recovery.contains(text), text)
         for (forbidden in listOf("NsdManager", "NetworkInterface", "WifiManager",
             "startDiscovery()", "delay(120_000L)"))
@@ -37,6 +37,8 @@ class DirectAdbParityContractTest {
         val adapter = source("SharedAdbHostAdapter.kt")
         assertTrue(adapter.contains("LocalAdbDiscovery(app)"))
         assertTrue(adapter.contains("AdbCoreRegistry.install(it)"))
+        // Pairing codes are captured only by the shared Accessibility reader.
+        assertFalse(recovery.contains("fun submitPairingCode("))
     }
 
     @Test fun shellCommandsRequireFreshUidAndMalformedMarkersRetireTheSession() {

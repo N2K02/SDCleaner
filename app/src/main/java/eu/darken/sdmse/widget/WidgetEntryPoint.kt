@@ -12,4 +12,5 @@ import dagger.hilt.components.SingletonComponent
 @InstallIn(SingletonComponent::class)
 interface WidgetEntryPoint {
     fun widgetDataProvider(): WidgetDataProvider
+    fun widgetRefreshCoordinator(): WidgetRefreshCoordinator
 }

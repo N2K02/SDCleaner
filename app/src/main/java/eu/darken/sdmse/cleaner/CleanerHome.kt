@@ -27,7 +27,6 @@ import eu.darken.sdmse.main.core.SDMTool
 import eu.darken.sdmse.main.ui.dashboard.BottomBarState
 import eu.darken.sdmse.main.ui.dashboard.DashboardViewModel
 import eu.darken.sdmse.main.ui.dashboard.cards.*
-import eu.darken.sdmse.appcleaner.ui.settings.DirectAdbHomeSetupCard
 import eu.darken.sdmse.appcleaner.ui.settings.DirectAdbSettingsViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import java.time.Instant
@@ -100,9 +99,8 @@ internal fun CleanerHome(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item(key = "storage-overview") {
-                DeviceStorageCard(bottomBarState, busy, onMainAction)
+                DeviceStorageCard(bottomBarState, busy, onMainAction, adbVm)
             }
-            item(key = "adb-setup") { DirectAdbHomeSetupCard(vm = adbVm) }
             item(key = "cleaning-title") {
                 Text(
                     "Cleaning tools",
@@ -143,7 +141,10 @@ private fun DeviceStorageCard(
     state: BottomBarState?,
     busy: Boolean,
     onMainAction: () -> Unit,
+    adbVm: DirectAdbSettingsViewModel,
 ) {
+    val adbStatus by adbVm.status.collectAsState()
+    val shellVerified = adbStatus.connected && adbStatus.verifiedUid == 2000
     val context = LocalContext.current
     // Re-read when the cleaning action enters or exits WORKING so freed space is reflected.
     val usage = remember(busy) { readDeviceStorage() }
@@ -183,7 +184,28 @@ private fun DeviceStorageCard(
                 }
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Device storage", style = MaterialTheme.typography.titleMedium)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text("Device storage", style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.weight(1f))
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = if (shellVerified) Color(0xFF1E5943)
+                                else MaterialTheme.colorScheme.surfaceContainerHighest,
+                        ) {
+                            Text(
+                                if (shellVerified) "UID 2000 ✓" else "ADB offline",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (shellVerified) Color(0xFF9CE9BE)
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                maxLines = 1,
+                            )
+                        }
+                    }
                     Spacer(Modifier.height(6.dp))
                     Text(
                         usage?.let {

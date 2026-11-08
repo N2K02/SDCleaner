@@ -54,10 +54,12 @@ class DirectAdbRecovery @Inject constructor(
     @Synchronized fun enterSettings() {
         if (!visible) {
             visible = true
-            DirectAdbOptions.markStopped(app, false)
+            // Opening Settings must not clear the user's explicit Stop choice.
             core.enterPage()
         }
-        scope.launch { core.retry(auto = false) }
+        if (!DirectAdbOptions.stopRequested(app)) {
+            scope.launch { core.retry(auto = true) }
+        }
     }
 
     fun onSettingsChanged() {

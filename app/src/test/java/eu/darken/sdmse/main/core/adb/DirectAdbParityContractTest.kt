@@ -21,7 +21,10 @@ class DirectAdbParityContractTest {
         assertTrue(settings.contains("CleanerSettingsRoute(\"adb\")"))
         assertTrue(settings.contains("\"adb\" -> DirectAdbSettingsCard()"))
         val home = source("app/src/main/java/eu/darken/sdmse/cleaner/CleanerHome.kt")
-        assertTrue(home.contains("DirectAdbHomeSetupCard(vm = adbVm)"))
+        assertFalse(home.contains("DirectAdbHomeSetupCard(vm = adbVm)"))
+        assertTrue(home.contains("DeviceStorageCard(bottomBarState, busy, onMainAction, adbVm)"))
+        assertTrue(home.contains("adbStatus.verifiedUid == 2000"))
+        assertTrue(home.contains("if (shellVerified) \"UID 2000 ✓\" else \"ADB offline\""))
         assertTrue(home.contains("adbVm.enterSettings()"))
         assertTrue(home.contains("adbVm.leaveSettings()"))
     }

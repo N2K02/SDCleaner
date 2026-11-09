@@ -250,46 +250,87 @@ private fun ScheduleListContent(
     onFixBattery: () -> Unit,
     onDismissBattery: () -> Unit,
 ) {
+    var showHistory by remember { mutableStateOf(false) }
+    var showDiagnostics by remember { mutableStateOf(false) }
+
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        item("scheduler-intro") {
-            Card(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                ),
+        item("scheduler-summary") {
+            val active = state.schedules.count { it.isEnabled }
+            val next = state.schedules.filter { it.isEnabled }.mapNotNull { schedule ->
+                schedule.calcExecutionEta(Instant.now(), reschedule = false)
+                    ?.let { schedule.label to Instant.now().plus(it) }
+            }.minByOrNull { it.second }
+            androidx.compose.foundation.layout.Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                androidx.compose.foundation.layout.Column(Modifier.padding(20.dp)) {
-                    Text("Cleaning Scheduler", style = MaterialTheme.typography.headlineSmall)
-                    Text(
-                        "Automate cleanup at a set time, after a delay, or every X minutes.",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Text(
-                        "${state.schedules.count { it.isEnabled }} active · ${state.schedules.size} total schedules",
-                        style = MaterialTheme.typography.labelLarge,
-                    )
-                    val next = state.schedules.filter { it.isEnabled }.mapNotNull { schedule ->
-                        schedule.calcExecutionEta(Instant.now(), reschedule = false)
-                            ?.let { schedule.label to Instant.now().plus(it) }
-                    }.minByOrNull { it.second }
-                    Text(
-                        "Next run: " + (next?.let { "${it.first.ifBlank { "Schedule" }} · " +
-                            it.second.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("MMM d, HH:mm")) }
-                            ?: "Not scheduled"),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Text("Runs stay in the app. No scheduler alerts; each schedule keeps one daily summary for 30 days.",
-                        style = MaterialTheme.typography.bodySmall)
-
-                }
+                Text("Schedules · $active active", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    next?.let {
+                        "Next: ${it.first.ifBlank { "Schedule" }} · " +
+                            it.second.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("MMM d, HH:mm"))
+                    } ?: "No upcoming runs",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
+        if (state.showBatteryHint) {
+            item("battery") {
+                BatteryHintRow(
+                    onFix = onFixBattery,
+                    onDismiss = onDismissBattery,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+            }
+        }
+        items(state.schedules, key = { it.id }) { schedule ->
+            ScheduleRow(
+                schedule = schedule,
+                showCommands = state.showCommands,
+                onEdit = { onEditSchedule(schedule.id) },
+                onToggle = { onToggleSchedule(schedule.id) },
+                onRunNow = { onRunNow(schedule.id) },
+                onRemove = { onRemoveSchedule(schedule.id) },
+                onToggleCorpseFinder = { onToggleCorpseFinder(schedule.id) },
+                onToggleSystemCleaner = { onToggleSystemCleaner(schedule.id) },
+                onToggleAppCleaner = { onToggleAppCleaner(schedule.id) },
+                onEditCommands = { onEditCommands(schedule.id) },
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+        }
+        item("scheduler-history-toggle") {
+            androidx.compose.material3.TextButton(
+                onClick = { showHistory = !showHistory },
+                modifier = Modifier.padding(horizontal = 12.dp),
+            ) { Text(if (showHistory) "Hide recent runs" else "Recent runs (${state.history.size})") }
+        }
+        if (showHistory) {
+        item("scheduler-history-title") {
+            Text("Recent runs", style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
+        }
+        if (state.history.isEmpty()) {
+            item("scheduler-history-empty") {
+                Text("No scheduled runs recorded yet", modifier = Modifier.padding(horizontal = 20.dp))
+            }
+        }
+        items(state.history, key = { "history-${it.scheduleId}-${it.day}" }) { run ->
+            SchedulerHistoryRow(run, Modifier.padding(horizontal = 16.dp))
+        }
+        }
+        item("scheduler-diagnostics-toggle") {
+            androidx.compose.material3.TextButton(
+                onClick = { showDiagnostics = !showDiagnostics },
+                modifier = Modifier.padding(horizontal = 12.dp),
+            ) { Text(if (showDiagnostics) "Hide diagnostics" else "Scheduler diagnostics") }
+        }
+        if (showDiagnostics) {
         item("scheduler-diagnostics") {
             val running = state.work.sumOf { it.running }
             val pending = state.work.sumOf { it.pending }
@@ -344,41 +385,6 @@ private fun ScheduleListContent(
                 }
             }
         }
-        item("scheduler-history-title") {
-            Text("Recent runs", style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
-        }
-        if (state.history.isEmpty()) {
-            item("scheduler-history-empty") {
-                Text("No scheduled runs recorded yet", modifier = Modifier.padding(horizontal = 20.dp))
-            }
-        }
-        items(state.history, key = { "history-${it.scheduleId}-${it.day}" }) { run ->
-            SchedulerHistoryRow(run, Modifier.padding(horizontal = 16.dp))
-        }
-        if (state.showBatteryHint) {
-            item("battery") {
-                BatteryHintRow(
-                    onFix = onFixBattery,
-                    onDismiss = onDismissBattery,
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                )
-            }
-        }
-        items(state.schedules, key = { it.id }) { schedule ->
-            ScheduleRow(
-                schedule = schedule,
-                showCommands = state.showCommands,
-                onEdit = { onEditSchedule(schedule.id) },
-                onToggle = { onToggleSchedule(schedule.id) },
-                onRunNow = { onRunNow(schedule.id) },
-                onRemove = { onRemoveSchedule(schedule.id) },
-                onToggleCorpseFinder = { onToggleCorpseFinder(schedule.id) },
-                onToggleSystemCleaner = { onToggleSystemCleaner(schedule.id) },
-                onToggleAppCleaner = { onToggleAppCleaner(schedule.id) },
-                onEditCommands = { onEditCommands(schedule.id) },
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
         }
         if (state.showAlarmHint) {
             item("alarm") {

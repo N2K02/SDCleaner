@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
+# Resolve versions exclusively from this app repository; website tags are never consulted.
 set -euo pipefail
 slug="${1:?Usage: latest-public-version.sh app-slug}"
-[[ "$slug" =~ ^[a-z0-9]+$ ]] || { echo "::error::Invalid app slug: $slug" >&2; exit 1; }
-refs=$(gh api --paginate "repos/N2K02/n2k02.github.io/git/matching-refs/tags/$slug-v" --jq '.[].ref') || {
-  echo "::error::Unable to read public $slug release tags" >&2
-  exit 1
-}
-printf '%s\n' "$refs" | sed -nE "s|^refs/tags/$slug-v([0-9]+[.][0-9])(-build-[0-9]+)?$|\1|p" | sort -V | tail -1
+[[ "$slug" == "sdcleaner" ]] || { echo "::error::Unexpected app slug" >&2; exit 1; }
+repo="${GITHUB_REPOSITORY:-N2K02/SDCleaner}"
+[[ "$repo" == "N2K02/SDCleaner" ]] || { echo "::error::Unexpected repository" >&2; exit 1; }
+refs=$(gh api --paginate "repos/$repo/git/matching-refs/tags/sdcleaner-v" --jq '.[].ref') || { echo "::error::Unable to read source app tags" >&2; exit 1; }
+printf '%s\n' "$refs" | sed -nE 's|^refs/tags/sdcleaner-v([0-9]+[.][0-9])$|\1|p' | sort -V | tail -1

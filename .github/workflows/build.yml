@@ -39,6 +39,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: false
+      - name: Verify release isolation rules
+        run: bash .github/scripts/test-public-version.sh
       - name: Resolve version and release notes
         env:
           GH_TOKEN: ${{ github.token }}

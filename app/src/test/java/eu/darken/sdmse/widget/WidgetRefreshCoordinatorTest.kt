@@ -2,6 +2,7 @@ package eu.darken.sdmse.widget
 
 import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
@@ -22,6 +23,7 @@ class WidgetRefreshCoordinatorTest : BaseTest() {
     )
 
     init {
+        coEvery { widgetUpdater.hasWidgets() } returns true
         every { widgetDataProvider.renderState } returns renderState
     }
 
@@ -93,6 +95,61 @@ class WidgetRefreshCoordinatorTest : BaseTest() {
         coVerify(exactly = 1) { widgetUpdater.publishPreviews() }
 
         scope.cancel()
+    }
+
+    @Test
+    fun `no widget does not subscribe or refresh while the app is idle`() = runTest2 {
+        coEvery { widgetUpdater.hasWidgets() } returns false
+        val scope = CoroutineScope(UnconfinedTestDispatcher(testScheduler))
+        val coordinator = coordinator(scope)
+
+        coordinator.start()
+        advanceUntilIdle()
+        coVerify(exactly = 0) { widgetUpdater.updateAll() }
+
+        renderState.value = data(freed = 42)
+        advanceUntilIdle()
+        coVerify(exactly = 0) { widgetUpdater.updateAll() }
+        scope.cancel()
+    }
+
+    @Test
+    fun `installing and removing a widget starts and stops refreshes`() = runTest2 {
+        coEvery { widgetUpdater.hasWidgets() } returns false
+        val scope = CoroutineScope(UnconfinedTestDispatcher(testScheduler))
+        val coordinator = coordinator(scope)
+        coordinator.start()
+        advanceUntilIdle()
+
+        coEvery { widgetUpdater.hasWidgets() } returns true
+        coordinator.onWidgetsChanged()
+        advanceUntilIdle()
+        coVerify(exactly = 1) { widgetUpdater.updateAll() }
+
+        coEvery { widgetUpdater.hasWidgets() } returns false
+        coordinator.onWidgetsChanged()
+        advanceUntilIdle()
+        renderState.value = data(freed = 24)
+        advanceUntilIdle()
+        coVerify(exactly = 1) { widgetUpdater.updateAll() }
+
+        coEvery { widgetUpdater.hasWidgets() } returns true
+        coordinator.onWidgetsChanged()
+        advanceUntilIdle()
+        coVerify(exactly = 2) { widgetUpdater.updateAll() }
+        scope.cancel()
+    }
+
+    @Test
+    fun `cancelling the app scope terminates widget refreshes`() = runTest2 {
+        val scope = CoroutineScope(UnconfinedTestDispatcher(testScheduler))
+        val coordinator = coordinator(scope)
+        coordinator.start()
+        advanceUntilIdle()
+        scope.cancel()
+        renderState.value = data(freed = 99)
+        advanceUntilIdle()
+        coVerify(exactly = 1) { widgetUpdater.updateAll() }
     }
 
     @Test

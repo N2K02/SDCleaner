@@ -23,6 +23,10 @@ class WidgetUpdater @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
 
+    /** Cheap lookup used to avoid a process-lifetime render-state subscription without widgets. */
+    suspend fun hasWidgets(): Boolean =
+        GlanceAppWidgetManager(context).getGlanceIds(SdmHomeWidget::class.java).isNotEmpty()
+
     suspend fun updateAll() {
         try {
             val ids = GlanceAppWidgetManager(context).getGlanceIds(SdmHomeWidget::class.java)

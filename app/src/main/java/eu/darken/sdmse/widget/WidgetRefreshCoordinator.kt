@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
@@ -34,22 +36,42 @@ class WidgetRefreshCoordinator @Inject constructor(
 ) {
 
     private val started = AtomicBoolean(false)
+    private val observing = AtomicBoolean(false)
+    private var observer: Job? = null
 
     fun start() {
         if (!started.compareAndSet(false, true)) return
         log(TAG, VERBOSE) { "start()" }
-
-        // Once per process: refresh the A15+ generated picker preview (rate-limited system API).
+        // The preview is updated only once per process, even without a placed widget.
         appScope.launch { widgetUpdater.publishPreviews() }
+        onWidgetsChanged()
+    }
 
-        // No drop(1): the initial replay produces exactly one refresh at app start, which re-bakes a
-        // placed widget's RemoteViews + PendingIntents after an app update (the system alone doesn't
-        // reliably do that — device-observed with install -r).
-        widgetDataProvider.renderState
-            .distinctUntilChanged()
-            .conflate() // coalesce bursts (e.g. parallel one-tap tasks each writing freed bytes)
-            .onEach { widgetUpdater.updateAll() }
-            .launchIn(appScope)
+    /** Triggered by widget add/update/remove broadcasts as well as app startup. */
+    fun onWidgetsChanged() {
+        appScope.launch {
+            val present = try {
+                widgetUpdater.hasWidgets()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                log(TAG, VERBOSE) { "Widget presence lookup failed: $e" }
+                return@launch
+            }
+            if (!present) {
+                observer?.cancel()
+                observer = null
+                observing.set(false)
+                return@launch
+            }
+            if (!observing.compareAndSet(false, true)) return@launch
+            // The initial state re-bakes widget PendingIntents following package replacement.
+            observer = widgetDataProvider.renderState
+                .distinctUntilChanged()
+                .conflate()
+                .onEach { widgetUpdater.updateAll() }
+                .launchIn(appScope)
+        }
     }
 
     companion object {

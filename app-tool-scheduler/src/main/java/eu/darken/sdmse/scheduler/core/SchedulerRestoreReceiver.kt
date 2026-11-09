@@ -11,10 +11,8 @@ import eu.darken.sdmse.common.debug.logging.Logging.Priority.INFO
 import eu.darken.sdmse.common.debug.logging.log
 import eu.darken.sdmse.common.debug.logging.logTag
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 
 
@@ -38,12 +36,17 @@ class SchedulerRestoreReceiver : BroadcastReceiver() {
         Bugs.leaveBreadCrumb("Scheduler restore")
 
         appScope.launch {
-            schedulerManager.state.take(1).first()
-            // The manager checks the scheduling states automatically when initialised, so just give it some time
-            delay(3000)
-
-            log(TAG) { "Finished scheduler checks" }
-            asyncPi.finish()
+            try {
+                schedulerManager.reconcileSchedules()
+                log(TAG) { "Finished scheduler checks" }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                log(TAG, ERROR) { "Scheduler restoration failed: $e" }
+            } finally {
+                // Always release the broadcast, even if the app scope is cancelled.
+                asyncPi.finish()
+            }
         }
     }
 

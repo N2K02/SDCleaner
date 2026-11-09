@@ -31,6 +31,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
@@ -89,6 +93,7 @@ internal fun ScheduleRow(
     val lastExecutedText = schedule.executedAt?.toSystemTimezone()?.format(formatter)
     val isEnabled = schedule.isEnabled
     val rowEnabled = !isEnabled
+    var expanded by rememberSaveable(schedule.id) { mutableStateOf(false) }
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -138,7 +143,7 @@ internal fun ScheduleRow(
                 }
             }
 
-            if (nextEtaText != null || lastExecutedText != null) {
+            if (expanded && (nextEtaText != null || lastExecutedText != null)) {
                 Spacer(modifier = Modifier.padding(vertical = 8.dp))
                 Card(
                     colors = CardDefaults.cardColors(
@@ -189,6 +194,13 @@ internal fun ScheduleRow(
                 )
             }
 
+            TextButton(
+                onClick = { expanded = !expanded },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(if (expanded) "Hide settings" else "Manage schedule")
+            }
+            if (expanded) {
             Spacer(modifier = Modifier.padding(vertical = 4.dp))
             ToolToggleRow(
                 label = stringResource(CommonR.string.corpsefinder_tool_name),
@@ -258,6 +270,7 @@ internal fun ScheduleRow(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(stringResource(R.string.scheduler_edit_schedule_action))
                 }
+            }
             }
         }
     }

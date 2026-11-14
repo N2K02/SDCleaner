@@ -152,7 +152,7 @@ class ScheduleItemViewModelTest : BaseTest() {
     }
 
     @Test
-    fun `saving a delayed one time cleanup preserves its mode`() = runTest2 {
+    fun `saving legacy timing controls produces recurring cleanup without extra delay`() = runTest2 {
         val (vm, manager, _) = harness(initial = emptySet())
         vm.setScheduleId("new")
         advanceUntilIdle()
@@ -166,7 +166,7 @@ class ScheduleItemViewModelTest : BaseTest() {
         advanceUntilIdle()
         coVerify(exactly = 1) {
             manager.saveSchedule(match {
-                it.id == "new" && it.runOnce && it.intervalMinutes == 1L && it.initialDelayMinutes == 5L
+                it.id == "new" && !it.runOnce && it.intervalMinutes == 15L && it.initialDelayMinutes == 15L
             })
         }
     }
@@ -179,8 +179,8 @@ class ScheduleItemViewModelTest : BaseTest() {
 
         val state = vm.state.first()
         state.label shouldBe "Scheduled cleanup"
-        state.intervalMinutes shouldBe 60L
-        state.initialDelayMinutes shouldBe 5L
+        state.intervalMinutes shouldBe 360L
+        state.initialDelayMinutes shouldBe 360L
         state.useAppCleaner shouldBe true
         state.isEnabled shouldBe false
         state.canSave shouldBe true
@@ -198,7 +198,7 @@ class ScheduleItemViewModelTest : BaseTest() {
         advanceUntilIdle()
         coVerify(exactly = 1) {
             manager.saveSchedule(match { it.id == "new" && it.isEnabled && it.useAppCleaner &&
-                it.intervalMinutes == 60L && it.initialDelayMinutes == 5L })
+                it.intervalMinutes == 360L && it.initialDelayMinutes == 360L })
         }
     }
 
@@ -287,4 +287,28 @@ class ScheduleItemViewModelTest : BaseTest() {
         advanceUntilIdle()
         vm.state.first().repeatInterval shouldBe Duration.ofDays(21)
     }
+    @Test
+    fun `renaming enabled schedule preserves pending run and commands`() = runTest2 {
+        val enabled = existingSchedule.copy(
+            scheduledAt = java.time.Instant.parse("2026-01-01T00:00:00Z"),
+            intervalMinutes = 240,
+            initialDelayMinutes = 240,
+            useSystemCleaner = true,
+            commandsAfterSchedule = listOf("echo cleanup"),
+        )
+        val (vm, manager, _) = harness(initial = setOf(enabled))
+        vm.setScheduleId(enabled.id)
+        advanceUntilIdle()
+        vm.updateLabel("Evening cleanup")
+        vm.saveSchedule()
+        advanceUntilIdle()
+        coVerify(exactly = 1) {
+            manager.saveSchedule(match {
+                it.label == "Evening cleanup" && it.isEnabled &&
+                    it.scheduledAt == enabled.scheduledAt &&
+                    it.commandsAfterSchedule == enabled.commandsAfterSchedule
+            })
+        }
+    }
+
 }

@@ -45,6 +45,6 @@
     <string name="scheduler_battery_optimization_hint">Consider disabling battery optimizations for SDCleaner if you experience issues with background execution.</string>
 
     <!-- Guided tour -->
-    <string name="tour_scheduler_intro_body">SDCleaner can clean on a schedule. Pick a time and which tools run, and it does the work in the background, (almost) no need to open the app.</string>
+    <string name="tour_scheduler_intro_body">One automatic cleanup schedule is ready. Enable it to clean every 6 hours, or edit the timing and cleaning options whenever needed.</string>
     <string name="tour_scheduler_create_body">Tap here to create a new schedule, then set when it runs and which tools to include.</string>
 </resources>

@@ -44,4 +44,18 @@ class SchedulerHistoryPolicyTest {
         assertEquals(RunOutcome.WARNING, result.lastOutcome)
         assertEquals(2, result.executions)
     }
+    @Test fun `delete removes only matching daily summary`() {
+        val target = row("2026-11-06")
+        val otherDay = row("2026-11-05")
+        val otherSchedule = row("2026-11-06", id = "b")
+        assertEquals(listOf(otherDay, otherSchedule),
+            SchedulerHistoryPolicy.delete(listOf(target, otherDay, otherSchedule), "a", "2026-11-06"))
+    }
+
+    @Test fun `deleting absent entry preserves history`() {
+        val rows = listOf(row("2026-11-06"))
+        assertEquals(rows, SchedulerHistoryPolicy.delete(rows, "missing", "2026-11-06"))
+        assertTrue(SchedulerHistoryPolicy.delete(emptyList(), "a", "2026-11-06").isEmpty())
+    }
+
 }

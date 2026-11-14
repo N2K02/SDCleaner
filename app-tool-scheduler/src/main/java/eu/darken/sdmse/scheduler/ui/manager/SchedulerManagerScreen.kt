@@ -12,12 +12,20 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.twotone.ArrowBack
 import androidx.compose.material.icons.automirrored.twotone.HelpOutline
+import androidx.compose.material.icons.twotone.Delete
 import androidx.compose.material.icons.twotone.Add
 import androidx.compose.material.icons.twotone.BugReport
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Alignment
+import androidx.compose.material.icons.twotone.Alarm
+import androidx.compose.material.icons.twotone.ChevronRight
 import androidx.compose.material3.Icon
 import eu.darken.sdmse.common.compose.layout.SdmScaffold
 import androidx.compose.material3.SnackbarHost
@@ -117,6 +125,8 @@ fun SchedulerManagerScreenHost(
         onEditCommands = vm::requestEditCommands,
         onFixBattery = vm::fixBatteryOptimization,
         onDismissBattery = vm::dismissBatteryHint,
+        onDeleteHistory = vm::deleteHistory,
+        onClearHistory = vm::clearHistory,
     )
 
     pendingCommandsEdit?.let { ev ->
@@ -149,6 +159,8 @@ internal fun SchedulerManagerScreen(
     onEditCommands: (ScheduleId) -> Unit = {},
     onFixBattery: () -> Unit = {},
     onDismissBattery: () -> Unit = {},
+    onDeleteHistory: (String, String) -> Unit = { _, _ -> },
+    onClearHistory: () -> Unit = {},
 ) {
     val state by stateSource.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
@@ -156,7 +168,7 @@ internal fun SchedulerManagerScreen(
     val tourController = LocalGuidedTourController.current
     val tourDef = remember { SchedulerManagerTour.definition() }
     var tourStartAttempted by remember { mutableStateOf(false) }
-    // The add FAB is the only always-present anchor (a fresh manager has no schedule rows).
+    // The automatic schedule exists after loading.
     val tourReady = !state.isLoading
     LaunchedEffect(tourReady) {
         if (!tourReady || tourStartAttempted) return@LaunchedEffect
@@ -170,7 +182,13 @@ internal fun SchedulerManagerScreen(
     SdmScaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.scheduler_label)) },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.TwoTone.Alarm, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.scheduler_label))
+                    }
+                },
                 navigationIcon = {
                     SdmTooltipIconButton(
                         icon = Icons.AutoMirrored.TwoTone.ArrowBack,
@@ -194,19 +212,6 @@ internal fun SchedulerManagerScreen(
                 },
             )
         },
-        floatingActionButton = {
-            ScrollAwareFab(scrollState = listState) {
-                FloatingActionButton(
-                    onClick = onCreateNew,
-                    modifier = Modifier.guidedTourTarget(SchedulerManagerTour.ADD_TARGET),
-                ) {
-                    Icon(
-                        Icons.TwoTone.Add,
-                        contentDescription = stringResource(R.string.scheduler_new_schedule_action),
-                    )
-                }
-            }
-        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { paddingValues ->
         ProgressOverlay(
@@ -229,6 +234,8 @@ internal fun SchedulerManagerScreen(
                 onEditCommands = onEditCommands,
                 onFixBattery = onFixBattery,
                 onDismissBattery = onDismissBattery,
+                onDeleteHistory = onDeleteHistory,
+                onClearHistory = onClearHistory,
             )
         }
     }
@@ -249,9 +256,30 @@ private fun ScheduleListContent(
     onEditCommands: (ScheduleId) -> Unit,
     onFixBattery: () -> Unit,
     onDismissBattery: () -> Unit,
+    onDeleteHistory: (String, String) -> Unit,
+    onClearHistory: () -> Unit,
 ) {
     var showHistory by remember { mutableStateOf(false) }
-    var showDiagnostics by remember { mutableStateOf(false) }
+    var deleteTarget by remember { mutableStateOf<SchedulerDailyRun?>(null) }
+    var clearHistory by remember { mutableStateOf(false) }
+    if (deleteTarget != null || clearHistory) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { deleteTarget = null; clearHistory = false },
+            title = { Text(if (clearHistory) "Clear run history?" else "Delete daily summary?") },
+            text = { Text("Only saved history is removed. Your schedule and future cleanups are unchanged.") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    if (clearHistory) onClearHistory()
+                    else deleteTarget?.let { onDeleteHistory(it.scheduleId, it.day) }
+                    deleteTarget = null
+                    clearHistory = false
+                }) { Text("Delete") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { deleteTarget = null; clearHistory = false }) { Text("Cancel") }
+            },
+        )
+    }
 
     LazyColumn(
         state = listState,
@@ -260,26 +288,29 @@ private fun ScheduleListContent(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item("scheduler-summary") {
+            val now = Instant.now()
             val active = state.schedules.count { it.isEnabled }
             val next = state.schedules.filter { it.isEnabled }.mapNotNull { schedule ->
-                schedule.calcExecutionEta(Instant.now(), reschedule = false)
-                    ?.let { schedule.label to Instant.now().plus(it) }
+                schedule.calcExecutionEta(now, reschedule = false)
+                    ?.let { schedule.label to now.plus(it) }
             }.minByOrNull { it.second }
-            androidx.compose.foundation.layout.Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Text("Schedules · $active active", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    next?.let {
-                        "Next: ${it.first.ifBlank { "Schedule" }} · " +
-                            it.second.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("MMM d, HH:mm"))
-                    } ?: "No upcoming runs",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+                    Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("NEXT CLEANUP", style = MaterialTheme.typography.labelLarge)
+                        Text(next?.second?.atZone(ZoneId.systemDefault())
+                            ?.format(DateTimeFormatter.ofLocalizedDateTime(java.time.format.FormatStyle.SHORT))
+                            ?: "No upcoming runs", style = MaterialTheme.typography.headlineMedium)
+                        next?.let { Text(it.first.ifBlank { "Schedule" }, style = MaterialTheme.typography.bodyLarge) }
+                    }
+                }
+                Text(if (active > 0) "Automatic cleanup · On" else "Automatic cleanup · Off", style = MaterialTheme.typography.titleMedium)
             }
         }
+
         if (state.showBatteryHint) {
             item("battery") {
                 BatteryHintRow(
@@ -305,93 +336,34 @@ private fun ScheduleListContent(
             )
         }
         item("scheduler-history-toggle") {
-            androidx.compose.material3.TextButton(
-                onClick = { showHistory = !showHistory },
-                modifier = Modifier.padding(horizontal = 12.dp),
-            ) { Text(if (showHistory) "Hide recent runs" else "Recent runs (${state.history.size})") }
+            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Recent runs", style = MaterialTheme.typography.titleMedium)
+                androidx.compose.material3.TextButton(onClick = { showHistory = !showHistory }) {
+                    Text(if (showHistory) "Show less" else "View all (${state.history.size})")
+                }
+            }
         }
-        if (showHistory) {
-        item("scheduler-history-title") {
-            Text("Recent runs", style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
+        if (state.history.isNotEmpty()) {
+            item("history-clear") {
+                androidx.compose.material3.TextButton(onClick = { clearHistory = true }, modifier = Modifier.padding(horizontal = 12.dp)) {
+                    Text("Clear history")
+                }
+            }
         }
         if (state.history.isEmpty()) {
             item("scheduler-history-empty") {
                 Text("No scheduled runs recorded yet", modifier = Modifier.padding(horizontal = 20.dp))
             }
         }
-        items(state.history, key = { "history-${it.scheduleId}-${it.day}" }) { run ->
-            SchedulerHistoryRow(run, Modifier.padding(horizontal = 16.dp))
+        items(state.history.sortedByDescending { it.lastAt }.let { if (showHistory) it else it.take(2) }, key = { "history-${it.scheduleId}-${it.day}" }) { run ->
+            SchedulerHistoryRow(run, Modifier.padding(horizontal = 16.dp), onDelete = { deleteTarget = run })
         }
-        }
-        item("scheduler-diagnostics-toggle") {
-            androidx.compose.material3.TextButton(
-                onClick = { showDiagnostics = !showDiagnostics },
-                modifier = Modifier.padding(horizontal = 12.dp),
-            ) { Text(if (showDiagnostics) "Hide diagnostics" else "Scheduler diagnostics") }
-        }
-        if (showDiagnostics) {
-        item("scheduler-diagnostics") {
-            val running = state.work.sumOf { it.running }
-            val pending = state.work.sumOf { it.pending }
-            val latest = state.history.maxByOrNull { it.lastAt }
-            Card(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-            ) {
-                androidx.compose.foundation.layout.Column(
-                    Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Text("Scheduler Diagnostics", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "WorkManager: $running running · $pending queued" +
-                            if (running == 0 && pending == 0) " · Idle" else "",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    state.work.filter { it.running > 0 || it.pending > 0 || it.error != null }.take(3).forEach { status ->
-                        Text(
-                            "${status.label.ifBlank { "Schedule" }}: " +
-                                "${status.running} running, ${status.pending} queued" +
-                                (status.error?.let { " · $it" } ?: ""),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                    Text(
-                        if (state.cleanupActive == 0) "Cleanup: Idle · No active scheduler tasks"
-                        else "Cleanup: ${state.cleanupActive} active · " +
-                            "${state.cleanupCancelling} cancelling",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    Text(
-                        "Scheduler leases: ${state.cleanupLeases} held" +
-                            if (state.cleanupActive == 0 && state.cleanupLeases > 0)
-                                " · Check resource cleanup" else "",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    latest?.let { last ->
-                        Text(
-                            "Last: ${last.label} · ${last.lastOutcome} · ${last.lastDurationMs / 1000}s",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                        last.lastError?.let { error ->
-                            Text("Cleanup/stop: $error", style = MaterialTheme.typography.bodySmall)
-                        }
-                    }
-                    Text(
-                        "Live WorkManager status · no background polling",
-                        style = MaterialTheme.typography.labelSmall,
-                    )
-                }
-            }
-        }
-        }
-        if (state.showAlarmHint) {
-            item("alarm") {
-                AlarmHintRow(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
-            }
+        item("timing-note") {
+            Text("Run times may vary to save battery.",
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -497,19 +469,24 @@ private fun SchedulerManagerScreenWithAcsSystemAppsHintPreview() {
 
 
 @Composable
-private fun SchedulerHistoryRow(run: SchedulerDailyRun, modifier: Modifier = Modifier) {
+private fun SchedulerHistoryRow(run: SchedulerDailyRun, modifier: Modifier = Modifier, onDelete: () -> Unit = {}) {
     var expanded by remember { mutableStateOf(false) }
     val localTime = Instant.ofEpochMilli(run.lastAt).atZone(ZoneId.systemDefault())
         .format(DateTimeFormatter.ofPattern("HH:mm:ss"))
     val outcome = when (run.lastOutcome) {
-        RunOutcome.SUCCESS -> "Success"
+        RunOutcome.SUCCESS -> "Completed"
         RunOutcome.WARNING -> "Warning"
         RunOutcome.FAILED -> "Failed"
     }
     Card(onClick = { expanded = !expanded }, modifier = modifier.fillMaxWidth()) {
         androidx.compose.foundation.layout.Column(Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("${run.label} · ${run.day}", style = MaterialTheme.typography.titleSmall)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(run.day, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                androidx.compose.material3.IconButton(onClick = onDelete) {
+                    Icon(Icons.TwoTone.Delete, contentDescription = "Delete daily summary")
+                }
+            }
             Text("$outcome · Last run $localTime · ${run.executions} run(s)",
                 style = MaterialTheme.typography.bodyMedium)
             Text("${run.successes} success · ${run.warnings} warning · ${run.failures} failed",

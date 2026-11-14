@@ -58,6 +58,9 @@ class SchedulerManager @Inject constructor(
             workManager.cancelUniqueWork("worker-schedule-${it.id}").await()
             workManager.cancelUniqueWork("worker-schedule-manual-${it.id}").await()
         }
+        if (loaded.any { it.id == selected.id && it != selected }) {
+            workManager.cancelUniqueWork("worker-schedule-${selected.id}").await()
+        }
         val normalized = setOf(selected)
         if (loaded != normalized) storage.save(normalized)
         State(schedules = normalized)

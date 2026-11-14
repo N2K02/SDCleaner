@@ -11,7 +11,12 @@ internal object SingleSchedulePolicy {
         useAppCleaner = true,
     )
 
+    fun repeating(schedule: Schedule): Schedule {
+        val interval = (schedule.intervalMinutes ?: DEFAULT_INTERVAL_MINUTES).coerceIn(15L, 43_200L)
+        return schedule.copy(intervalMinutes = interval, initialDelayMinutes = interval, runOnce = false)
+    }
+
     fun select(schedules: Set<Schedule>): Schedule = schedules
         .sortedWith(compareByDescending<Schedule> { it.isEnabled }.thenBy { it.createdAt }.thenBy { it.id })
-        .firstOrNull() ?: defaultSchedule()
+        .firstOrNull()?.let(::repeating) ?: defaultSchedule()
 }

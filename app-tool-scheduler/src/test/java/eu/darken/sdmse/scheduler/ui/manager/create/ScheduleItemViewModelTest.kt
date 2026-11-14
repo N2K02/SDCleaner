@@ -152,7 +152,7 @@ class ScheduleItemViewModelTest : BaseTest() {
     }
 
     @Test
-    fun `saving a delayed one time cleanup preserves its mode`() = runTest2 {
+    fun `saving legacy timing controls produces recurring cleanup without extra delay`() = runTest2 {
         val (vm, manager, _) = harness(initial = emptySet())
         vm.setScheduleId("new")
         advanceUntilIdle()
@@ -166,7 +166,7 @@ class ScheduleItemViewModelTest : BaseTest() {
         advanceUntilIdle()
         coVerify(exactly = 1) {
             manager.saveSchedule(match {
-                it.id == "new" && it.runOnce && it.intervalMinutes == 1L && it.initialDelayMinutes == 5L
+                it.id == "new" && !it.runOnce && it.intervalMinutes == 15L && it.initialDelayMinutes == 15L
             })
         }
     }
@@ -292,6 +292,7 @@ class ScheduleItemViewModelTest : BaseTest() {
         val enabled = existingSchedule.copy(
             scheduledAt = java.time.Instant.parse("2026-01-01T00:00:00Z"),
             intervalMinutes = 240,
+            initialDelayMinutes = 240,
             useSystemCleaner = true,
             commandsAfterSchedule = listOf("echo cleanup"),
         )

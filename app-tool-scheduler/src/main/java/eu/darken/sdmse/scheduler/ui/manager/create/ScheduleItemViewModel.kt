@@ -47,7 +47,7 @@ class ScheduleItemViewModel @Inject constructor(
         launch {
             // Wait for the id to land, then resolve initial form values from the live schedule.
             val resolvedId = scheduleIdFlow.filterNotNull().first()
-            val initial = schedulerManager.state.first().schedules.firstOrNull { it.id == resolvedId }
+            val initial = schedulerManager.state.first().schedules.firstOrNull { it.id == resolvedId }?.let(eu.darken.sdmse.scheduler.core.SingleSchedulePolicy::repeating)
             isCreateMode.value = (initial == null)
             draft.value = FormDraft(
                 label = initial?.label?.takeIf { it.isNotBlank() } ?: "Scheduled cleanup",
@@ -161,7 +161,9 @@ class ScheduleItemViewModel @Inject constructor(
 
     fun saveSchedule() = launch {
         log(TAG) { "saveSchedule()" }
-        val d = draft.value ?: return@launch
+        val raw = draft.value ?: return@launch
+        val interval = (raw.intervalMinutes ?: 360L).coerceIn(15L, 43_200L)
+        val d = raw.copy(intervalMinutes = interval, initialDelayMinutes = interval, runOnce = false)
         if (d.label.isNullOrBlank() || (d.intervalMinutes == null && (d.hour == null || d.minute == null)) ||
             (d.isEnabled && !d.useAppCleaner && !d.useSystemCleaner && !d.useCorpseFinder)) {
             log(TAG, WARN) { "saveSchedule: incomplete draft, ignoring" }

@@ -136,9 +136,6 @@ internal fun ScheduleRow(
                 )
             }
             HorizontalDivider(Modifier.padding(vertical = 12.dp))
-            if (schedule.intervalMinutes != null) {
-                ScheduleDetail("First run delay", "${schedule.initialDelayMinutes} min")
-            }
             ScheduleDetail("Next run", nextEtaText ?: if (isEnabled) "Pending" else "Paused")
             if (lastExecutedText != null) ScheduleDetail("Last run", lastExecutedText)
             OutlinedButton(onClick = onEdit, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {

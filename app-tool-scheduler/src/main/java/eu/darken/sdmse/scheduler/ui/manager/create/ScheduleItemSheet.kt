@@ -180,14 +180,40 @@ internal fun ScheduleItemSheet(
         }
         FilterChip(selected = custom, onClick = { custom = true }, label = { Text("Custom interval") })
         if (custom) {
-            OutlinedTextField(value = customText, onValueChange = { text ->
-                if (text.matches(Regex("^\\d{0,5}$"))) {
-                    customText = text
-                    text.toLongOrNull()?.takeIf { it in 15L..43_200L }?.let(onIntervalMinutesChanged)
-                }
-            }, label = { Text("Minutes") }, supportingText = { Text("15–43200 minutes") },
-                isError = !valid, singleLine = true, modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                androidx.compose.material3.FilledTonalIconButton(
+                    onClick = {
+                        val next = ((customText.toLongOrNull() ?: minutes) - 1).coerceIn(15L, 43_200L)
+                        customText = next.toString()
+                        onIntervalMinutesChanged(next)
+                    },
+                    enabled = (customText.toLongOrNull() ?: minutes) > 15L,
+                    modifier = Modifier.size(48.dp),
+                ) { Icon(Icons.TwoTone.Remove, contentDescription = "Decrease interval by one minute") }
+                OutlinedTextField(value = customText, onValueChange = { text ->
+                    if (text.matches(Regex("^\\d{0,5}$"))) {
+                        customText = text
+                        text.toLongOrNull()?.takeIf { it in 15L..43_200L }?.let(onIntervalMinutesChanged)
+                    }
+                }, label = { Text("Minutes") },
+                    shape = RoundedCornerShape(20.dp),
+                    textStyle = MaterialTheme.typography.headlineSmall.copy(textAlign = TextAlign.Center),
+                    isError = !valid, singleLine = true, modifier = Modifier.weight(1f),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                androidx.compose.material3.FilledTonalIconButton(
+                    onClick = {
+                        val next = ((customText.toLongOrNull() ?: minutes) + 1).coerceIn(15L, 43_200L)
+                        customText = next.toString()
+                        onIntervalMinutesChanged(next)
+                    },
+                    enabled = (customText.toLongOrNull() ?: minutes) < 43_200L,
+                    modifier = Modifier.size(48.dp),
+                ) { Icon(Icons.TwoTone.Add, contentDescription = "Increase interval by one minute") }
+            }
+            Text("15–43200 minutes", style = MaterialTheme.typography.bodySmall,
+                color = if (valid) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error)
+
         }
         Text("First cleanup after the selected interval, then repeats automatically.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

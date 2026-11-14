@@ -47,6 +47,9 @@ data class SchedulerDailyRun(
 
 /** One compact row per schedule per local calendar day, with rolling 30-day retention. */
 internal object SchedulerHistoryPolicy {
+    fun delete(rows: List<SchedulerDailyRun>, scheduleId: String, day: String) =
+        rows.filterNot { it.scheduleId == scheduleId && it.day == day }
+
     const val RETAIN_DAYS = 30
     fun merge(
         previous: List<SchedulerDailyRun>,
@@ -145,16 +148,34 @@ class SchedulerRunHistory @Inject constructor(
                 lastManual = manual,
             )
             val next = SchedulerHistoryPolicy.merge(internal.value, entry, LocalDate.now())
-            file.baseFile.parentFile?.mkdirs()
-            val stream = file.startWrite()
-            try {
-                stream.write(json.encodeToString(ListSerializer(SchedulerDailyRun.serializer()), next).toByteArray(Charsets.UTF_8))
-                file.finishWrite(stream)
-                internal.value = next
-            } catch (e: Exception) {
-                file.failWrite(stream)
-                throw e
-            }
+            persist(next)
+        }
+    }
+
+    suspend fun delete(scheduleId: String, day: String) = withContext(Dispatchers.IO) {
+        lock.withLock {
+            ensureLoaded()
+            persist(SchedulerHistoryPolicy.delete(internal.value, scheduleId, day))
+        }
+    }
+
+    suspend fun clear() = withContext(Dispatchers.IO) {
+        lock.withLock {
+            ensureLoaded()
+            persist(emptyList())
+        }
+    }
+
+    private fun persist(rows: List<SchedulerDailyRun>) {
+        file.baseFile.parentFile?.mkdirs()
+        val stream = file.startWrite()
+        try {
+            stream.write(json.encodeToString(ListSerializer(SchedulerDailyRun.serializer()), rows).toByteArray(Charsets.UTF_8))
+            file.finishWrite(stream)
+            internal.value = rows
+        } catch (e: Exception) {
+            file.failWrite(stream)
+            throw e
         }
     }
 

@@ -106,19 +106,16 @@ class SchedulerManagerViewModel @Inject constructor(
             isLoading = false,
         )
     }.combine(runHistory.history) { current, daily -> current.copy(history = daily) }
-        .combine(schedulerManager.runtimeWork) { current, work ->
-            current.copy(work = work)
-        }.combine(taskSubmitter.state) { current, tasks ->
-            val inFlight = tasks.tasks.filter { !it.notifyOnFinish && !it.isComplete }
-            current.copy(
-                cleanupActive = inFlight.size,
-                cleanupCancelling = inFlight.count { it.isCancelling },
-                cleanupLeases = tasks.tasks.count { !it.notifyOnFinish && it.resourceHeld },
-            )
-        }.safeStateIn(
+        .safeStateIn(
         initialValue = State(),
         onError = { State(isLoading = false) },
     )
+
+    fun deleteHistory(scheduleId: String, day: String) = launch {
+        runHistory.delete(scheduleId, day)
+    }
+
+    fun clearHistory() = launch { runHistory.clear() }
 
     fun createNew() = launch {
         // Compatibility for old callers: open the single automatic schedule instead.

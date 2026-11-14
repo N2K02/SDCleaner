@@ -35,7 +35,7 @@ object CleanerUpdater {
             context = app,
             config = UpdateConfig(repository = "N2K02/SDCleaner", packageName = app.packageName,
                 installedVersionCode = code, experimentalEnabled = experimental.value),
-            publishedSource = PublishedUpdateSource("https://n2k02.github.io/sdcleaner/updates"),
+
             offerPreferences = prefs(),
         )
     }

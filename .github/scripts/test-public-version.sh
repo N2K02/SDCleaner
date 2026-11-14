@@ -16,8 +16,6 @@ actual=$(PATH="$tmp:$PATH" FIXTURE="$tmp/refs" GITHUB_REPOSITORY=N2K02/SDCleaner
 [[ "$actual" == "2.0" ]] || { echo "Expected 2.0, got $actual" >&2; exit 1; }
 if PATH="$tmp:$PATH" FIXTURE="$tmp/refs" FAIL_API=1 GITHUB_REPOSITORY=N2K02/SDCleaner bash "$root/.github/scripts/latest-public-version.sh" sdcleaner >/dev/null 2>&1; then exit 1; fi
 if PATH="$tmp:$PATH" FIXTURE="$tmp/refs" GITHUB_REPOSITORY=N2K02/SDCleaner bash "$root/.github/scripts/latest-public-version.sh" wrong >/dev/null 2>&1; then exit 1; fi
-publisher="$root/.github/scripts/publish-distribution.sh"
-! grep -Eq 'gh release (create|upload|delete)|TARGET="N2K02/n2k02.github.io"' "$publisher" || { echo "Website release publishing must remain disabled" >&2; exit 1; }
-grep -q 'PUBLIC_REPO="N2K02/n2k02.github.io"' "$publisher"
-grep -q 'GITHUB_REPOSITORY/releases/download' "$publisher"
+! grep -Rq 'secrets.ANDROID_DISTRIBUTION_TOKEN' "$root/.github/workflows" || exit 1
+! test -e "$root/.github/scripts/publish-distribution.sh" || exit 1
 echo "SDCleaner source release policy tests passed"

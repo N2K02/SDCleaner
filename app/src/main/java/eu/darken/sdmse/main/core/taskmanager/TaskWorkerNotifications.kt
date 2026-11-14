@@ -48,7 +48,7 @@ class TaskWorkerNotifications @Inject constructor(
             setChannelId(CHANNEL_ID)
             setContentIntent(openPi)
             priority = NotificationCompat.PRIORITY_LOW
-            setSmallIcon(UiR.drawable.ic_notification_mascot_24)
+            setSmallIcon(eu.darken.sdmse.common.ui.R.drawable.ic_stat_app)
             setOngoing(true)
             setContentTitle(context.getString(eu.darken.sdmse.common.R.string.app_name))
             setContentText(context.getString(eu.darken.sdmse.common.R.string.general_progress_loading))

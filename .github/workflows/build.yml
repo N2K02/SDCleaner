@@ -73,6 +73,7 @@ jobs:
           echo "VERSION_SUFFIX=$suffix" >> "$GITHUB_ENV"
           {
             echo "## SDCleaner $version$suffix"
+            echo "Version code: $((100000 + GITHUB_RUN_NUMBER))"
             echo
             echo "### Changes"
             git log -20 --no-merges --pretty='- %s'
@@ -155,24 +156,6 @@ jobs:
             extra=(--latest)
           fi
           gh release create "$tag" "$APP-$VERSION.apk" --repo "$GITHUB_REPOSITORY" --target "$target" --title "$APP $VERSION$VERSION_SUFFIX" --notes-file release-notes.md "${extra[@]}"
-      - name: Check public distribution configuration
-        id: distribution
-        env:
-          DIST_TOKEN: ${{ secrets.ANDROID_DISTRIBUTION_TOKEN }}
-        shell: bash
-        run: |
-          if [[ -n "$DIST_TOKEN" ]]; then
-            echo 'enabled=true' >> "$GITHUB_OUTPUT"
-          else
-            echo 'enabled=false' >> "$GITHUB_OUTPUT"
-            echo '::warning::Signed APK is preserved in Releases and workflow artifacts. Configure ANDROID_DISTRIBUTION_TOKEN to publish the updater feed.'
-          fi
-      - name: Publish APK and update channel manifest
-        if: steps.distribution.outputs.enabled == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.ANDROID_DISTRIBUTION_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: bash .github/scripts/publish-distribution.sh
       - name: Remove decrypted signing material
         if: always()
         shell: bash

@@ -106,7 +106,7 @@ class LowSpaceNotifications @Inject constructor(
             .setChannelId(CHANNEL_ID)
             .setContentIntent(contentPendingIntent)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setSmallIcon(UiR.drawable.ic_notification_mascot_24)
+            .setSmallIcon(eu.darken.sdmse.common.ui.R.drawable.ic_stat_app)
             .setAutoCancel(true)
             .setContentTitle(title)
             .setContentText(body)

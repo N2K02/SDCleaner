@@ -56,7 +56,7 @@ class TaskResultNotifications @Inject constructor(
             .setChannelId(CHANNEL_ID)
             .setContentIntent(openPendingIntent)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setSmallIcon(R.drawable.sdcleaner_icon_mono)
+            .setSmallIcon(eu.darken.sdmse.common.ui.R.drawable.ic_stat_app)
             .setOngoing(false)
             .setAutoCancel(true)
             .setSubText(context.getString(R.string.tasks_result_subtext))

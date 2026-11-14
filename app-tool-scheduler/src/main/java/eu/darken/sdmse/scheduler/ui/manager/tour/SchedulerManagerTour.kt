@@ -13,12 +13,6 @@ object SchedulerManagerTour : GuidedTour {
 
     const val ADD_TARGET = "scheduler.add"
 
-    /**
-     * A first-time user's manager screen is empty except the add FAB (no schedule rows, the battery
-     * hint is conditional), so the only anchored step is the FAB — anchoring a schedule row would
-     * grace-skip for exactly the audience this tour targets. The centerless intro carries the
-     * "what scheduling does" explanation.
-     */
     fun definition(): TourDefinition = TourDefinition(
         id = id,
         clickProtection = true,
@@ -28,11 +22,7 @@ object SchedulerManagerTour : GuidedTour {
                 targetId = null,
                 body = R.string.tour_scheduler_intro_body.toCaString(),
             ),
-            TourStep(
-                stepId = "create",
-                targetId = ADD_TARGET,
-                body = R.string.tour_scheduler_create_body.toCaString(),
-            ),
+
         ),
     )
 }

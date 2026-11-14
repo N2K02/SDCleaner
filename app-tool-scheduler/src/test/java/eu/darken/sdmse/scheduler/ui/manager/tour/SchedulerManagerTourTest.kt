@@ -8,12 +8,12 @@ import testhelpers.BaseTest
 class SchedulerManagerTourTest : BaseTest() {
 
     @Test
-    fun `definition is a centerless intro followed by the add-FAB step`() {
+    fun `definition explains automatic schedule without add action`() {
         val def = SchedulerManagerTour.definition()
         def.id shouldBe TourId("tour.scheduler.manager")
         def.clickProtection shouldBe true
-        def.steps.map { it.stepId } shouldBe listOf("intro", "create")
-        // Only the FAB is anchored — a fresh manager screen has no schedule rows to point at.
-        def.steps.map { it.targetId } shouldBe listOf(null, SchedulerManagerTour.ADD_TARGET)
+        def.steps.map { it.stepId } shouldBe listOf("intro")
+        // No add action exists in the single-schedule screen.
+        def.steps.map { it.targetId } shouldBe listOf(null)
     }
 }

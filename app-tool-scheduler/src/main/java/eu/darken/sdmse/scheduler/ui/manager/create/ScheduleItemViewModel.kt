@@ -54,9 +54,9 @@ class ScheduleItemViewModel @Inject constructor(
                 hour = initial?.hour ?: 22,
                 minute = initial?.minute ?: 0,
                 repeatInterval = initial?.repeatInterval ?: Duration.ofDays(3),
-                intervalMinutes = initial?.intervalMinutes ?: if (initial == null) 60L else null,
+                intervalMinutes = initial?.intervalMinutes ?: if (initial == null) 360L else null,
                 runOnce = initial?.runOnce ?: false,
-                initialDelayMinutes = initial?.initialDelayMinutes ?: if (initial == null) 5L else 0L,
+                initialDelayMinutes = initial?.initialDelayMinutes ?: if (initial == null) 360L else 0L,
                 isEnabled = initial?.isEnabled ?: false,
                 initiallyEnabled = initial?.isEnabled ?: false,
                 useAppCleaner = initial?.useAppCleaner ?: (initial == null),
@@ -109,7 +109,7 @@ class ScheduleItemViewModel @Inject constructor(
         draft.update {
             it?.copy(
                 intervalMinutes = if (enabled) {
-                    if (it.runOnce) 60L else (it.intervalMinutes ?: 60L).coerceAtLeast(15L)
+                    if (it.runOnce) 60L else (it.intervalMinutes ?: 360L).coerceAtLeast(15L)
                 } else null,
                 runOnce = false,
             )

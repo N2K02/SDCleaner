@@ -79,22 +79,6 @@ class SchedulerManagerViewModel @Inject constructor(
 
 
     init {
-        // One-shot: create a default schedule the first time the screen opens with no entries.
-        schedulerManager.state
-            .take(1)
-            .onEach { state ->
-                if (state.schedules.isNotEmpty()) return@onEach
-                if (settings.createdDefaultEntry.value()) return@onEach
-
-                val defaultEntry = Schedule(
-                    id = UUID.randomUUID().toString(),
-                    label = context.getString(R.string.scheduler_schedule_default_name),
-                )
-                schedulerManager.saveSchedule(defaultEntry)
-                settings.createdDefaultEntry.value(true)
-            }
-            .launchInViewModel()
-
         // One-shot: re-arm the battery hint if optimization is currently being ignored.
         launch {
             if (batteryHelper.isIgnoringBatteryOptimizations.first() && settings.hintBatteryDismissed.value()) {
@@ -136,9 +120,9 @@ class SchedulerManagerViewModel @Inject constructor(
         onError = { State(isLoading = false) },
     )
 
-    fun createNew() {
-        log(TAG) { "createNew()" }
-        navTo(ScheduleItemRoute(scheduleId = UUID.randomUUID().toString()))
+    fun createNew() = launch {
+        // Compatibility for old callers: open the single automatic schedule instead.
+        schedulerManager.state.first().schedules.firstOrNull()?.let { editSchedule(it.id) }
     }
 
     fun editSchedule(id: ScheduleId) {

@@ -220,37 +220,23 @@ internal fun ScheduleItemSheet(
                 Switch(checked = state.isEnabled, onCheckedChange = onEnabledChanged)
             }
         }
-        Text("Run mode", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-        Surface(
-            shape = RoundedCornerShape(18.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                SchedulerModeButton(
-                    selected = state.runOnce,
-                    label = "After X minutes",
-                    icon = Icons.Rounded.Timer,
-                    modifier = Modifier.weight(1f),
-                    onClick = onRunOnceModeSelected,
-                )
-                SchedulerModeButton(
-                    selected = state.intervalMinutes != null && !state.runOnce,
-                    label = "Repeat every X minutes",
-                    icon = Icons.Rounded.AllInclusive,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onIntervalModeChanged(true) },
-                )
-                SchedulerModeButton(
-                    selected = state.intervalMinutes == null,
-                    label = "At specific time",
-                    icon = Icons.Rounded.Event,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onIntervalModeChanged(false) },
-                )
+        var showTimingOptions by rememberSaveable { mutableStateOf(false) }
+        Text("Timing", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+        TextButton(onClick = { onIntervalModeChanged(true) }, modifier = Modifier.fillMaxWidth()) {
+            Icon(Icons.Rounded.AllInclusive, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text(if (state.intervalMinutes != null && !state.runOnce) "Repeat · Selected" else "Repeat")
+        }
+        TextButton(onClick = { showTimingOptions = !showTimingOptions }, modifier = Modifier.fillMaxWidth()) {
+            Text(if (showTimingOptions) "Fewer timing options" else "More timing options")
+        }
+        if (showTimingOptions || state.runOnce || state.intervalMinutes == null) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SchedulerModeButton(selected = state.runOnce, label = "Run once",
+                    icon = Icons.Rounded.Timer, modifier = Modifier.weight(1f), onClick = onRunOnceModeSelected)
+                SchedulerModeButton(selected = state.intervalMinutes == null, label = "At a set time",
+                    icon = Icons.Rounded.Event, modifier = Modifier.weight(1f),
+                    onClick = { onIntervalModeChanged(false) })
             }
         }
         val intervalMinutes = state.intervalMinutes
@@ -300,11 +286,11 @@ internal fun ScheduleItemSheet(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            listOf(15L, 30L, 60L, 120L).forEach { minutes ->
+                            listOf(60L, 360L, 720L, 1440L).forEach { minutes ->
                                 FilterChip(
                                     selected = intervalMinutes == minutes,
                                     onClick = { onIntervalMinutesChanged(minutes) },
-                                    label = { Text("$minutes min", maxLines = 1) },
+                                    label = { Text("${minutes / 60}h", maxLines = 1) },
                                     modifier = Modifier.weight(1f),
                                 )
                             }

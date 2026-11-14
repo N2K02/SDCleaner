@@ -163,7 +163,7 @@ internal fun SchedulerManagerScreen(
     val tourController = LocalGuidedTourController.current
     val tourDef = remember { SchedulerManagerTour.definition() }
     var tourStartAttempted by remember { mutableStateOf(false) }
-    // The add FAB is the only always-present anchor (a fresh manager has no schedule rows).
+    // The automatic schedule exists after loading.
     val tourReady = !state.isLoading
     LaunchedEffect(tourReady) {
         if (!tourReady || tourStartAttempted) return@LaunchedEffect
@@ -206,21 +206,6 @@ internal fun SchedulerManagerScreen(
                     )
                 },
             )
-        },
-        floatingActionButton = {
-            ScrollAwareFab(scrollState = listState) {
-                ExtendedFloatingActionButton(
-                    onClick = onCreateNew,
-                    modifier = Modifier.guidedTourTarget(SchedulerManagerTour.ADD_TARGET),
-                ) {
-                    Icon(
-                        Icons.TwoTone.Add,
-                        contentDescription = null,
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.scheduler_new_schedule_action))
-                }
-            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { paddingValues ->
@@ -294,7 +279,7 @@ private fun ScheduleListContent(
                         next?.let { Text(it.first.ifBlank { "Schedule" }, style = MaterialTheme.typography.bodyLarge) }
                     }
                 }
-                Text("Schedules · $active active", style = MaterialTheme.typography.titleMedium)
+                Text(if (active > 0) "Automatic cleanup · On" else "Automatic cleanup · Off", style = MaterialTheme.typography.titleMedium)
             }
         }
 

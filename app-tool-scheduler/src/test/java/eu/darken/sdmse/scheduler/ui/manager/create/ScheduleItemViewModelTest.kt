@@ -179,8 +179,8 @@ class ScheduleItemViewModelTest : BaseTest() {
 
         val state = vm.state.first()
         state.label shouldBe "Scheduled cleanup"
-        state.intervalMinutes shouldBe 60L
-        state.initialDelayMinutes shouldBe 5L
+        state.intervalMinutes shouldBe 360L
+        state.initialDelayMinutes shouldBe 360L
         state.useAppCleaner shouldBe true
         state.isEnabled shouldBe false
         state.canSave shouldBe true
@@ -198,7 +198,7 @@ class ScheduleItemViewModelTest : BaseTest() {
         advanceUntilIdle()
         coVerify(exactly = 1) {
             manager.saveSchedule(match { it.id == "new" && it.isEnabled && it.useAppCleaner &&
-                it.intervalMinutes == 60L && it.initialDelayMinutes == 5L })
+                it.intervalMinutes == 360L && it.initialDelayMinutes == 360L })
         }
     }
 

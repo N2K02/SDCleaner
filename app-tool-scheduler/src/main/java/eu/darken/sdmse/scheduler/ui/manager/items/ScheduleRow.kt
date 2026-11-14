@@ -195,28 +195,6 @@ internal fun ScheduleRow(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Run now")
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(
-                    onClick = onRemove,
-                    enabled = rowEnabled,
-                ) {
-                    Icon(
-                        Icons.TwoTone.Cancel,
-                        contentDescription = null,
-                        tint = if (rowEnabled) MaterialTheme.colorScheme.error else LocalContentColor.current,
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = stringResource(CommonR.string.general_remove_action),
-                        color = if (rowEnabled) MaterialTheme.colorScheme.error else LocalContentColor.current,
-                    )
-                }
-
-            }
             }
         }
     }

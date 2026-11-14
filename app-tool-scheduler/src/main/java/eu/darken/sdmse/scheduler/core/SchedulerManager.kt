@@ -51,7 +51,16 @@ class SchedulerManager @Inject constructor(
 ) {
 
     private val internalState = DynamicStateFlow(parentScope = appScope + dispatcherProvider.IO) {
-        State(schedules = storage.load() ?: emptySet())
+        val loaded = storage.load().orEmpty()
+        val selected = SingleSchedulePolicy.select(loaded)
+        // Cancel legacy jobs before publishing the normalized state: removed IDs must not keep running.
+        loaded.filter { it.id != selected.id }.forEach {
+            workManager.cancelUniqueWork("worker-schedule-${it.id}").await()
+            workManager.cancelUniqueWork("worker-schedule-manual-${it.id}").await()
+        }
+        val normalized = setOf(selected)
+        if (loaded != normalized) storage.save(normalized)
+        State(schedules = normalized)
     }
     val state: Flow<State> = internalState.flow
     // Serializes all unique-work checks and mutations in this process; without
@@ -325,7 +334,9 @@ class SchedulerManager @Inject constructor(
 
     suspend fun saveSchedule(schedule: Schedule) = internalState.updateBlocking {
         log(TAG) { "saveSchedule(): $schedule" }
-        val newSchedules = this.schedules.filter { it.id != schedule.id }.plus(schedule).toSet()
+        // Ignore obsolete create routes and merged backups containing a different schedule ID.
+        if (schedules.isNotEmpty() && schedules.none { it.id == schedule.id }) return@updateBlocking this
+        val newSchedules = setOf(schedule)
         copy(schedules = newSchedules)
     }
 
@@ -337,7 +348,7 @@ class SchedulerManager @Inject constructor(
      */
     suspend fun setSchedules(schedules: Set<Schedule>) {
         log(TAG, INFO) { "setSchedules(): ${schedules.size} schedules" }
-        internalState.updateBlocking { copy(schedules = schedules) }
+        internalState.updateBlocking { copy(schedules = setOf(SingleSchedulePolicy.select(schedules))) }
     }
 
     suspend fun removeSchedule(scheduleId: ScheduleId) = internalState.updateBlocking {
@@ -350,7 +361,7 @@ class SchedulerManager @Inject constructor(
         }
 
         // The state observer cancels the removed unique work exactly once.
-        copy(schedules = this.schedules.minus(target).toSet())
+        copy(schedules = setOf(SingleSchedulePolicy.defaultSchedule()))
     }
 
     suspend fun updateExecutedNow(id: ScheduleId, manual: Boolean = false) = internalState.updateBlocking {

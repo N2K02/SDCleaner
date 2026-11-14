@@ -287,4 +287,27 @@ class ScheduleItemViewModelTest : BaseTest() {
         advanceUntilIdle()
         vm.state.first().repeatInterval shouldBe Duration.ofDays(21)
     }
+    @Test
+    fun `renaming enabled schedule preserves pending run and commands`() = runTest2 {
+        val enabled = existingSchedule.copy(
+            scheduledAt = java.time.Instant.parse("2026-01-01T00:00:00Z"),
+            intervalMinutes = 240,
+            useSystemCleaner = true,
+            commandsAfterSchedule = listOf("echo cleanup"),
+        )
+        val (vm, manager, _) = harness(initial = setOf(enabled))
+        vm.setScheduleId(enabled.id)
+        advanceUntilIdle()
+        vm.updateLabel("Evening cleanup")
+        vm.saveSchedule()
+        advanceUntilIdle()
+        coVerify(exactly = 1) {
+            manager.saveSchedule(match {
+                it.label == "Evening cleanup" && it.isEnabled &&
+                    it.scheduledAt == enabled.scheduledAt &&
+                    it.commandsAfterSchedule == enabled.commandsAfterSchedule
+            })
+        }
+    }
+
 }

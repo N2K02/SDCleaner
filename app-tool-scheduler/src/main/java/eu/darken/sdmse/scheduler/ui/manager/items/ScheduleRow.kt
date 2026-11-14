@@ -35,6 +35,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
@@ -69,7 +71,8 @@ internal fun ScheduleRow(
     val now = Instant.now()
     val formatter = remember { DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT) }
     val days = schedule.repeatInterval.toDays().toInt()
-    val daysText = if (schedule.runOnce) "Run once after ${schedule.initialDelayMinutes} minutes" else if (schedule.intervalMinutes != null) "Every ${schedule.intervalMinutes} minutes" else pluralStringResource(R.plurals.scheduler_schedule_repeat_x_days, days, days)
+    val intervalText = schedule.intervalMinutes?.let { if (it % 60L == 0L) "Every ${it / 60} hours" else "Every $it minutes" }
+    val daysText = if (schedule.runOnce) "Run once after ${schedule.initialDelayMinutes} minutes" else if (schedule.intervalMinutes != null) intervalText.orEmpty() else pluralStringResource(R.plurals.scheduler_schedule_repeat_x_days, days, days)
     val timeText = "%02d:%02d".format(schedule.hour, schedule.minute)
 
     val nextEtaText: String? = remember(
@@ -121,84 +124,34 @@ internal fun ScheduleRow(
                     )
                     Text(
                         text = if (schedule.intervalMinutes != null) {
-                            if (schedule.runOnce) daysText else "$daysText · First run after ${schedule.initialDelayMinutes} min"
+                            daysText
                         } else stringResource(R.string.scheduler_current_schedule_x_at_x, daysText, timeText),
                         style = MaterialTheme.typography.titleSmall,
                     )
                 }
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = if (isEnabled) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                ) {
-                    Text(
-                        text = when {
-                            isEnabled -> "Enabled"
-                            schedule.runOnce && schedule.executedAt != null -> "Completed"
-                            else -> "Paused"
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                    )
-                }
-            }
-
-            if (expanded && (nextEtaText != null || lastExecutedText != null)) {
-                Spacer(modifier = Modifier.padding(vertical = 8.dp))
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        if (nextEtaText != null) {
-                            ExecutionInfoLine(
-                                icon = Icons.TwoTone.AccessTime,
-                                text = stringResource(R.string.scheduler_schedule_next_at_x, nextEtaText),
-                            )
-                        }
-                        if (lastExecutedText != null) {
-                            if (nextEtaText != null) Spacer(modifier = Modifier.padding(vertical = 2.dp))
-                            ExecutionInfoLine(
-                                icon = Icons.TwoTone.History,
-                                text = stringResource(R.string.scheduler_schedule_last_at_x, lastExecutedText),
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.padding(vertical = 8.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    text = stringResource(
-                        if (isEnabled) R.string.scheduler_schedule_toggle_enabled
-                        else R.string.scheduler_schedule_toggle_disabled,
-                    ),
-                    modifier = Modifier.weight(1f),
+                Switch(
+                    checked = isEnabled,
+                    onCheckedChange = { onToggle() },
+                    modifier = Modifier.semantics { contentDescription = schedule.label.ifBlank { "Schedule" } },
                 )
-                Switch(checked = isEnabled, onCheckedChange = { onToggle() })
             }
-
-            if (isEnabled) {
-                Text(
-                    text = stringResource(R.string.scheduler_schedule_disable_to_edit_hint),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            HorizontalDivider(Modifier.padding(vertical = 12.dp))
+            if (schedule.intervalMinutes != null) {
+                ScheduleDetail("First run delay", "${schedule.initialDelayMinutes} min")
+            }
+            ScheduleDetail("Next run", nextEtaText ?: if (isEnabled) "Pending" else "Paused")
+            if (lastExecutedText != null) ScheduleDetail("Last run", lastExecutedText)
+            OutlinedButton(onClick = onEdit, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                Icon(Icons.TwoTone.Edit, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.scheduler_edit_schedule_action))
             }
 
             TextButton(
                 onClick = { expanded = !expanded },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(if (expanded) "Hide settings" else "Manage schedule")
+                Text(if (expanded) "Hide advanced options" else "Advanced options")
             }
             if (expanded) {
             Spacer(modifier = Modifier.padding(vertical = 4.dp))
@@ -262,14 +215,7 @@ internal fun ScheduleRow(
                         color = if (rowEnabled) MaterialTheme.colorScheme.error else LocalContentColor.current,
                     )
                 }
-                OutlinedButton(
-                    onClick = onEdit,
-                    enabled = rowEnabled,
-                ) {
-                    Icon(Icons.TwoTone.Edit, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.scheduler_edit_schedule_action))
-                }
+
             }
             }
         }
@@ -404,5 +350,15 @@ private fun ScheduleRowEnabledWithCommandsPreview() {
                 onEditCommands = {},
             )
         }
+    }
+}
+
+@Composable
+private fun ScheduleDetail(label: String, value: String) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(label, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyMedium)
+        Text(value, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.End,
+            style = MaterialTheme.typography.bodyMedium)
     }
 }

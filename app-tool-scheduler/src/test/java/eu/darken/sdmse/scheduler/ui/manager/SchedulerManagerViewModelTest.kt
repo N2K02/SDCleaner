@@ -10,9 +10,7 @@ import eu.darken.sdmse.scheduler.core.Schedule
 import eu.darken.sdmse.scheduler.core.SchedulerManager
 import eu.darken.sdmse.scheduler.core.SchedulerRunHistory
 import eu.darken.sdmse.scheduler.core.SchedulerSettings
-import eu.darken.sdmse.main.core.SDMTool
 import eu.darken.sdmse.main.core.taskmanager.TaskSubmitter
-import java.time.Instant
 import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
@@ -85,40 +83,21 @@ class SchedulerManagerViewModelTest : BaseTest() {
     }
 
     @Test
-    fun `scheduler diagnostics reflect running work queued successors and held resource leases`() = runTest2 {
+    fun `scheduler screen does not subscribe to removed diagnostics flows`() = runTest2 {
         val h = harness()
-        h.workStatus.value = listOf(
-            SchedulerManager.WorkSnapshot("test-schedule", "Test", running = 1, pending = 1, lastState = "RUNNING")
-        )
-        val pendingTask = TaskSubmitter.ManagedTask(
-            id = "scheduled-task",
-            toolType = SDMTool.Type.APPCLEANER,
-            task = mockk(),
-            notifyOnFinish = false,
-            resourceHeld = true,
-        )
-        h.taskStatus.value = TaskSubmitter.State(listOf(pendingTask))
         advanceUntilIdle()
-        h.vm.state.first().let { state ->
-            state.work.single().running shouldBe 1
-            state.work.single().pending shouldBe 1
-            state.cleanupActive shouldBe 1
-            state.cleanupLeases shouldBe 1
-        }
+        h.workStatus.subscriptionCount.value shouldBe 0
+        h.taskStatus.subscriptionCount.value shouldBe 0
+        h.vm.state.first().schedules.single().id shouldBe "test-schedule"
 
+        // Background diagnostics changes must not drive the simplified screen.
         h.workStatus.value = listOf(
-            SchedulerManager.WorkSnapshot("test-schedule", "Test", pending = 1, lastState = "ENQUEUED")
-        )
-        h.taskStatus.value = TaskSubmitter.State(
-            listOf(pendingTask.copy(completedAt = Instant.now(), resourceHeld = false))
+            SchedulerManager.WorkSnapshot("test-schedule", "Test", running = 1, pending = 1)
         )
         advanceUntilIdle()
-        h.vm.state.first().let { state ->
-            state.work.single().running shouldBe 0
-            state.work.single().pending shouldBe 1
-            state.cleanupActive shouldBe 0
-            state.cleanupLeases shouldBe 0
-        }
+        h.workStatus.subscriptionCount.value shouldBe 0
+        h.vm.state.first().work shouldBe emptyList()
+        h.vm.state.first().cleanupActive shouldBe 0
     }
 
     @Test
